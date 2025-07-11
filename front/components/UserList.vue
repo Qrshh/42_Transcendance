@@ -1,27 +1,3 @@
-<script setup>
-import { ref, onMounted } from 'vue'
-import axios from 'axios'
-
-const users = ref([])
-const newUsername = ref('')
-
-const fetchUsers = async () => {
-  const res = await axios.get('http://localhost:3000/users')
-  users.value = res.data
-}
-
-const addUser = async () => {
-  if (!newUsername.value) return
-  await axios.post('http://localhost:3000/users', {
-    username: newUsername.value
-  })
-  newUsername.value = ''
-  fetchUsers()
-}
-
-onMounted(fetchUsers)
-</script>
-
 <template>
   <div class="p-6 max-w-md mx-auto">
     <h1 class="text-xl font-bold mb-4">Utilisateurs</h1>
@@ -41,3 +17,28 @@ onMounted(fetchUsers)
     </button>
   </div>
 </template>
+
+<script setup>
+  // Sert a add un joueur dans la db et lister la liste des joueurs
+  import { ref, onMounted } from 'vue'
+  import axios from 'axios'
+  
+  const users = ref([])
+  const newUsername = ref('')
+  
+  const fetchUsers = async () => {
+    const res = await axios.get('http://localhost:3000/users')
+    users.value = res.data
+  }
+  
+  const addUser = async () => {
+    if (!newUsername.value) return
+    await axios.post('http://localhost:3000/users', {
+      username: newUsername.value
+    })
+    newUsername.value = ''
+    fetchUsers()
+  }
+  
+  onMounted(fetchUsers)
+</script>
