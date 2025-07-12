@@ -18,7 +18,7 @@ const router = createRouter({
     {
       path: '/about',
       name: 'about',
-      component: () => import('../views/AboutView.vue'),
+      component: () => import('../views/LoginView.vue'),
 
       //Ce fichier est la pour vous montrer qu'il existe
       //deux moyens d'implementer un componant

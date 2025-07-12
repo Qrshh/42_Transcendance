@@ -2,6 +2,7 @@ const Fastify   = require('fastify');
 const { Server } = require("socket.io");
 const cors      = require('@fastify/cors');
 const sqlite3   = require('sqlite3').verbose();
+const bcrypt 	= require('bcrypt');
 
 const fastify = Fastify();
 fastify.register(cors, { origin: '*' });
@@ -14,7 +15,9 @@ const db = new sqlite3.Database('./data.db', err => {
 db.run(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT NOT NULL UNIQUE
+    username TEXT NOT NULL UNIQUE,
+	email TEXT NOT NULL UNIQUE,
+	password_hash TEXT NOT NULL
   )
 `);
 
@@ -31,6 +34,39 @@ fastify.post('/users', async (req, reply) => {
     if (err) return reply.code(500).send({ error: err.message });
     reply.send({ id: this.lastID, username });
   });
+});
+
+
+//POST pour le register
+fastify.post('/register', async (req, reply) => {
+  const { username, email, password } = req.body
+  console.log('Tentative de création:', username, email)
+  const hash = await bcrypt.hash(password, 10)
+
+  db.run(
+    'INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)',
+    [username, email, hash],
+    function (err) {
+      if (err) {
+		  console.error('❌ Erreur INSERT :', err.message)
+		return reply.code(400).send({ error: err.message })}
+	console.log('✅ Utilisateur créé avec ID :', this.lastID)
+      reply.send({ message: 'Utilisateur créé', id: this.lastID })
+    }
+  )
+})
+
+//Post pour le login 
+fastify.post('/login', async (req, reply) => {
+	const {username} = req.body;
+
+	db.get('SELECT * FROM users WHERE username = ?', [username], (err, row) => {
+		if(err) return reply.code(500).send({error: err.message});
+
+		if(!row) return reply.code(401).send({message: 'Utilisateur inconnu'});
+
+		reply.send({message: 'Connexion reussie', username: row.username});
+	});
 });
 
 // Lancement HTTP + WebSocket

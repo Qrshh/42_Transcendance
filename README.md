@@ -57,6 +57,11 @@ pour install axios(back)
 npm install axios
 ```
 
+pour installer Bcrypt(hash de mots de passes)
+```sh
+npm install bcrypt
+```
+
 pour install tailwindcss(dans le dossier front)
 
 ```sh

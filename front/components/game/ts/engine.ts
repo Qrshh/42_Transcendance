@@ -35,6 +35,8 @@ function resetBall(ball: Ball): void {
 export function updateGame(state: GameState): void {
   const { ball, paddles, score } = state
 
+  if(state.gameOver) return ;
+
   Object.values(paddles).forEach(p => {
     p.y = Math.max(0, Math.min(CANVAS_HEIGHT - p.height, p.y + p.vy))
   })
@@ -52,9 +54,17 @@ export function updateGame(state: GameState): void {
 
   if (ball.x - ball.radius < 0) {
     score.player2++
-    resetBall(ball)
+	if(score.player2 >= 5){
+		state.gameOver = true
+		state.winner = 'player 2'
+	} else 
+    	resetBall(ball)
   } else if (ball.x + ball.radius > CANVAS_WIDTH) {
     score.player1++
-    resetBall(ball)
+	if(score.player1 >= 5){
+		state.gameOver = true
+		state.winner = 'player 1'
+	} else 
+    	resetBall(ball)
   }
 }
