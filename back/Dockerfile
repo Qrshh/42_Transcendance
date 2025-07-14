@@ -1,5 +1,5 @@
 # Backend Dockerfile
-FROM node:20-alpine
+FROM node:20-bookworm
 
 WORKDIR /app
 
@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Installer les dependances backend
-RUN npm install fastify @fastify/cors sqlite3 bycrypt axios
+RUN npm install fastify @fastify/cors sqlite3 bcrypt axios
 
 # Copier le code source
 COPY . .
