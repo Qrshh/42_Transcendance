@@ -7,6 +7,7 @@ export default {
 	logout: "Logout",
 	login: "Login",
 	register: "Register",
+	users: "Users",
 	usernamePlaceholder: "Username",
 	emailPlaceholder: "Email",
 	passwordPlaceholder: "Password",

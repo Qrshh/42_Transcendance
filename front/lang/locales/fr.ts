@@ -7,6 +7,7 @@ export default {
 	logout: "Déconnexion",
 	login: "Connexion",
 	register: "Inscription",
+	users: "Utilisateurs",
 	usernamePlaceholder: "Nom d'utilisateur",
 	emailPlaceholder: "Email",
 	passwordPlaceholder: "Mot de passe",
