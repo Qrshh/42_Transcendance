@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from './composables/useI18n'
-const { t, setLang, onLangChange } = useI18n()
+const { t, onLangChange } = useI18n()
 
 import { RouterLink, RouterView } from 'vue-router'
 </script>

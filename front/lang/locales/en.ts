@@ -15,5 +15,7 @@ export default {
 	registerBtn: "Create an account",
 	switchToRegister: "No account? Register",
 	switchToLogin: "Already have an account? Log in",
+	createRoom: "Create Room",
+	joinRoom: "Join Room",
 }
 

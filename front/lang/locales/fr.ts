@@ -15,4 +15,6 @@ export default {
 	registerBtn: "Créer un compte",
 	switchToRegister: "Pas de compte ? S'inscrire",
 	switchToLogin: "Déjà un compte ? Se connecter",
+	createRoom: "Creer une partie",
+	joinRoom: "Rejoindre une partie",
 }
