@@ -1,0 +1,17 @@
+export default {
+	welcome: "Bienvenido",
+	play: "Jugar",
+	home: "Inicio",
+	loginRegister: "Iniciar sesión / Registrarse",
+	settings: "Configuración",
+	logout: "Cerrar sesión",
+	login: "Iniciar sesión",
+	register: "Registrarse",
+	usernamePlaceholder: "Nombre de usuario",
+	emailPlaceholder: "Correo electrónico",
+	passwordPlaceholder: "Contraseña",
+	loginBtn: "Iniciar sesión",
+	registerBtn: "Crear una cuenta",
+	switchToRegister: "¿No tienes cuenta? Regístrate",
+	switchToLogin: "¿Ya tienes una cuenta? Inicia sesión",
+}
