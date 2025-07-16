@@ -50,7 +50,7 @@ const handleLogin = async () => {
       password: password.value,
     })
     localStorage.setItem('username', res.data.username)
-    router.push('/game')
+    router.push('/')
   } catch (err: any) {
     error.value = err.response?.data?.message || 'Erreur de connexion'
   }

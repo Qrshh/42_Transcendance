@@ -3,6 +3,8 @@ import { useI18n } from './composables/useI18n'
 const { t, onLangChange } = useI18n()
 
 import { RouterLink, RouterView } from 'vue-router'
+const username = localStorage.getItem('username')
+
 </script>
 
 <template>
