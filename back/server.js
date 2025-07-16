@@ -65,14 +65,15 @@ fastify.post('/login', async (req, reply) => {
 
   // Wrap dans une Promise pour attendre le résultat
   const user = await new Promise((resolve, reject) => {
-    db.get('SELECT * FROM users WHERE email = ?', [email], (err, row) => {
+    db.get('SELECT * FROM users WHERE email = ? OR username = ?', [email, email], //deux fois la meme variable car c'est sur le meme champ qu'on utilise
+		 (err, row) => {
       if (err) return reject(err);
       resolve(row);
     });
   });
 
   if (!user) {
-    return reply.code(401).send({ message: 'Email inconnu' });
+    return reply.code(401).send({ message: 'Email ou username inconnu' });
   }
 
   const match = await bcrypt.compare(password, user.password_hash);
