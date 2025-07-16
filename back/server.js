@@ -52,22 +52,39 @@ fastify.post('/register', async (req, reply) => {
 		return reply.code(400).send({ error: err.message })}
 	console.log('✅ Utilisateur créé avec ID :', this.lastID)
       reply.send({ message: 'Utilisateur créé', id: this.lastID })
-    }
-  )
-})
+    });
+});
 
 //Post pour le login 
 fastify.post('/login', async (req, reply) => {
-	const {username} = req.body;
+  const { email, password } = req.body;
 
-	db.get('SELECT * FROM users WHERE username = ?', [username], (err, row) => {
-		if(err) return reply.code(500).send({error: err.message});
+  if (!email || !password) {
+    return reply.code(400).send({ error: 'Email et mot de passe requis' });
+  }
 
-		if(!row) return reply.code(401).send({message: 'Utilisateur inconnu'});
+  // Wrap dans une Promise pour attendre le résultat
+  const user = await new Promise((resolve, reject) => {
+    db.get('SELECT * FROM users WHERE email = ?', [email], (err, row) => {
+      if (err) return reject(err);
+      resolve(row);
+    });
+  });
 
-		reply.send({message: 'Connexion reussie', username: row.username});
-	});
+  if (!user) {
+    return reply.code(401).send({ message: 'Email inconnu' });
+  }
+
+  const match = await bcrypt.compare(password, user.password_hash);
+  if (!match) {
+    return reply.code(401).send({ message: 'Mot de passe incorrect' });
+  }
+
+  return reply.send({ message: 'Connexion réussie', username: user.username });
 });
+
+
+
 
 // Lancement HTTP + WebSocket
 fastify.listen({ port: 3000, host: '0.0.0.0'}, (err, address) => {
