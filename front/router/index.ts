@@ -14,7 +14,7 @@ const routes = [
     path: '/game',
     name: 'game',
     component: GameView,
-    meta: { requiresAuth: true }, // Protégé → nécessite d’être connecté
+    meta: { requiresAuth: false }, // Protégé → nécessite d’être connecté
   },
   {
     path: '/profile',
