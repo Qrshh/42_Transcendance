@@ -17,4 +17,10 @@ export default {
 	switchToLogin: "Déjà un compte ? Se connecter",
 	createRoom: "Creer une partie",
 	joinRoom: "Rejoindre une partie",
+	profile: "Profil",
+	username: "Nom d'utilisateur",
+	profileWelcome: "Bienvenue sur ton profil !",
+	email : "Adresse Electronique",
+	lastLogin: "Dernière connexion ",
+	logoutBtn: "Déconnexion",
 }

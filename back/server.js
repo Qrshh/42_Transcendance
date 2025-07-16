@@ -3,9 +3,14 @@ const { Server } = require("socket.io");
 const cors      = require('@fastify/cors');
 const sqlite3   = require('sqlite3').verbose();
 const bcrypt 	= require('bcrypt');
+const fastifyStatic = require('@fastify/static');
+const path = require('path');
 
 const fastify = Fastify();
-fastify.register(cors, { origin: '*' });
+fastify.register(cors, { 
+	origin: '*',
+	methods: ['GET', 'POST', 'PUT', 'OPTIONS']
+ });
 
 // Base de données SQLite
 const db = new sqlite3.Database('./data.db', err => {
@@ -17,7 +22,8 @@ db.run(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
 	email TEXT NOT NULL UNIQUE,
-	password_hash TEXT NOT NULL
+	password_hash TEXT NOT NULL,
+	avatar TEXT DEFAULT '/avatars/default.png'
   )
 `);
 
@@ -37,7 +43,24 @@ fastify.post('/users', async (req, reply) => {
 });
 
 
-//POST pour le register
+//REGISTER && GESTION DES AVATARS
+
+fastify.register(fastifyStatic, {
+	root: path.join(__dirname, 'avatars'),
+	prefix: '/avatars/',
+});
+
+fastify.put('/user/avatar', async (req, reply) => {
+  const { username, avatar } = req.body;
+  if (!username || !avatar) return reply.code(400).send({ error: 'Données manquantes' });
+
+  db.run('UPDATE users SET avatar = ? WHERE username = ?', [avatar, username], function(err) {
+    if (err) return reply.code(500).send({ error: err.message });
+    reply.send({ message: 'Avatar mis à jour' });
+  });
+});
+
+
 fastify.post('/register', async (req, reply) => {
   const { username, email, password } = req.body
   console.log('Tentative de création:', username, email)
@@ -81,7 +104,7 @@ fastify.post('/login', async (req, reply) => {
     return reply.code(401).send({ message: 'Mot de passe incorrect' });
   }
 
-  return reply.send({ message: 'Connexion réussie', username: user.username });
+  return reply.send({ message: 'Connexion réussie', username: user.username, email: user.email, avatar: user.avatar || '/avatars/default.png'});
 });
 
 

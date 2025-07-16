@@ -17,5 +17,11 @@ export default {
 	switchToLogin: "Already have an account? Log in",
 	createRoom: "Create Room",
 	joinRoom: "Join Room",
+	profile: "Profile",
+	username: "Username",
+	profileWelcome: "Welcome to your profile!",
+	email: "Email",
+	lastLogin: "Last login",
+	logoutBtn: "Logout"
 }
 

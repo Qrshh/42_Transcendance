@@ -20,6 +20,7 @@
 </template>
 
 <script setup lang="ts">
+import { login } from '../stores/auth'
 import { ref } from 'vue'
 import { useI18n } from '../composables/useI18n'
 import { useRouter } from 'vue-router'
@@ -49,7 +50,7 @@ const handleLogin = async () => {
       email: email.value,
       password: password.value,
     })
-    localStorage.setItem('username', res.data.username)
+    login(res.data.username, res.data.email, res.data.avatar)
     router.push('/')
   } catch (err: any) {
     error.value = err.response?.data?.message || 'Erreur de connexion'

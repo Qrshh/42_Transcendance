@@ -17,4 +17,10 @@ export default {
 	switchToLogin: "¿Ya tienes una cuenta? Inicia sesión",
 	createRoom: "Crear un juego",
 	joinRoom: "Unete a un juego",
+	profile: "Perfil",
+	username: "Nombre de usuario",
+	profileWelcome: "¡Bienvenido a tu perfil!",
+	email: "Correo electrónico",
+	lastLogin: "Última conexión",
+	logoutBtn: "Cerrar sesión"
 }
