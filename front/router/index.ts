@@ -3,7 +3,7 @@ import HomeView from '../views/HomeView.vue'
 import GameView from '../views/GameView.vue'
 import ProfileView from '../views/ProfileView.vue'
 import LoginView from '../views/LoginView.vue'
-import MessagesView from '../views/MessagesView.vue'
+import SocialView from '../views/social/SocialView.vue'
 
 const routes = [
   {
@@ -30,9 +30,9 @@ const routes = [
     meta: { guestOnly: true }, // Accessible uniquement si NON connecté
   },
   {
-	path: '/messages',
-	name: 'messages',
-	component: MessagesView,
+	path: '/social',
+	name: 'social',
+	component: SocialView,
 	meta: {requiresAuth: true},
   }
 ]

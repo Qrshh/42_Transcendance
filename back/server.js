@@ -54,6 +54,17 @@ db.run(`
 	)
 `);
 
+db.run(`
+	CREATE TABLE IF NOT EXISTS friends (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	user1 TEXT NOT NULL,
+	user2 TEXT NOT NULL,
+	status TEXT NOT NULL CHECK(status IN ('pending', 'accepted', 'rejected')),
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE(user1, user2)
+	)
+`)
+
 // GESTION DU CHAT 
 
 fastify.post('/chat/message', async (req, reply) => {
@@ -101,6 +112,81 @@ fastify.post('/chat/block', async (req, reply) => {
 
   reply.send({ success: true })
 })
+
+
+// GESTION DES AJOUTS d'AMIS
+//envoyer une demande d'ami
+fastify.post('/friends/request', async (req, reply) => {
+  const { from, to } = req.body;
+
+  if (from === to) {
+    return reply.status(400).send({ error: "Tu ne peux pas t'ajouter toi-même." });
+  }
+
+  // Vérifier s’il n’y a pas déjà une relation (pendante ou acceptée)
+  const exists = await dbGet(
+    `SELECT 1 FROM friends WHERE 
+    (user1 = ? AND user2 = ?) OR (user1 = ? AND user2 = ?)`,
+    [from, to, to, from]
+  );
+  if (exists) {
+    return reply.status(400).send({ error: "Une relation existe déjà." });
+  }
+
+  await dbRun(
+    'INSERT INTO friends (user1, user2, status) VALUES (?, ?, ?)',
+    [from, to, 'pending']
+  );
+
+  reply.send({ success: true, message: 'Demande envoyée.' });
+});
+
+//voir les demandes en attente
+fastify.get('/friends/requests/:username', async (req, reply) => {
+  const { username } = req.params;
+
+  const requests = await dbAll(
+    'SELECT user1 AS fromUser FROM friends WHERE user2 = ? AND status = ?',
+    [username, 'pending']
+  );
+
+  reply.send(requests);
+});
+
+//accepter ou refuser les demandes
+fastify.post('/friends/respond', async (req, reply) => {
+  const { from, to, accept } = req.body; // accept = true/false
+
+  if (accept) {
+    await dbRun(
+      `UPDATE friends SET status = 'accepted' WHERE user1 = ? AND user2 = ?`,
+      [from, to]
+    );
+  } else {
+    await dbRun(
+      `UPDATE friends SET status = 'rejected' WHERE user1 = ? AND user2 = ?`,
+      [from, to]
+    );
+  }
+
+  reply.send({ success: true });
+});
+
+//liste d'amis 
+fastify.get('/friends/:username', async (req, reply) => {
+  const { username } = req.params;
+
+  const friends = await dbAll(
+    `SELECT CASE WHEN user1 = ? THEN user2 ELSE user1 END AS friend
+     FROM friends 
+     WHERE (user1 = ? OR user2 = ?) AND status = 'accepted'`,
+    [username, username, username]
+  );
+
+  reply.send(friends);
+});
+
+
 
 
 // Post et Get User pour send la liste des user, et inserer des users
