@@ -22,6 +22,7 @@ export default {
 	profileWelcome: "Welcome to your profile!",
 	email: "Email",
 	lastLogin: "Last login",
-	logoutBtn: "Logout"
+	logoutBtn: "Logout",
+	messages: "Messages"
 }
 

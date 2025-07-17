@@ -22,5 +22,6 @@ export default {
 	profileWelcome: "¡Bienvenido a tu perfil!",
 	email: "Correo electrónico",
 	lastLogin: "Última conexión",
-	logoutBtn: "Cerrar sesión"
+	logoutBtn: "Cerrar sesión",
+	messages: "Mensajes"
 }

@@ -27,6 +27,7 @@ onMounted(() => {
         <RouterLink to="/">{{ t.home }}</RouterLink>
 		<RouterLink v-if="isLoggedIn" to="/profile"> {{ t.profile }}</RouterLink>
         <RouterLink v-else to="/about">{{ t.loginRegister }}</RouterLink>
+		<RouterLink v-if="isLoggedIn" to="/messages"> {{ t.messages }}</RouterLink>
         <RouterLink to="/game">{{ t.play }}</RouterLink>
       </nav>
     </div>

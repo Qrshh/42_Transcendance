@@ -3,6 +3,7 @@ import HomeView from '../views/HomeView.vue'
 import GameView from '../views/GameView.vue'
 import ProfileView from '../views/ProfileView.vue'
 import LoginView from '../views/LoginView.vue'
+import MessagesView from '../views/MessagesView.vue'
 
 const routes = [
   {
@@ -28,6 +29,12 @@ const routes = [
     component: LoginView,
     meta: { guestOnly: true }, // Accessible uniquement si NON connecté
   },
+  {
+	path: '/messages',
+	name: 'messages',
+	component: MessagesView,
+	meta: {requiresAuth: true},
+  }
 ]
 
 const router = createRouter({

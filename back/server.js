@@ -5,18 +5,27 @@ const sqlite3   = require('sqlite3').verbose();
 const bcrypt 	= require('bcrypt');
 const fastifyStatic = require('@fastify/static');
 const path = require('path');
+const {promisify} = require('util')
+
+
 
 const fastify = Fastify();
 fastify.register(cors, { 
 	origin: '*',
 	methods: ['GET', 'POST', 'PUT', 'OPTIONS']
- });
+});
 
 // Base de données SQLite
 const db = new sqlite3.Database('./data.db', err => {
-  if (err) console.error('Erreur DB:', err.message);
-  else        console.log('Connecté à SQLite');
+	if (err) console.error('Erreur DB:', err.message);
+	else        console.log('Connecté à SQLite');
 });
+
+// Crée des fonctions promises
+const dbGet = promisify(db.get).bind(db)
+const dbRun = promisify(db.run).bind(db)
+const dbAll = promisify(db.all).bind(db)
+
 db.run(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,6 +35,73 @@ db.run(`
 	avatar TEXT DEFAULT '/avatars/default.png'
   )
 `);
+
+db.run(`
+	CREATE TABLE IF NOT EXISTS messages (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	sender TEXT NOT NULL,
+	receiver TEXT NOT NULL,
+	content TEXT NOT NULL,
+	timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+	)
+`);
+
+db.run(`
+	CREATE TABLE IF NOT EXISTS blocked_users (
+	blocker TEXT NOT NULL,
+	blocked TEXT NOT NULL,
+	UNIQUE(blocker, blocked)
+	)
+`);
+
+// GESTION DU CHAT 
+
+fastify.post('/chat/message', async (req, reply) => {
+  const { sender, receiver, content } = req.body
+
+  // vérifie si le receiver a bloqué le sender
+  const blocked = await dbGet(
+    'SELECT 1 FROM blocked_users WHERE blocker = ? AND blocked = ?',
+    [receiver, sender]
+  )
+
+  if (blocked) {
+    return reply.status(403).send({ error: 'Blocked by user' })
+  }
+
+  await dbRun(
+    'INSERT INTO messages (sender, receiver, content) VALUES (?, ?, ?)',
+    [sender, receiver, content]
+  )
+
+  reply.send({ success: true })
+})
+
+
+fastify.get('/chat/message/:userA/:userB', async (req, reply) => {
+  const { userA, userB } = req.params
+
+  const messages = await dbAll(
+    `SELECT * FROM messages
+     WHERE (sender = ? AND receiver = ?) OR (sender = ? AND receiver = ?)
+     ORDER BY timestamp ASC`,
+    [userA, userB, userB, userA]
+  )
+
+  reply.send(messages)
+})
+
+fastify.post('/chat/block', async (req, reply) => {
+  const { blocker, blocked } = req.body
+
+  await dbRun(
+    `INSERT OR IGNORE INTO blocked_users (blocker, blocked) VALUES (?, ?)`,
+    [blocker, blocked]
+  )
+
+  reply.send({ success: true })
+})
+
 
 // Post et Get User pour send la liste des user, et inserer des users
 fastify.get('/users', (req, reply) => {

@@ -10,35 +10,43 @@ const router = useRouter()
 
 const username = localStorage.getItem('username') || 'Invité'
 const email = localStorage.getItem('email') || 'inconnu@exemple.com'
+
+// Avatar actuellement enregistré
 const avatar = ref(localStorage.getItem('avatar') || '/avatars/default.png')
 
-// Liste d’avatars prédéfinis — adapte selon ce que tu as dans /avatars
+// Liste d’avatars disponibles
 const avatars = [
   '/avatars/default.png',
   '/avatars/avatar2.png',
 ]
 
+// Avatar actuellement sélectionné (aperçu non sauvegardé)
 const selectedAvatar = ref(avatar.value)
 
+// Déconnexion
 const handleLogout = () => {
   logout()
   router.push('/about')
 }
 
+// Sauvegarde réelle (envoie au backend + localStorage)
 const saveAvatar = async () => {
   try {
     await axios.put('http://localhost:3000/user/avatar', {
       username,
       avatar: selectedAvatar.value,
     })
+
     avatar.value = selectedAvatar.value
     localStorage.setItem('avatar', avatar.value)
     alert(t.avatarUpdated || 'Avatar mis à jour !')
   } catch (e) {
+    console.error(e)
     alert(t.avatarUpdateError || 'Erreur lors de la mise à jour de l\'avatar.')
   }
 }
 </script>
+
 
 <template>
   <div class="p-6 max-w-lg mx-auto mt-12 bg-white rounded-2xl shadow-lg space-y-6">
