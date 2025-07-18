@@ -65,7 +65,7 @@ db.run(`
 	)
 `)
 
-// GESTION DU CHAT 
+// GESTION DU CHAT (toujours utile pour l'historique)
 
 fastify.post('/chat/message', async (req, reply) => {
   const { sender, receiver, content } = req.body
@@ -123,7 +123,7 @@ fastify.post('/friends/request', async (req, reply) => {
     return reply.status(400).send({ error: "Tu ne peux pas t'ajouter toi-même." });
   }
 
-  // Vérifier s’il n’y a pas déjà une relation (pendante ou acceptée)
+  // Vérifier s'il n'y a pas déjà une relation (pendante ou acceptée)
   const exists = await dbGet(
     `SELECT 1 FROM friends WHERE 
     (user1 = ? AND user2 = ?) OR (user1 = ? AND user2 = ?)`,
@@ -289,6 +289,11 @@ fastify.listen({ port: 3000, host: '0.0.0.0'}, (err, address) => {
   console.log('⚡️ Serveur WebSocket prêt.');
 
   // ===============================================================
+  // GESTION DES UTILISATEURS CONNECTÉS POUR LE CHAT
+  // ===============================================================
+  const connectedUsers = new Map(); // socketId -> username
+
+  // ===============================================================
   // LOGIQUE DU JEU CÔTÉ SERVEUR: Qui servira pour le mode online
   // ===============================================================
   const W = 600, H = 400;
@@ -385,6 +390,88 @@ fastify.listen({ port: 3000, host: '0.0.0.0'}, (err, address) => {
   io.on('connection', socket => {
     console.log(`🔗 Client connecté: ${socket.id}`);
 
+    // ===============================================================
+    // ÉVÉNEMENTS CHAT
+    // ===============================================================
+    
+    // Identification de l'utilisateur
+    socket.on('identify', (username) => {
+      connectedUsers.set(socket.id, username);
+      console.log(`👤 ${username} s'est identifié (${socket.id})`);
+      
+      // Notifier tous les utilisateurs de la connexion
+      socket.broadcast.emit('userConnected', username);
+    });
+
+    // Envoi de message en temps réel
+    socket.on('sendMessage', async (data) => {
+      const { sender, receiver, content } = data;
+      
+      // Vérifier si le receiver a bloqué le sender
+      const blocked = await dbGet(
+        'SELECT 1 FROM blocked_users WHERE blocker = ? AND blocked = ?',
+        [receiver, sender]
+      );
+
+      if (blocked) {
+        socket.emit('messageError', { error: 'Vous avez été bloqué par cet utilisateur' });
+        return;
+      }
+
+      // Sauvegarder en base
+      await dbRun(
+        'INSERT INTO messages (sender, receiver, content) VALUES (?, ?, ?)',
+        [sender, receiver, content]
+      );
+
+      // Envoyer le message au destinataire s'il est connecté
+      const receiverSocketId = [...connectedUsers.entries()]
+        .find(([_, username]) => username === receiver)?.[0];
+      
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit('newMessage', {
+          sender,
+          receiver,
+          content,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Confirmer l'envoi à l'expéditeur
+      socket.emit('messageSent', {
+        sender,
+        receiver,
+        content,
+        timestamp: new Date().toISOString()
+      });
+    });
+
+    // Notification de frappe
+    socket.on('typing', (data) => {
+      const { sender, receiver } = data;
+      const receiverSocketId = [...connectedUsers.entries()]
+        .find(([_, username]) => username === receiver)?.[0];
+      
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit('userTyping', { sender });
+      }
+    });
+
+    // Arrêt de frappe
+    socket.on('stopTyping', (data) => {
+      const { sender, receiver } = data;
+      const receiverSocketId = [...connectedUsers.entries()]
+        .find(([_, username]) => username === receiver)?.[0];
+      
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit('userStoppedTyping', { sender });
+      }
+    });
+
+    // ===============================================================
+    // ÉVÉNEMENTS JEU (code existant)
+    // ===============================================================
+
     // Attribution des joueurs
     if (!gameState.players.p1) {
       gameState.players.p1 = socket.id;
@@ -415,6 +502,15 @@ fastify.listen({ port: 3000, host: '0.0.0.0'}, (err, address) => {
 
     socket.on('disconnect', () => {
       console.log(`❌ Déconnexion: ${socket.id}`);
+      
+      // Retirer de la liste des utilisateurs connectés
+      const username = connectedUsers.get(socket.id);
+      if (username) {
+        connectedUsers.delete(socket.id);
+        socket.broadcast.emit('userDisconnected', username);
+      }
+      
+      // Gestion du jeu
       stopGame();
       if (socket.id === gameState.players.p1) gameState.players.p1 = null;
       if (socket.id === gameState.players.p2) gameState.players.p2 = null;
