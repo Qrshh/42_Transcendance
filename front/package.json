@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@fastify/cors": "^11.0.1",
+    "@types/three": "^0.178.1",
     "axios": "^1.10.0",
     "bcrypt": "^6.0.0",
     "fastify": "^5.4.0",
@@ -19,6 +20,7 @@
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "sqlite3": "^5.1.7",
+    "three": "^0.178.0",
     "vue": "^3.5.17",
     "vue-router": "^4.5.1"
   },
