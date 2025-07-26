@@ -20,7 +20,7 @@
     />
 
     <RemoteGame
-      v-if="mode === 'remote'"
+      v-if="mode === 'remote'"	
       :socket="socket"
       :roomId="roomId"
       class="game-container"

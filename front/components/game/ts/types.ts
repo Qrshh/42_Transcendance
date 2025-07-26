@@ -22,4 +22,7 @@ export interface GameState {
     p2: Paddle;
   };
   score: Score;
+
+  gameOver: boolean;
+  winner: 'player 1' | 'player 2' | null;
 }

@@ -1,6 +1,6 @@
 <template>
   <div class="p-6 max-w-md mx-auto">
-    <h1 class="text-xl font-bold mb-4">Utilisateurs</h1>
+    <h1 class="text-xl font-bold mb-4"> {{ t.users }}</h1>
     <ul class="mb-4">
       <li v-for="user in users" :key="user.id" class="mb-1">
         {{ user.username }}
@@ -9,7 +9,7 @@
     <input
       v-model="newUsername"
       type="text"
-      placeholder="Nom d'utilisateur"
+      :placeholder= "t.usernamePlaceholder"
       class="border px-2 py-1 mr-2"
     />
     <button @click="addUser" class="bg-blue-500 text-white px-4 py-1 rounded">
@@ -21,6 +21,8 @@
 <script setup>
   // Sert a add un joueur dans la db et lister la liste des joueurs
   import { ref, onMounted } from 'vue'
+  import { useI18n } from '../composables/useI18n'
+const { t, setLang, onLangChange } = useI18n()
   import axios from 'axios'
   
   const users = ref([])
