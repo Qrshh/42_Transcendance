@@ -23,6 +23,28 @@ const avatars = [
 // Avatar actuellement sélectionné (aperçu non sauvegardé)
 const selectedAvatar = ref(avatar.value)
 
+
+//gestion du changement de mail ou de mot de passe
+const newEmail = ref(email)
+const newPassword = ref('')
+
+const updateUserInfo = async () => {
+  try {
+    await axios.put('http://localhost:3000/user/update', {
+      username,
+      email: newEmail.value,
+      password: newPassword.value,
+    })
+
+    localStorage.setItem('email', newEmail.value)
+    alert('Informations mises à jour !')
+  } catch (err) {
+    console.error(err)
+    alert('Erreur lors de la mise à jour.')
+  }
+}
+
+
 // Déconnexion
 const handleLogout = () => {
   logout()
@@ -83,7 +105,30 @@ const saveAvatar = async () => {
         {{ t.saveAvatarBtn || 'Save Avatar' }}
       </button>
     </div>
+	<div class="space-y-4">
+		<label class="block font-semibold">Mettre à jour l'email</label>
+		<input
+			v-model="newEmail"
+			type="email"
+			placeholder="Nouvel email"
+			class="w-full p-2 border rounded"
+		/>
 
+		<label class="block font-semibold">Changer le mot de passe</label>
+		<input
+			v-model="newPassword"
+			type="password"
+			placeholder="Nouveau mot de passe"
+			class="w-full p-2 border rounded"
+		/>
+
+		<button
+			@click="updateUserInfo"
+			class="w-full px-6 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition"
+		>
+			Enregistrer les modifications
+		</button>
+	</div>
     <div class="text-center">
       <button
         @click="handleLogout"

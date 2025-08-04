@@ -204,6 +204,31 @@ fastify.post('/users', async (req, reply) => {
   });
 });
 
+//GESTION POUR UPDATE MAIL && MOT DE PASSE
+fastify.put('/user/update', async (req, reply) => {
+	const {username, email, password } = req.body
+
+	if(!username || !email)
+		return reply.code(400).send({ error: 'Champs manquants '})
+
+	const updates = ['email = ?']
+	const values = [email]
+
+	if(password){
+		const hash = await bcrypt.hash(password, 10)
+		updates.push('password_hash = ?')
+		values.push(hash)
+	}
+
+	values.push(username)
+
+	await dbRun(
+		`UPDATE users SET ${updates.join(', ')} WHERE username = ?`, values
+	)
+
+	reply.send({ success: true})
+})
+
 
 //REGISTER && GESTION DES AVATARS
 
