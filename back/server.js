@@ -2,10 +2,10 @@ const Fastify   = require('fastify');
 const { Server } = require("socket.io");
 const cors      = require('@fastify/cors');
 const sqlite3   = require('sqlite3').verbose();
-const bcrypt 	= require('bcrypt');
 const fastifyStatic = require('@fastify/static');
 const path = require('path');
 const {promisify} = require('util')
+const { hashPassword, verifyPassword } = require('./utils/hash')
 
 
 
@@ -32,6 +32,7 @@ db.run(`
     username TEXT NOT NULL UNIQUE,
 	email TEXT NOT NULL UNIQUE,
 	password_hash TEXT NOT NULL,
+	salt TEXT NOT NULL,
 	avatar TEXT DEFAULT '/avatars/default.png'
   )
 `);
@@ -206,28 +207,30 @@ fastify.post('/users', async (req, reply) => {
 
 //GESTION POUR UPDATE MAIL && MOT DE PASSE
 fastify.put('/user/update', async (req, reply) => {
-	const {username, email, password } = req.body
+  const { username, email, password } = req.body
 
-	if(!username || !email)
-		return reply.code(400).send({ error: 'Champs manquants '})
+  if (!username || !email)
+    return reply.code(400).send({ error: 'Champs manquants' })
 
-	const updates = ['email = ?']
-	const values = [email]
+  const updates = ['email = ?']
+  const values = [email]
 
-	if(password){
-		const hash = await bcrypt.hash(password, 10)
-		updates.push('password_hash = ?')
-		values.push(hash)
-	}
+  if (password) {
+    const { hash, salt } = hashPassword(password)
+    updates.push('password_hash = ?', 'salt = ?')
+    values.push(hash, salt)
+  }
 
-	values.push(username)
+  values.push(username)
 
-	await dbRun(
-		`UPDATE users SET ${updates.join(', ')} WHERE username = ?`, values
-	)
+  await dbRun(
+    `UPDATE users SET ${updates.join(', ')} WHERE username = ?`,
+    values
+  )
 
-	reply.send({ success: true})
+  reply.send({ success: true })
 })
+
 
 
 //REGISTER && GESTION DES AVATARS
@@ -251,19 +254,22 @@ fastify.put('/user/avatar', async (req, reply) => {
 fastify.post('/register', async (req, reply) => {
   const { username, email, password } = req.body
   console.log('Tentative de création:', username, email)
-  const hash = await bcrypt.hash(password, 10)
+
+  const { hash, salt } = hashPassword(password)
 
   db.run(
-    'INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)',
-    [username, email, hash],
+    'INSERT INTO users (username, email, password_hash, salt) VALUES (?, ?, ?, ?)',
+    [username, email, hash, salt],
     function (err) {
       if (err) {
-		  console.error('❌ Erreur INSERT :', err.message)
-		return reply.code(400).send({ error: err.message })}
-	console.log('✅ Utilisateur créé avec ID :', this.lastID)
+        console.error('❌ Erreur INSERT :', err.message)
+        return reply.code(400).send({ error: err.message })
+      }
+      console.log('✅ Utilisateur créé avec ID :', this.lastID)
       reply.send({ message: 'Utilisateur créé', id: this.lastID })
-    });
-});
+    }
+  )
+})
 
 //Post pour le login 
 fastify.post('/login', async (req, reply) => {
@@ -273,10 +279,8 @@ fastify.post('/login', async (req, reply) => {
     return reply.code(400).send({ error: 'Email et mot de passe requis' });
   }
 
-  // Wrap dans une Promise pour attendre le résultat
   const user = await new Promise((resolve, reject) => {
-    db.get('SELECT * FROM users WHERE email = ? OR username = ?', [email, email], //deux fois la meme variable car c'est sur le meme champ qu'on utilise
-		 (err, row) => {
+    db.get('SELECT * FROM users WHERE email = ? OR username = ?', [email, email], (err, row) => {
       if (err) return reject(err);
       resolve(row);
     });
@@ -286,15 +290,18 @@ fastify.post('/login', async (req, reply) => {
     return reply.code(401).send({ message: 'Email ou username inconnu' });
   }
 
-  const match = await bcrypt.compare(password, user.password_hash);
+  const match = verifyPassword(password, user.salt, user.password_hash)
   if (!match) {
     return reply.code(401).send({ message: 'Mot de passe incorrect' });
   }
 
-  return reply.send({ message: 'Connexion réussie', username: user.username, email: user.email, avatar: user.avatar || '/avatars/default.png'});
+  return reply.send({
+    message: 'Connexion réussie',
+    username: user.username,
+    email: user.email,
+    avatar: user.avatar || '/avatars/default.png'
+  });
 });
-
-
 
 
 // Lancement HTTP + WebSocket
