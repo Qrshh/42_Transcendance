@@ -11,6 +11,8 @@ up:
 	@docker-compose -f $(COMPOSE_FILE) up -d
 	@echo "Frontend available at: http://localhost:5173"
 	@echo "Backend available at: http://localhost:3000"
+	@echo "Prometheus available at: http://localhost:9090"
+	@echo "Grafana available at: http://localhost:3001"
 
 down:
 	@echo "Stopping containers..."
