@@ -629,8 +629,7 @@ fastify.listen({ port: 3000, host: '0.0.0.0'}, (err, address) => {
 
 	const io = new Server(fastify.server, {
 		cors: {
-		origin: "http://localhost:5173", // URL de votre frontend Vue.js
-            "https://c76242dc599e.ngrok-free.app"
+		origin: "http://:5173", // URL de votre frontend Vue.js
 		methods: ["GET", "POST"]
    		}
 	});
@@ -1283,3 +1282,197 @@ fastify.listen({ port: 3000, host: '0.0.0.0'}, (err, address) => {
     }});
   });
 });
+
+// En haut, après les autres require
+const client = require('prom-client');
+
+// Configuration du registre par défaut
+client.register.setDefaultLabels({
+  app: 'ft_transcendance'
+});
+
+// Collecte des métriques par défaut (CPU, mémoire, etc.)
+client.collectDefaultMetrics();
+
+// === MÉTRIQUES PERSONNALISÉES ===
+
+// Compteur pour les tentatives de connexion
+const loginAttempts = new client.Counter({
+  name: 'login_attempts_total',
+  help: 'Total login attempts',
+  labelNames: ['status', 'method'],
+});
+
+// Compteur pour les requêtes HTTP
+const httpRequests = new client.Counter({
+  name: 'http_requests_total',
+  help: 'Total HTTP requests',
+  labelNames: ['method', 'route', 'status_code'],
+});
+
+// Histogramme pour le temps de réponse
+const httpDuration = new client.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['method', 'route', 'status_code'],
+  buckets: [0.1, 0.5, 1, 2, 5]
+});
+
+// Gauge pour les sessions de jeu actives
+const gameSessionsActive = new client.Gauge({
+  name: 'game_sessions_active',
+  help: 'Number of active game sessions'
+});
+
+// Gauge pour les connexions WebSocket
+const websocketConnections = new client.Gauge({
+  name: 'websocket_connections_active',
+  help: 'Number of active WebSocket connections'
+});
+
+// Gauge pour les connexions base de données
+const dbConnections = new client.Gauge({
+  name: 'database_connections_active',
+  help: 'Number of active database connections'
+});
+
+// === MIDDLEWARE POUR TRAQUER LES REQUÊTES HTTP ===
+fastify.addHook('onRequest', async (request, reply) => {
+  request.startTime = Date.now();
+});
+
+fastify.addHook('onResponse', async (request, reply) => {
+  const duration = (Date.now() - request.startTime) / 1000;
+  const route = request.routerPath || 'unknown';
+  
+  httpRequests.inc({
+    method: request.method,
+    route: route,
+    status_code: reply.statusCode
+  });
+  
+  httpDuration.observe({
+    method: request.method,
+    route: route,
+    status_code: reply.statusCode
+  }, duration);
+});
+
+// === ROUTES POUR LES MÉTRIQUES ===
+
+// Route principale pour Prometheus
+fastify.get('/metrics', async (request, reply) => {
+  reply.header('Content-Type', client.register.contentType);
+  const metrics = await client.register.metrics();
+  return metrics;
+});
+
+// === INTÉGRATION DANS TES ROUTES EXISTANTES ===
+
+// Exemple pour la route de login (à adapter selon ton code)
+fastify.post('/auth/login', async (request, reply) => {
+  try {
+    const { username, password } = request.body;
+    
+    // Ta logique de login ici
+    const loginResult = await authenticateUser(username, password);
+    
+    if (loginResult.success) {
+      loginAttempts.inc({ status: 'success', method: 'password' });
+      return { 
+        message: "Login successful",
+        token: loginResult.token 
+      };
+    } else {
+      loginAttempts.inc({ status: 'failure', method: 'password' });
+      reply.status(401);
+      return { message: "Login failed" };
+    }
+  } catch (error) {
+    loginAttempts.inc({ status: 'error', method: 'password' });
+    reply.status(500);
+    return { message: "Internal server error" };
+  }
+});
+
+// === FONCTIONS UTILITAIRES POUR METTRE À JOUR LES MÉTRIQUES ===
+
+// Fonction pour incrémenter les sessions de jeu
+function incrementGameSessions() {
+  gameSessionsActive.inc();
+}
+
+function decrementGameSessions() {
+  gameSessionsActive.dec();
+}
+
+// Fonction pour les connexions WebSocket
+function onWebSocketConnect() {
+  websocketConnections.inc();
+}
+
+function onWebSocketDisconnect() {
+  websocketConnections.dec();
+}
+
+// Fonction pour simuler l'activité de base de données
+function updateDatabaseConnections(activeConnections) {
+  dbConnections.set(activeConnections);
+}
+
+// === ROUTES DE TEST POUR VÉRIFIER LES MÉTRIQUES ===
+
+fastify.get('/test/login-success', async (request, reply) => {
+  loginAttempts.inc({ status: 'success', method: 'test' });
+  return { message: 'Incremented successful login attempt' };
+});
+
+fastify.get('/test/login-failure', async (request, reply) => {
+  loginAttempts.inc({ status: 'failure', method: 'test' });
+  return { message: 'Incremented failed login attempt' };
+});
+
+fastify.get('/test/game-session', async (request, reply) => {
+  const action = request.query.action || 'start';
+  
+  if (action === 'start') {
+    incrementGameSessions();
+    return { message: 'Started game session' };
+  } else if (action === 'end') {
+    decrementGameSessions();
+    return { message: 'Ended game session' };
+  }
+  
+  return { message: 'Invalid action' };
+});
+
+fastify.get('/test/websocket', async (request, reply) => {
+  const action = request.query.action || 'connect';
+  
+  if (action === 'connect') {
+    onWebSocketConnect();
+    return { message: 'WebSocket connected' };
+  } else if (action === 'disconnect') {
+    onWebSocketDisconnect();
+    return { message: 'WebSocket disconnected' };
+  }
+  
+  return { message: 'Invalid action' };
+});
+
+// === SIMULATION DE DONNÉES (pour tester le dashboard) ===
+// Tu peux supprimer cette partie en production
+
+setInterval(() => {
+  // Simule quelques connexions/déconnexions
+  if (Math.random() > 0.7) {
+    loginAttempts.inc({ 
+      status: Math.random() > 0.8 ? 'failure' : 'success',
+      method: 'simulation' 
+    });
+  }
+  
+  // Met à jour le nombre de connexions DB (exemple)
+  updateDatabaseConnections(Math.floor(Math.random() * 10) + 5);
+  
+}, 5000); // Toutes les 5 secondes
