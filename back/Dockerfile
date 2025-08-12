@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Installer les dependances backend
-RUN npm install fastify @fastify/cors @fastify/formbody sqlite3 axios @fastify/static @fastify/multipart prom-client
+RUN npm install fastify @fastify/cors sqlite3 bcrypt axios @fastify/static
 
 # Copier le code source
 COPY . .

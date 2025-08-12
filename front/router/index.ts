@@ -4,7 +4,6 @@ import GameView from '../views/GameView.vue'
 import ProfileView from '../views/ProfileView.vue'
 import LoginView from '../views/LoginView.vue'
 import SocialView from '../views/social/SocialView.vue'
-import UserProfile from '../views/UserProfile.vue'
 
 const routes = [
   {
@@ -31,32 +30,10 @@ const routes = [
     meta: { guestOnly: true }, // Accessible uniquement si NON connecté
   },
   {
-	  path: '/social',
-	  name: 'social',
-	  component: SocialView,
-	  meta: {requiresAuth: true},
-  },
-  {
-    path: '/profile',
-    name: 'profile',
-    component: UserProfile,
-    meta: { requiresAuth: true } // Optionnel : protection de route
-  },
-  {
-    path: '/login',
-    name: 'login',
-    component: () => import('../views/LoginView.vue'),
-  },
-  //{
-  //  path: '/register', 
-  //  name: 'register',
-  //  component: () => import('../views/RegisterView.vue'),
-  //},
-  // Route pour gérer les 404
-  {
-    path: '/:pathMatch(.*)*',
-    name: 'not-found',
-    redirect: '/'
+	path: '/social',
+	name: 'social',
+	component: SocialView,
+	meta: {requiresAuth: true},
   }
 ]
 

@@ -98,7 +98,7 @@ const initThreeJS = () => {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap
 
   // Éclairage optimisé pour modèle STL
-  const ambientLight = new THREE.AmbientLight(0x191970, 0.6)
+  const ambientLight = new THREE.AmbientLight(0x404040, 0.6)
   scene.add(ambientLight)
 
   const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0)
@@ -109,12 +109,12 @@ const initThreeJS = () => {
   scene.add(directionalLight)
 
   // Lumière d'accentuation
-  const rimLight = new THREE.DirectionalLight(0x191970, 0.3)
+  const rimLight = new THREE.DirectionalLight(0x00ff88, 0.3)
   rimLight.position.set(-5, 5, -5)
   scene.add(rimLight)
 
   // Point light pour effet tech
-  const pointLight = new THREE.PointLight(0x191970, 0.5, 100)
+  const pointLight = new THREE.PointLight(0x00ff88, 0.5, 100)
   pointLight.position.set(-3, 3, 3)
   scene.add(pointLight)
 
@@ -154,8 +154,8 @@ const loadComputerModel = async () => {
         
         // Matériau pour le PC
         const material = new THREE.MeshPhongMaterial({
-          color: 0x2A497F,
-          shininess: 70,
+          color: 0x8B4513,
+          shininess: 30,
           specular: 0x444444
         })
         
@@ -178,7 +178,7 @@ const loadComputerModel = async () => {
           props.rotationY || Math.PI / 3, // Rotation Y (60° par défaut)
           props.rotationZ || 0            // Rotation Z (incliner)
         )
-        //addVisualEffects()
+        addVisualEffects()
         scene.add(computer)
       },
       (progress) => {
@@ -186,12 +186,123 @@ const loadComputerModel = async () => {
       },
       (error) => {
         console.error('❌ Erreur lors du chargement du modèle STL:', error)
+        createFallbackModel()
       }
     )
     
   } catch (error)
   {
     console.error('❌ Erreur générale:', error)
+    createFallbackModel()
+  }
+}
+
+const createFallbackModel = () => {
+  console.log('🔄 Utilisation du modèle de secours')
+  computer = new THREE.Group()
+  
+  // Créer un Commodore 64 stylisé
+  const bodyGeometry = new THREE.BoxGeometry(3, 0.6, 1.5)
+  const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 }) // Brun
+  const body = new THREE.Mesh(bodyGeometry, bodyMaterial)
+  body.castShadow = true
+  body.receiveShadow = true
+  computer.add(body)
+
+  // Clavier
+  const keyboardGeometry = new THREE.BoxGeometry(2.8, 0.1, 1.3)
+  const keyboardMaterial = new THREE.MeshPhongMaterial({ color: 0x654321 })
+  const keyboard = new THREE.Mesh(keyboardGeometry, keyboardMaterial)
+  keyboard.position.y = 0.35
+  keyboard.castShadow = true
+  computer.add(keyboard)
+
+  // Touches
+  for (let i = 0; i < 61; i++)
+  {
+    const keyGeometry = new THREE.BoxGeometry(0.12, 0.08, 0.12)
+    const keyMaterial = new THREE.MeshPhongMaterial({ color: 0x2F2F2F })
+    const key = new THREE.Mesh(keyGeometry, keyMaterial)
+    
+    const row = Math.floor(i / 15)
+    const col = i % 15
+    key.position.set(
+      -1.3 + col * 0.18,
+      0.4,
+      -0.5 + row * 0.15
+    )
+    key.castShadow = true
+    computer.add(key)
+  }
+
+  // Logo Commodore
+  const logoGeometry = new THREE.PlaneGeometry(0.8, 0.3)
+  const logoMaterial = new THREE.MeshBasicMaterial({ 
+    color: 0xFFFFFF,
+    transparent: true,
+    opacity: 0.8
+  })
+  const logo = new THREE.Mesh(logoGeometry, logoMaterial)
+  logo.position.set(0, 0.31, 0.6)
+  logo.rotation.x = -Math.PI / 2
+  computer.add(logo)
+  
+  computer.position.set(
+    props.positionX || 100,
+    props.positionY || 80,
+    props.positionZ || 0
+  )
+  
+  computer.rotation.set(
+    props.rotationX || 0,
+    props.rotationY || Math.PI / 3,
+    props.rotationZ || 0
+  )
+  
+  addVisualEffects()
+  scene.add(computer)
+}
+
+const addVisualEffects = () => {
+  // Sol avec reflet
+  const groundGeometry = new THREE.PlaneGeometry(10, 10)
+  const groundMaterial = new THREE.MeshPhongMaterial({
+    color: 0x1a1a1a,
+    transparent: true,
+    opacity: 0.3
+  })
+  const ground = new THREE.Mesh(groundGeometry, groundMaterial)
+  ground.rotation.x = -Math.PI / 2
+  ground.position.y = -1
+  ground.receiveShadow = true
+  scene.add(ground)
+
+  // Particules flottantes
+  const particleCount = 15
+  const particleGeometry = new THREE.SphereGeometry(0.02)
+  const particleMaterial = new THREE.MeshBasicMaterial({
+    color: 0x00ff88,
+    transparent: true,
+    opacity: 0.7
+  })
+
+  for (let i = 0; i < particleCount; i++)
+  {
+    const particle = new THREE.Mesh(particleGeometry, particleMaterial)
+    particle.position.set(
+      (Math.random() - 0.5) * 6,
+      Math.random() * 4 - 1,
+      (Math.random() - 0.5) * 6
+    )
+    particle.userData = {
+      velocity: new THREE.Vector3(
+        (Math.random() - 0.5) * 0.01,
+        Math.random() * 0.005 + 0.002,
+        (Math.random() - 0.5) * 0.01
+      ),
+      originalY: particle.position.y
+    }
+    scene.add(particle)
   }
 }
 
@@ -267,7 +378,7 @@ onUnmounted(() => {
   width: 100% !important;
   height: 100% !important;
   border-radius: 10px;
-  box-shadow: 0 10px 30px rgb(0, 0, 0);
+  box-shadow: 0 10px 30px rgba(0, 255, 136, 0.2);
 }
 
 @media (max-width: 768px) {
