@@ -23,5 +23,7 @@ export default {
 	email : "Adresse Electronique",
 	lastLogin: "Dernière connexion ",
 	logoutBtn: "Déconnexion",
-	messages: "Messages"
+	messages: "Messages",
+	amis: "amis",
+	notifications: "Aucune notification"
 }

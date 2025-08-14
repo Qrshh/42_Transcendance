@@ -206,7 +206,7 @@
           <!-- Message si pas de notifications -->
           <div v-if="notifications.length === 0" class="no-notifications">
             <div class="no-content-icon">🔔</div>
-            <h3 class="no-content-title">Aucune notification</h3>
+            <h3 class="no-content-title"> {{ t.notifications }} </h3>
             <p class="no-content-text">Tu es à jour ! 🎉</p>
           </div>
         </div>
@@ -267,6 +267,9 @@ import FriendRequest from './FriendRequest.vue'
 import FriendList from './FriendList.vue'
 import ProfileView from '../ProfileView.vue'
 import ChatBox from '../../components/ChatBox.vue'
+import { useI18n } from '../../composables/useI18n'
+
+const { t } = useI18n()
 
 // Types
 interface Conversation {

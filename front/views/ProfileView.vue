@@ -214,7 +214,8 @@
               <label class="setting-checkbox">
                 <input type="checkbox" v-model="settings.notifications" />
                 <span class="checkbox-custom"></span>
-                <span class="checkbox-text">Recevoir les notifications</span>
+                <span class="checkbox-text"> tt</span>
+                <span class="checkbox-text"> </span>
               </label>
             </div>
 
