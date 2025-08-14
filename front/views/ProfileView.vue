@@ -49,13 +49,17 @@
           </div>
         </div>
 
-        <div class="profile-actions">
-          <button @click="shareProfile" class="btn btn-secondary">
-            <span class="btn-icon">📤</span>
-            <span class="btn-text">Partager</span>
-          </button>
-        </div>
-      </div>
+		<div class="profile-actions">
+			<button @click="shareProfile" class="btn btn-secondary">
+				<span class="btn-icon">📤</span>
+				<span class="btn-text">Partager</span>
+			</button>
+			<button @click="logout" class="btn btn-secondary">
+				<span class="btn-icon">🚪</span>
+				<span class="btn-text">Déconnexion</span>
+			</button>
+		</div>
+		</div>
     </div>
 
     <!-- Navigation des onglets -->
@@ -269,6 +273,7 @@
 </template>
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { logout as authLogout } from '../stores/auth' // adapte le chemin si besoin
 
 /** ====== Config API ====== **/
 const API_BASE = 'http://0.0.0.0:3000' // adapte selon ton env (ex: http://localhost:3000)
@@ -317,9 +322,9 @@ const user = ref<User>({
 })
 
 const stats = ref<Stats>({
-  totalGames: 42,
-  gamesWon: 28,
-  ranking: 156
+  totalGames: 0,
+  gamesWon: 0,
+  ranking: 0
 })
 
 const gameHistory = ref<GameHistory[]>([
@@ -459,6 +464,11 @@ const resetSettings = () => {
   }
 }
 
+const logout = () => {
+  authLogout()
+  window.location.href = '/login' // adapte la route si besoin
+}
+
 const deleteAccount = () => {
   if (confirm('Êtes-vous sûr de vouloir supprimer votre compte ?')) {
     localStorage.clear()
@@ -528,6 +538,7 @@ const uploadAvatar = async (evt: Event) => {
 /** ====== Lifecycle: charger profil depuis l’API ====== **/
 onMounted(async () => {
   try {
+    // Récupère le profil utilisateur
     const res = await fetch(`${API_BASE}/user/${encodeURIComponent(user.value.username)}`)
     if (res.ok) {
       const data = await res.json()
@@ -535,8 +546,17 @@ onMounted(async () => {
       user.value.avatar = data.avatar || null
       user.value.createdAt = data.created_at || user.value.createdAt
     }
+
+    // Récupère les statistiques de l'utilisateur
+    const statsRes = await fetch(`${API_BASE}/user/${encodeURIComponent(user.value.username)}/stats`)
+    if (statsRes.ok) {
+      const statsData = await statsRes.json()
+      stats.value.totalGames = statsData.totalGames
+      stats.value.gamesWon = statsData.gamesWon
+      stats.value.ranking = statsData.ranking
+    }
   } catch (e) {
-    console.warn('Impossible de charger le profil:', e)
+    console.warn('Impossible de charger le profil ou les stats:', e)
   }
 })
 
