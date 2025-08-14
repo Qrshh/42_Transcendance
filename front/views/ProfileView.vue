@@ -14,9 +14,29 @@
         <div class="avatar-section">
           <div class="avatar-container">
             <div class="user-avatar" :style="{ background: getUserColor(user.username) }">
-              {{ user.avatar || getDefaultAvatar(user.username) }}
+              <img
+                v-if="user.avatar"
+                :src="user.avatar"
+                alt="Avatar"
+                class="avatar-img"
+                @error="onAvatarError"
+              />
+              <span v-else class="avatar-initials">
+                {{ user.username?.[0]?.toUpperCase() || 'U' }}
+              </span>
             </div>
-            <button class="avatar-edit" @click="editAvatar">✏️</button>
+          
+            <button class="avatar-edit" @click="triggerAvatarPicker" :disabled="isUploadingAvatar" title="Changer l’avatar">
+              {{ isUploadingAvatar ? '⏳' : '✏️' }}
+            </button>
+            <input
+              ref="avatarInput"
+              id="avatarInput"
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              hidden
+              @change="uploadAvatar"
+            />
           </div>
           
           <div class="user-details">
@@ -30,10 +50,6 @@
         </div>
 
         <div class="profile-actions">
-          <button @click="editProfile" class="btn btn-primary">
-            <span class="btn-icon">✏️</span>
-            <span class="btn-text">Éditer le profil</span>
-          </button>
           <button @click="shareProfile" class="btn btn-secondary">
             <span class="btn-icon">📤</span>
             <span class="btn-text">Partager</span>
@@ -251,15 +267,18 @@
     </div>
   </div>
 </template>
-
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 
+/** ====== Config API ====== **/
+const API_BASE = 'http://0.0.0.0:3000' // adapte selon ton env (ex: http://localhost:3000)
+
+/** ====== Types ====== **/
 interface User {
   id: string
   username: string
   email: string
-  avatar?: string
+  avatar: string | null
   status: 'online' | 'offline' | 'playing'
   createdAt: string
 }
@@ -287,11 +306,12 @@ interface Friend {
   status: 'online' | 'offline' | 'playing'
 }
 
-// État réactif
+/** ====== État réactif ====== **/
 const user = ref<User>({
   id: '1',
   username: localStorage.getItem('username') || 'Joueur',
   email: 'joueur@example.com',
+  avatar: null,
   status: 'online',
   createdAt: '2024-01-01'
 })
@@ -312,7 +332,6 @@ const gameHistory = ref<GameHistory[]>([
     date: '2024-01-15',
     duration: '5m 23s'
   },
-  // Plus d'historique...
 ])
 
 const friends = ref<Friend[]>([
@@ -321,7 +340,6 @@ const friends = ref<Friend[]>([
     username: 'Alice',
     status: 'online'
   },
-  // Plus d'amis...
 ])
 
 const activeTab = ref('stats')
@@ -338,7 +356,7 @@ const settings = ref({
   privateProfile: false
 })
 
-// Onglets
+/** ====== Onglets / Computed ====== **/
 const tabs = computed(() => [
   { id: 'stats', label: 'Statistiques', icon: '📊' },
   { id: 'history', label: 'Historique', icon: '📜', count: gameHistory.value.length },
@@ -346,13 +364,12 @@ const tabs = computed(() => [
   { id: 'settings', label: 'Paramètres', icon: '⚙️' }
 ])
 
-// Computed
 const winRate = computed(() => {
   if (stats.value.totalGames === 0) return 0
   return Math.round((stats.value.gamesWon / stats.value.totalGames) * 100)
 })
 
-// Méthodes utilitaires
+/** ====== Utilitaires ====== **/
 const getUserColor = (username: string) => {
   const colors = [
     'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -362,11 +379,6 @@ const getUserColor = (username: string) => {
     'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
   ]
   return colors[username.charCodeAt(0) % colors.length]
-}
-
-const getDefaultAvatar = (username: string) => {
-  const avatars = ['🎮', '🚀', '⭐', '🎯', '🏆', '💎', '🔥', '⚡', '🌟', '🎨']
-  return avatars[username.charCodeAt(0) % avatars.length]
 }
 
 const getStatusClass = (status: string) => {
@@ -383,7 +395,7 @@ const getStatusText = (status: string) => {
     'offline': 'Hors ligne',
     'playing': 'En jeu'
   }
-  return statusMap[status as keyof typeof statusMap] || 'Inconnu'
+  return (statusMap as any)[status] || 'Inconnu'
 }
 
 const formatDate = (date: string) => {
@@ -394,13 +406,9 @@ const formatDate = (date: string) => {
   })
 }
 
-// Actions
+/** ====== Actions génériques ====== **/
 const editProfile = () => {
   console.log('Édition du profil')
-}
-
-const editAvatar = () => {
-  console.log('Changement d\'avatar')
 }
 
 const editBanner = () => {
@@ -432,7 +440,7 @@ const removeFriend = (friend: Friend) => {
 }
 
 const toggleEdit = (field: string) => {
-  editMode.value[field as keyof typeof editMode.value] = !editMode.value[field as keyof typeof editMode.value]
+  (editMode.value as any)[field] = !(editMode.value as any)[field]
 }
 
 const saveSettings = () => {
@@ -458,13 +466,125 @@ const deleteAccount = () => {
   }
 }
 
-onMounted(() => {
-  // Charger les données du profil
-  console.log('Profil chargé')
+/** ====== Avatar: input + upload ====== **/
+const avatarInput = ref<HTMLInputElement | null>(null)
+const isUploadingAvatar = ref(false)
+
+const triggerAvatarPicker = () => {
+  avatarInput.value?.click()
+}
+
+// Masque l'image si elle échoue (ex: URL cassée)
+const onAvatarError = (e: Event) => {
+  const el = e.target as HTMLImageElement
+  el.style.display = 'none'
+}
+
+const uploadAvatar = async (evt: Event) => {
+  const input = evt.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  const MAX_MB = 5
+  const ALLOWED = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
+  if (!ALLOWED.includes(file.type)) {
+    alert('Formats autorisés: PNG, JPEG, WEBP, GIF')
+    input.value = ''
+    return
+  }
+  if (file.size > MAX_MB * 1024 * 1024) {
+    alert(`Fichier trop lourd (max ${MAX_MB} Mo)`)
+    input.value = ''
+    return
+  }
+
+  try {
+    isUploadingAvatar.value = true
+    const form = new FormData()
+    // la route fastify lit le premier fichier via req.file() → clé peu importe,
+    // mais on met "file" pour sémantique
+    form.append('file', file)
+
+    const res = await fetch(`${API_BASE}/user/${encodeURIComponent(user.value.username)}/avatar`, {
+      method: 'POST',
+      body: form,
+    })
+
+    const data = await res.json()
+    if (!res.ok || !data?.success) {
+      throw new Error(data?.error || 'Upload échoué')
+    }
+
+    user.value.avatar = data.avatarUrl || null
+  } catch (err: any) {
+    console.error(err)
+    alert(`Erreur upload avatar: ${err.message || err}`)
+  } finally {
+    isUploadingAvatar.value = false
+    input.value = '' // permet de reselectionner le même fichier
+  }
+}
+
+/** ====== Lifecycle: charger profil depuis l’API ====== **/
+onMounted(async () => {
+  try {
+    const res = await fetch(`${API_BASE}/user/${encodeURIComponent(user.value.username)}`)
+    if (res.ok) {
+      const data = await res.json()
+      user.value.email = data.email ?? user.value.email
+      user.value.avatar = data.avatar || null
+      user.value.createdAt = data.created_at || user.value.createdAt
+    }
+  } catch (e) {
+    console.warn('Impossible de charger le profil:', e)
+  }
 })
+
+/** ====== Expose (si utilisé dans le template) ====== **/
+const editAvatar = () => triggerAvatarPicker()
 </script>
 
+
 <style scoped>
+
+.username {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-top: 25px;
+  line-height: 1.2;
+  position: relative;
+  display: inline-block;
+  transition: color 0.3s ease;
+}
+
+.username::after {
+  content: "";
+  display: block;
+  width: 0;
+  height: 3px;
+  background: var(--gradient-primary);
+  transition: width 0.3s ease;
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  border-radius: 2px;
+}
+
+.username:hover {
+  color: var(--color-primary);
+}
+
+.username:hover::after {
+  width: 100%; /* Barre colorée sous le pseudo au hover */
+}
+
+@media (max-width: 768px) {
+  .username {
+    font-size: 1.5rem; /* Ajuste pour mobile */
+  }
+}
+
 .profile-page {
   max-width: 1000px;
   margin: 0 auto;
@@ -547,6 +667,21 @@ onMounted(() => {
   color: white;
   border: 4px solid var(--color-background);
   box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* couvre tout le cercle sans déformation */
+  display: block;
+  border-radius: 50%;
+}
+
+.avatar-initials {
+  font-weight: 700;
+  font-size: 2rem;
+  line-height: 1;
 }
 
 .avatar-edit {
