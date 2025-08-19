@@ -80,7 +80,14 @@
         <span v-if="tab.count" class="tab-count">{{ tab.count }}</span>
       </button>
     </div>
-
+	<div class="space-y-4">
+		<label class="block font-semibold">Mettre à jour l'email</label>
+		<input
+			v-model="newEmail"
+			type="email"
+			placeholder="Nouvel email"
+			class="w-full p-2 border rounded"
+		/>
     <!-- Contenu des onglets -->
     <div class="profile-content">
       <!-- Onglet Statistiques -->

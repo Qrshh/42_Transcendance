@@ -1,6 +1,3 @@
-// server.js
-console.log('--- DEBUG: SERVER SCRIPT STARTED ---');
-
 const Fastify        = require('fastify');
 const { Server }     = require('socket.io');
 const cors           = require('@fastify/cors');
@@ -58,6 +55,7 @@ db.run(`
     salt TEXT NOT NULL,
     avatar TEXT DEFAULT '/avatars/default.png',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+
   )
 `);
 db.run(`
@@ -435,26 +433,33 @@ fastify.post('/users', async (req, reply) => {
     });
 });
 
-/* =======================
-   PROFIL (email / pwd)
-======================= */
-fastify.put('/user/update', async (req, reply) => {
-  const { username, email, password } = req.body || {};
-  if (!username || !email) return reply.code(400).send({ error: 'Champs manquants' });
 
-  const updates = ['email = ?'];
-  const values = [email];
+//GESTION POUR UPDATE MAIL && MOT DE PASSE
+fastify.put('/user/update', async (req, reply) => {
+  const { username, email, password } = req.body
+
+  if (!username || !email)
+    return reply.code(400).send({ error: 'Champs manquants' })
+
+  const updates = ['email = ?']
+  const values = [email]
 
   if (password) {
-    const { hash, salt } = hashPassword(password);
-    updates.push('password_hash = ?', 'salt = ?');
-    values.push(hash, salt);
+    const { hash, salt } = hashPassword(password)
+    updates.push('password_hash = ?', 'salt = ?')
+    values.push(hash, salt)
   }
-  values.push(username);
 
-  await dbRun(`UPDATE users SET ${updates.join(', ')} WHERE username = ?`, values);
-  reply.send({ success: true });
-});
+  values.push(username)
+
+  await dbRun(
+    `UPDATE users SET ${updates.join(', ')} WHERE username = ?`,
+    values
+  )
+
+  reply.send({ success: true })
+})
+
 
 fastify.put('/user/:username', async (req, reply) => {
   const { username } = req.params;
@@ -577,14 +582,12 @@ fastify.post('/user/:username/banner', async (req, reply) => {
   }
 });
 
-
 // Upload propre: /user/:username/avatar (utilisée par ton front)
 fastify.post('/user/:username/avatar', async (req, reply) => {
   try {
     const { username } = req.params;
     const data = await req.file();
     if (!data) return reply.code(400).send({ error: 'Aucun fichier fourni' });
-
     const userExists = await dbGet('SELECT 1 FROM users WHERE username = ?', [username]);
     if (!userExists) return reply.code(404).send({ error: 'Utilisateur non trouvé' });
 
@@ -621,6 +624,7 @@ fastify.post('/register', async (req, reply) => {
     [username, email, hash, salt],
     function (err) {
       if (err) {
+
         console.error('❌ Erreur INSERT :', err.message);
         return reply.code(400).send({ error: err.message });
       }
@@ -630,22 +634,32 @@ fastify.post('/register', async (req, reply) => {
   );
 });
 
+
 fastify.post('/login', async (req, reply) => {
   const { email, password } = req.body || {};
   if (!email || !password) return reply.code(400).send({ error: 'Email et mot de passe requis' });
 
-  const user = await dbGet('SELECT * FROM users WHERE email = ? OR username = ?', [email, email]);
-  if (!user) return reply.code(401).send({ message: 'Email ou username inconnu' });
+  const user = await new Promise((resolve, reject) => {
+    db.get('SELECT * FROM users WHERE email = ? OR username = ?', [email, email], (err, row) => {
+      if (err) return reject(err);
+      resolve(row);
+    });
+  });
 
-  const match = verifyPassword(password, user.salt, user.password_hash);
-  if (!match) return reply.code(401).send({ message: 'Mot de passe incorrect' });
+  if (!user) {
+    return reply.code(401).send({ message: 'Email ou username inconnu' });
+  }
 
-  // avatar absolu renvoyé au front
+  const match = verifyPassword(password, user.salt, user.password_hash)
+  if (!match) {
+    return reply.code(401).send({ message: 'Mot de passe incorrect' });
+  }
+
   return reply.send({
     message: 'Connexion réussie',
     username: user.username,
     email: user.email,
-    avatar: absoluteAvatarUrl(user.avatar || '/avatars/default.png', req)
+    avatar: user.avatar || '/avatars/default.png'
   });
 });
 
