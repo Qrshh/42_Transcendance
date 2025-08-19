@@ -297,16 +297,6 @@ const resetGame = () => {
   z-index: 10;
 }
 
-.overlay-content {
-  text-align: center;
-  color: white;
-  padding: 2rem;
-  background: var(--color-background-soft);
-  border: 1px solid var(--color-border);
-  border-radius: 20px;
-  box-shadow: var(--shadow-lg);
-}
-
 .overlay-title {
   font-size: 2rem;
   font-weight: 700;

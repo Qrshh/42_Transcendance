@@ -4,7 +4,7 @@
     <div class="profile-header">
       <div class="profile-banner" :style="bannerStyle">
         <div class="banner-gradient"></div>
-        <button class="edit-banner-btn" @click="triggerBannerPicker" :disabled="isUploadingBanner">
+        <button class="edit-banner-btn" @click="triggerAvatarPicker" :disabled="isUploadingBanner">
           <span class="edit-icon">{{ isUploadingBanner ? '⏳' : '📸' }}</span>
           <span class="edit-text">Changer la bannière</span>
         </button>
@@ -18,6 +18,7 @@
         />
       </div>
 
+      <!-- ⚠️ profile-info DOIT être à l’intérieur de profile-header -->
       <div class="profile-info">
         <div class="avatar-section">
           <div class="avatar-container">
@@ -64,7 +65,7 @@
           </button>
         </div>
       </div>
-    </div>
+    </div> <!-- /profile-header -->
 
     <!-- Navigation des onglets -->
     <div class="profile-tabs">
@@ -80,14 +81,7 @@
         <span v-if="tab.count" class="tab-count">{{ tab.count }}</span>
       </button>
     </div>
-	<div class="space-y-4">
-		<label class="block font-semibold">Mettre à jour l'email</label>
-		<input
-			v-model="newEmail"
-			type="email"
-			placeholder="Nouvel email"
-			class="w-full p-2 border rounded"
-		/>
+
     <!-- Contenu des onglets -->
     <div class="profile-content">
       <!-- Onglet Statistiques -->
@@ -126,7 +120,6 @@
           </div>
         </div>
 
-        <!-- Graphiques -->
         <div class="charts-section">
           <div class="chart-card">
             <h3 class="chart-title">Historique des performances</h3>
@@ -220,11 +213,7 @@
                 class="setting-input"
                 :readonly="!editMode.username"
               />
-              <button
-                type="button"
-                @click="toggleEdit('username')"
-                class="edit-btn"
-              >
+              <button type="button" @click="toggleEdit('username')" class="edit-btn">
                 {{ editMode.username ? '✅' : '✏️' }}
               </button>
             </div>
@@ -237,11 +226,7 @@
                 class="setting-input"
                 :readonly="!editMode.email"
               />
-              <button
-                type="button"
-                @click="toggleEdit('email')"
-                class="edit-btn"
-              >
+              <button type="button" @click="toggleEdit('email')" class="edit-btn">
                 {{ editMode.email ? '✅' : '✏️' }}
               </button>
             </div>
@@ -284,6 +269,32 @@
             </div>
           </form>
 
+          <!-- Petit bloc MAJ email/mdp (optionnel) -->
+          <div class="space-y-4" style="margin-top:1rem">
+            <label class="block font-semibold">Mettre à jour l'email</label>
+            <input
+              v-model="newEmail"
+              type="email"
+              placeholder="Nouvel email"
+              class="w-full p-2 border rounded"
+            />
+
+            <label class="block font-semibold">Changer le mot de passe</label>
+            <input
+              v-model="newPassword"
+              type="password"
+              placeholder="Nouveau mot de passe"
+              class="w-full p-2 border rounded"
+            />
+
+            <button
+              @click="updateUserInfo"
+              class="w-full px-6 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition"
+            >
+              Enregistrer les modifications
+            </button>
+          </div>
+
           <div class="danger-zone">
             <h3 class="danger-title">Zone dangereuse</h3>
             <button @click="deleteAccount" class="btn btn-danger">
@@ -293,6 +304,15 @@
           </div>
         </div>
       </div>
+    </div> <!-- /profile-content -->
+
+    <div class="text-center" style="margin-top:1rem">
+      <button
+        @click="handleLogout"
+        class="px-6 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition"
+      >
+        🚪 Déconnexion
+      </button>
     </div>
 
     <!-- ===== Modal Ajouter un ami ===== -->
@@ -335,8 +355,10 @@
   </div>
 </template>
 
+
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { logout as authLogout } from '../stores/auth' // adapte le chemin si besoin
 import { useRouter } from 'vue-router'
 const router = useRouter()
 
@@ -367,7 +389,7 @@ const user = ref<User>({
   status: 'online',
   createdAt: '2024-01-01'
 })
-const stats = ref<Stats>({ totalGames: 42, gamesWon: 28, ranking: 156 })
+const stats = ref<Stats>({ totalGames: 0, gamesWon: 0, ranking: 0 })
 const gameHistory = ref<GameHistory[]>([{ id: '1', opponent: 'Alice', result: 'win', playerScore: 21, opponentScore: 18, date: '2024-01-15', duration: '5m 23s' }])
 const friends = ref<Friend[]>([])
 
@@ -502,6 +524,10 @@ const removeFriend = async (friend: Friend) => {
 const toggleEdit = (field: string) => { (editMode.value as any)[field] = !(editMode.value as any)[field] }
 const saveSettings = () => { localStorage.setItem('username', settings.value.username); user.value.username = settings.value.username }
 const resetSettings = () => { settings.value = { username: user.value.username, email: user.value.email, language: 'fr', notifications: true, privateProfile: false } }
+const logout = () => {
+  authLogout()
+  window.location.href = '/login' // adapte la route si besoin
+}
 
 /** ====== Suppression compte ====== **/
 const deleteAccount = async () => {
@@ -574,18 +600,18 @@ const uploadAvatar = async (evt: Event) => {
 /** ====== Lifecycle ====== **/
 onMounted(async () => {
   try {
-    const res = await fetch(`${API_BASE}/user/${encodeURIComponent(user.value.username)}`)
-    if (res.ok) {
-      const data = await res.json()
-      user.value.email = data.email ?? user.value.email
-      user.value.avatar = data.avatar || null
-      user.value.banner = data.banner || null
-      user.value.createdAt = data.created_at || user.value.createdAt
+    // Récupère les statistiques de l'utilisateur
+    const statsRes = await fetch(`${API_BASE}/user/${encodeURIComponent(user.value.username)}/stats`)
+    if (statsRes.ok) {
+      const statsData = await statsRes.json()
+      stats.value.totalGames = statsData.totalGames
+      stats.value.gamesWon = statsData.gamesWon
+      stats.value.ranking = statsData.ranking
     }
   } catch (e) {
-    console.warn('Impossible de charger le profil:', e)
-  }
+    console.warn('Impossible de charger le profil ou les stats:', e)
   fetchFriends()
+  }
 })
 
 /** ====== Expose ====== **/

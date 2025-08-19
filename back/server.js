@@ -84,6 +84,21 @@ db.run(`
     UNIQUE(user1, user2)
   )
 `);
+
+//table pour les parties
+db.run(`
+  CREATE TABLE IF NOT EXISTS games (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    player_id INTEGER NOT NULL,
+    opponent_id INTEGER,
+    result TEXT NOT NULL,
+    score INTEGER,
+    opponent_score INTEGER,
+    played_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (player_id) REFERENCES users(id)
+  )
+`);
+
 // Après la création des tables (même endroit que addMissingColumns)
 db.run(`
   CREATE TABLE IF NOT EXISTS users_tmp__add_banner (id)
@@ -668,8 +683,10 @@ fastify.post('/login', async (req, reply) => {
 ======================= */
 fastify.get('/user/:username', async (req, reply) => {
   const { username } = req.params;
+  console.log('GET USER:', username);
   try {
     const user = await dbGet('SELECT * FROM users WHERE username = ?', [username]);
+    console.log('USER FOUND:', user);
     if (!user) return reply.code(404).send({ error: 'Utilisateur non trouvé' });
 
     const userResponse = {
@@ -702,6 +719,46 @@ fastify.get('/api/games/available', (req, reply) => {
     status: game.status
   }));
   reply.send(mappedGames);
+});
+
+/* =======================
+   GET STATISTICS
+======================= */
+
+fastify.get('/user/:username/stats', async (req, reply) => {
+  const { username } = req.params;
+  console.log('GET USER STATS:', username);
+  try {
+    const user = await dbGet('SELECT id FROM users WHERE username = ?', [username]);
+	  console.log('USER STATS FOUND:', user);
+    if (!user) return reply.code(404).send({ error: 'Utilisateur non trouvé' });
+    // Nombre de parties jouées
+    const totalGamesRow = await dbGet('SELECT COUNT(*) as count FROM games WHERE player_id = ?', [user.id]);
+    const totalGames = totalGamesRow?.count || 0;
+    // Nombre de victoires
+    const gamesWonRow = await dbGet('SELECT COUNT(*) as count FROM games WHERE player_id = ? AND result = "win"', [user.id]);
+    const gamesWon = gamesWonRow?.count || 0;
+    // Taux de victoire
+    const winRate = totalGames > 0 ? Math.round((gamesWon / totalGames) * 100) : 0;
+    // Classement (par nombre de victoires, 1 = meilleur)
+    const rankingRow = await dbGet(`
+      SELECT rank FROM (
+        SELECT player_id, RANK() OVER (ORDER BY COUNT(CASE WHEN result = "win" THEN 1 END) DESC) as rank
+        FROM games
+        GROUP BY player_id
+      ) WHERE player_id = ?
+    `, [user.id]);
+    const ranking = rankingRow?.rank || null;
+    reply.send({
+      totalGames,
+      gamesWon,
+      winRate,
+      ranking
+    });
+  } catch (error) {
+    console.error('❌ ERREUR GET USER STATS:', error);
+    reply.code(500).send({ error: 'Erreur interne du serveur', details: error.message });
+  }
 });
 
 /* =======================
@@ -852,8 +909,35 @@ fastify.listen({ port: PORT, host: HOST }, (err, address) => {
         room.gameState.winner = 'Player 2';
         room.gameState.gameOver = true;
         io.to(roomId).emit('gameEnded', { winner: 'Player 2', finalScore: { ...score } });
+        		//async function to log game results
+		    (async () => {
+		    	const p1SocketId = room.playerSockets.p1;
+		    	const p2SocketId = room.playerSockets.p2;
+		    	const p1Username = room.playerUsernames.p1;
+		    	const p2Username = room.playerUsernames.p2;
+		    	const p1User = await dbGet('SELECT id FROM users WHERE username = ?', [p1Username]);
+		    	const p2User = await dbGet('SELECT id FROM users WHERE username = ?', [p2Username]);
+		    	if (p1User && p2User) {
+		    	console.log('INSERT GAME:', {
+		    	winner: p2User?.username,
+		    	loser: p1User?.username,
+		    	winnerId: p2User?.id,
+		    	loserId: p1User?.id,
+		    	score: score.player2,
+		    	opponent_score: score.player1
+		    	});
+		    	await dbRun(
+		    		'INSERT INTO games (player_id, opponent_id, result, score, opponent_score) VALUES (?, ?, ?, ?, ?)',
+		    		[p2User.id, p1User.id, 'win', score.player2, score.player1]
+		    	);
+		    	await dbRun(
+		    		'INSERT INTO games (player_id, opponent_id, result, score, opponent_score) VALUES (?, ?, ?, ?, ?)',
+		    		[p1User.id, p2User.id, 'lose', score.player1, score.player2]
+		    	);
+		    }
         stopGameForRoom(roomId);
-        return;
+		  })();
+    return;
       } else {
         resetBall(ball);
       }
@@ -866,7 +950,34 @@ fastify.listen({ port: PORT, host: HOST }, (err, address) => {
         room.gameState.winner = 'Player 1';
         room.gameState.gameOver = true;
         io.to(roomId).emit('gameEnded', { winner: 'Player 1', finalScore: { ...score } });
-        stopGameForRoom(roomId);
+		    //async function to log game results
+		    (async () => {
+		    	const p1SocketId = room.playerSockets.p1;
+		    	const p2SocketId = room.playerSockets.p2;
+		    	const p1Username = room.playerUsernames.p1;
+		    	const p2Username = room.playerUsernames.p2;
+		    	const p1User = await dbGet('SELECT id FROM users WHERE username = ?', [p1Username]);
+		    	const p2User = await dbGet('SELECT id FROM users WHERE username = ?', [p2Username]);
+		    	if (p1User && p2User) {
+		    	console.log('INSERT GAME:', {
+		    	winner: p1User?.username,
+		    	loser: p2User?.username,
+		    	winnerId: p1User?.id,
+		    	loserId: p2User?.id,
+		    	score: score.player1,
+		    	opponent_score: score.player2
+		    	});
+		    	await dbRun(
+		    		'INSERT INTO games (player_id, opponent_id, result, score, opponent_score) VALUES (?, ?, ?, ?, ?)',
+		    		[p1User.id, p2User.id, 'win', score.player1, score.player2]
+		    	);
+		    	await dbRun(
+		    		'INSERT INTO games (player_id, opponent_id, result, score, opponent_score) VALUES (?, ?, ?, ?, ?)',
+		    		[p2User.id, p1User.id, 'lose', score.player2, score.player1]
+		    	);
+		    	}
+		    	stopGameForRoom(roomId);
+		    })();
         return;
       } else {
         resetBall(ball);
@@ -1034,12 +1145,14 @@ fastify.listen({ port: PORT, host: HOST }, (err, address) => {
         newGameState.gameId = gameId;
         newGameState.players.p1 = gameLobby.currentPlayers[0].socketId;
         newGameState.players.p2 = gameLobby.currentPlayers[1].socketId;
-
-        activeGameRooms.set(gameId, {
-          gameState: newGameState,
-          intervalId: null,
-          playerSockets: { p1: newGameState.players.p1, p2: newGameState.players.p2 }
-        });
+		    const p1Username = connectedUsers.get(newGameState.players.p1);
+		    const p2Username = connectedUsers.get(newGameState.players.p2);
+		    activeGameRooms.set(gameId, {
+		      gameState: newGameState,
+		      intervalId: null,
+		      playerSockets: { p1: newGameState.players.p1, p2: newGameState.players.p2 },
+		      playerUsernames: { p1: p1Username, p2: p2Username } // <-- AJOUT
+		    });
 
         setTimeout(() => {
           if (activeGameRooms.has(gameId)) {

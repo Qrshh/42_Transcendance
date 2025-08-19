@@ -31,7 +31,22 @@ re: fclean all
 logs:
 	@docker-compose -f $(COMPOSE_FILE) logs -f
 
+logs-back:
+	@docker-compose -f $(COMPOSE_FILE) logs -f backend
+
+logs-front:
+	@docker-compose -f $(COMPOSE_FILE) logs -f frontend
+
+logs-db:
+	@docker-compose -f $(COMPOSE_FILE) logs -f db
+
+logs-grafana:
+	@docker-compose -f $(COMPOSE_FILE) logs -f grafana
+
+logs-prometheus:
+	@docker-compose -f $(COMPOSE_FILE) logs -f prometheus
+
 status:
 	@docker-compose -f $(COMPOSE_FILE) ps
 
-.PHONY: all build up down clean fclean re logs status
+.PHONY: all build up down clean fclean re logs logs-back logs-front logs-db logs-grafana logs-prometheus status

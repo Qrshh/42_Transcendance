@@ -9,8 +9,8 @@
     
     <!-- Effets visuels overlay -->
     <div class="canvas-effects">
-      <div class="center-line"></div>
-      <div class="glow-effect" :class="{ active: ballNearEdge }"></div>
+      <!--<div class="center-line"></div>
+      <div class="glow-effect" :class="{ active: ballNearEdge }"></div>-->
     </div>
   </div>
 </template>
