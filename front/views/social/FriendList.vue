@@ -1,6 +1,6 @@
 <template>
   <div class="friend-list">
-    <h3>👥 Mes Amis ({{ friends.length }})</h3>
+    <h3>👥 Mes Amis</h3>
     
     <div v-if="friends.length === 0" class="no-friends">
       Aucun ami pour le moment

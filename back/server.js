@@ -86,6 +86,14 @@ db.run(`
     UNIQUE(user1, user2)
   )
 `);
+// Après la création des tables (même endroit que addMissingColumns)
+db.run(`
+  CREATE TABLE IF NOT EXISTS users_tmp__add_banner (id)
+`); // no-op: juste pour garantir qu'on passe
+db.run(`ALTER TABLE users ADD COLUMN banner TEXT DEFAULT '/banners/default.jpg'`, (err) => {
+  if (err && !/duplicate column/i.test(err.message)) console.log('ℹ️ Colonne banner:', err.message);
+  else console.log('✅ Colonne banner OK');
+});
 
 // Ajouter colonnes manquantes si besoin
 const addMissingColumns = () => {
@@ -113,6 +121,13 @@ setTimeout(addMissingColumns, 1000);
 /* =======================
    UTILS
 ======================= */
+const BANNER_DIR = path.join(__dirname, 'banners');
+async function ensureBannerDir() {
+  try { await fs.mkdir(BANNER_DIR, { recursive: true }); }
+  catch (e) { console.error('❌ Impossible de créer banners/:', e); }
+}
+ensureBannerDir();
+
 const AVATAR_DIR = path.join(__dirname, 'avatars');
 async function ensureAvatarDir() {
   try {
@@ -150,6 +165,15 @@ function extFromMime(mime) {
    STATIC & MULTIPART
 ======================= */
 fastify.register(fastifyStatic, {
+  root: BANNER_DIR,
+  prefix: '/banners/',
+  decorateReply: false,
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  }
+});
+
+fastify.register(fastifyStatic, {
   root: AVATAR_DIR,
   prefix: '/avatars/',
   decorateReply: false, // réduit l’overhead
@@ -164,6 +188,23 @@ fastify.register(multipart, {
     files: 1
   }
 });
+
+/* =======================
+   SOCKET SHARED STATE
+======================= */
+let io; // défini après listen()
+const connectedUsers = new Map(); // Map<socketId, username>
+const gameLobbies = new Map();
+const activeGameRooms = new Map();
+const socketsByUser  = new Map();    // username -> socketId
+const usersBySocket  = new Map();  
+const W = 600, H = 400;
+
+function emitToUser(username, event, payload) {
+  if (!io) return;
+  const sid = socketsByUser.get(username);
+  if (sid) io.to(sid).emit(event, payload);
+}
 
 /* =======================
    CHAT
@@ -200,8 +241,33 @@ fastify.post('/chat/block', async (req, reply) => {
 /* =======================
    AMIS
 ======================= */
+
+fastify.get('/friends/:username/full', async (req, reply) => {
+  const { username } = req.params;
+  try {
+    const rows = await dbAll(
+      `SELECT 
+         CASE WHEN f.user1 = ? THEN f.user2 ELSE f.user1 END AS username,
+         u.avatar
+       FROM friends f
+       JOIN users u
+         ON u.username = CASE WHEN f.user1 = ? THEN f.user2 ELSE f.user1 END
+       WHERE (f.user1 = ? OR f.user2 = ?) AND f.status = 'accepted'`,
+      [username, username, username, username]
+    );
+    reply.send(rows.map(r => ({
+      username: r.username,
+      avatar: absoluteAvatarUrl(r.avatar || '/avatars/default.png', req)
+    })));
+  } catch (e) {
+    reply.code(500).send({ error: e.message });
+  }
+});
+
+// Envoi d'une demande d'ami + notification temps réel
 fastify.post('/friends/request', async (req, reply) => {
   const { from, to } = req.body || {};
+  if (!from || !to) return reply.status(400).send({ error: 'Champs manquants' });
   if (from === to) return reply.status(400).send({ error: "Tu ne peux pas t'ajouter toi-même." });
 
   const exists = await dbGet(
@@ -211,25 +277,111 @@ fastify.post('/friends/request', async (req, reply) => {
   if (exists) return reply.status(400).send({ error: 'Une relation existe déjà.' });
 
   await dbRun('INSERT INTO friends (user1, user2, status) VALUES (?, ?, ?)', [from, to, 'pending']);
+
+  // Notification pour le destinataire
+  emitToUser(to, 'newNotification', {
+    id: `fr-${from}-${Date.now()}`,
+    type: 'friendRequest',
+    icon: '👥',
+    title: 'Demande d’ami',
+    message: `${from} souhaite devenir votre ami`,
+    timestamp: new Date().toISOString(),
+    actionable: true,
+    actionText: 'Accepter',
+    actionData: { type: 'friendRequest', fromUser: from }
+  });
+
+  // Optionnel: rafraîchir ses demandes pendantes côté front
+  emitToUser(to, 'friendsUpdated', { users: [to] });
+
+
   reply.send({ success: true, message: 'Demande envoyée.' });
 });
 
+
+// Récupération des demandes en attente
 fastify.get('/friends/requests/:username', async (req, reply) => {
   const { username } = req.params;
-  const requests = await dbAll('SELECT user1 AS fromUser FROM friends WHERE user2 = ? AND status = ?', [username, 'pending']);
+  const requests = await dbAll(
+    'SELECT user1 AS fromUser FROM friends WHERE user2 = ? AND status = ?',
+    [username, 'pending']
+  );
   reply.send(requests);
 });
 
+fastify.delete('/user/:username', async (req, reply) => {
+  const { username } = req.params;
+  try {
+    // Supprime relations (messages, amis, blocks)
+    await dbRun('DELETE FROM messages WHERE sender = ? OR receiver = ?', [username, username]);
+    await dbRun('DELETE FROM friends WHERE user1 = ? OR user2 = ?', [username, username]);
+    await dbRun('DELETE FROM blocked_users WHERE blocker = ? OR blocked = ?', [username, username]);
+
+    // Supprime l’utilisateur
+    const res = await new Promise((resolve, reject) => {
+      db.run('DELETE FROM users WHERE username = ?', [username], function (err) {
+        if (err) return reject(err);
+        resolve({ changes: this.changes });
+      });
+    });
+
+    if (!res.changes) return reply.code(404).send({ error: 'Utilisateur introuvable' });
+
+    // Optionnel: notify sockets & cleanup
+    if (io) {
+      for (const [sid, uname] of connectedUsers.entries()) {
+        if (uname === username) io.to(sid).emit('accountDeleted');
+      }
+    }
+
+    reply.send({ success: true });
+  } catch (e) {
+    console.error('❌ delete user:', e);
+    reply.code(500).send({ error: e.message });
+  }
+});
+
+// Réponse à une demande (accept/reject) + notifications + refresh listes
 fastify.post('/friends/respond', async (req, reply) => {
   const { from, to, accept } = req.body || {};
-  if (accept) {
-    await dbRun(`UPDATE friends SET status = 'accepted' WHERE user1 = ? AND user2 = ?`, [from, to]);
-  } else {
-    await dbRun(`UPDATE friends SET status = 'rejected' WHERE user1 = ? AND user2 = ?`, [from, to]);
+  if (!from || !to || typeof accept !== 'boolean') {
+    return reply.status(400).send({ error: 'Champs manquants' });
   }
+
+  await dbRun(
+    `UPDATE friends SET status = ? WHERE user1 = ? AND user2 = ?`,
+    [accept ? 'accepted' : 'rejected', from, to]
+  );
+
+  // Notifier les 2 côtés
+  const payloadForSender = {
+    id: `fr-respond-${from}-${to}-${Date.now()}`,
+    type: 'friendRespond',
+    icon: accept ? '✅' : '❌',
+    title: accept ? 'Demande acceptée' : 'Demande refusée',
+    message: accept ? `${to} a accepté votre demande.` : `${to} a refusé votre demande.`,
+    timestamp: new Date().toISOString(),
+    actionable: false
+  };
+  emitToUser(from, 'newNotification', payloadForSender);
+
+  const payloadForReceiver = {
+    ...payloadForSender,
+    message: accept
+      ? `Vous êtes maintenant ami(e) avec ${from}.`
+      : `Vous avez refusé la demande de ${from}.`
+  };
+  emitToUser(to, 'newNotification', payloadForReceiver);
+
+  // Demander aux 2 clients de recharger leur liste d'amis
+  emitToUser(from, 'friendsUpdated', { users: [from, to] });
+  emitToUser(to,   'friendsUpdated', { users: [from, to] });
+
   reply.send({ success: true });
 });
 
+
+// Liste des amis acceptés
 fastify.get('/friends/:username', async (req, reply) => {
   const { username } = req.params;
   const friends = await dbAll(
@@ -241,10 +393,16 @@ fastify.get('/friends/:username', async (req, reply) => {
   reply.send(friends);
 });
 
+// Suppression d'un ami + refresh listes
 fastify.delete('/friends/remove', async (req, reply) => {
   const { from, to } = req.body || {};
   try {
-    await dbRun('DELETE FROM friends WHERE (user1 = ? AND user2 = ?) OR (user1 = ? AND user2 = ?)', [from, to, to, from]);
+    await dbRun(
+      'DELETE FROM friends WHERE (user1 = ? AND user2 = ?) OR (user1 = ? AND user2 = ?)',
+      [from, to, to, from]
+    );
+    emitToUser(from, 'friendsUpdated', { users: [from, to] });
+    emitToUser(to,   'friendsUpdated', { users: [from, to] });
     reply.send({ success: true, message: 'Ami supprimé avec succès' });
   } catch (error) {
     reply.code(500).send({ error: error.message });
@@ -390,6 +548,36 @@ fastify.post('/upload-avatar', async (req, reply) => {
   }
 });
 
+fastify.post('/user/:username/banner', async (req, reply) => {
+  try {
+    const { username } = req.params;
+    const data = await req.file();
+    if (!data) return reply.code(400).send({ error: 'Aucun fichier fourni' });
+
+    const userExists = await dbGet('SELECT 1 FROM users WHERE username = ?', [username]);
+    if (!userExists) return reply.code(404).send({ error: 'Utilisateur non trouvé' });
+
+    const allowed = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
+    if (!allowed.has(data.mimetype)) return reply.code(400).send({ error: 'Format non supporté' });
+
+    const buf = await data.toBuffer();
+    if (buf.length > 5 * 1024 * 1024) return reply.code(400).send({ error: 'Fichier trop lourd (max 5 Mo)' });
+
+    const filename = `${username}-${Date.now()}${extFromMime(data.mimetype)}`;
+    const filepath  = path.join(BANNER_DIR, filename);
+    await fs.writeFile(filepath, buf);
+
+    const relative = `/banners/${filename}`;
+    await dbRun('UPDATE users SET banner = ? WHERE username = ?', [relative, username]);
+
+    reply.send({ success: true, bannerUrl: absoluteAvatarUrl(relative, req) });
+  } catch (error) {
+    console.error('❌ Erreur upload banner:', error);
+    reply.code(500).send({ error: error.message });
+  }
+});
+
+
 // Upload propre: /user/:username/avatar (utilisée par ton front)
 fastify.post('/user/:username/avatar', async (req, reply) => {
   try {
@@ -475,6 +663,7 @@ fastify.get('/user/:username', async (req, reply) => {
       username: user.username,
       email: user.email,
       avatar: absoluteAvatarUrl(user.avatar || '/avatars/default.png', req),
+      banner: absoluteAvatarUrl(user.banner || '/banners/default.jpg', req),
       created_at: user.created_at || new Date().toISOString()
     };
     reply.send(userResponse);
@@ -568,8 +757,6 @@ fastify.get('/test/websocket', async (request) => {
 /* =======================
    HTTP + SOCKET.IO
 ======================= */
-let io; // déclaré ici pour être utilisé plus bas (API jeux)
-
 fastify.listen({ port: PORT, host: HOST }, (err, address) => {
   if (err) {
     console.error(err);
@@ -583,12 +770,8 @@ fastify.listen({ port: PORT, host: HOST }, (err, address) => {
       methods: ['GET', 'POST']
     }
   });
+ 
   console.log('⚡️ Serveur WebSocket prêt.');
-
-  const connectedUsers = new Map();
-  const W = 600, H = 400;
-  const gameLobbies = new Map();
-  const activeGameRooms = new Map();
 
   const initialGameStateTemplate = {
     gameId: null,
@@ -694,13 +877,15 @@ fastify.listen({ port: PORT, host: HOST }, (err, address) => {
   };
 
   io.on('connection', socket => {
-    websocketConnections.inc();
+    client.register.getSingleMetric('websocket_connections_active')?.inc();
     socket.onAny((eventName, ...args) => {
       console.log(`📨 SERVER: ${eventName}`, args?.[0] ?? '');
     });
 
     socket.on('identify', (username) => {
       connectedUsers.set(socket.id, username);
+      usersBySocket.set(socket.id, username);
+      socketsByUser.set(username, socket.id);
       socket.broadcast.emit('userConnected', username);
       const allUsers = Array.from(connectedUsers.values());
       socket.emit('connectedUsersList', allUsers);
@@ -735,7 +920,7 @@ fastify.listen({ port: PORT, host: HOST }, (err, address) => {
       if (receiverSocketId) io.to(receiverSocketId).emit('userStoppedTyping', { sender });
     });
 
-    // Jeux: create / join / leave etc. (inchangé, juste condensé)
+    // Jeux: create / join / leave etc.
     socket.on('createGame', (gameData) => {
       const newGameId = `game-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
       const userId = connectedUsers.get(socket.id) || socket.id;
@@ -915,8 +1100,12 @@ fastify.listen({ port: PORT, host: HOST }, (err, address) => {
     });
 
     socket.on('disconnect', () => {
-      websocketConnections.dec();
+      client.register.getSingleMetric('websocket_connections_active')?.dec();
       const username = connectedUsers.get(socket.id);
+      if (username) {
+        socketsByUser.delete(username);
+      }
+      usersBySocket.delete(socket.id);
       if (username) {
         connectedUsers.delete(socket.id);
         socket.broadcast.emit('userDisconnected', username);
@@ -953,7 +1142,7 @@ fastify.listen({ port: PORT, host: HOST }, (err, address) => {
 ======================= */
 setInterval(() => {
   if (Math.random() > 0.7) {
-    loginAttempts.inc({ status: Math.random() > 0.8 ? 'failure' : 'success', method: 'simulation' });
+    client.register.getSingleMetric('login_attempts_total')?.inc({ status: Math.random() > 0.8 ? 'failure' : 'success', method: 'simulation' });
   }
-  dbConnections.set(Math.floor(Math.random() * 10) + 5);
+  client.register.getSingleMetric('database_connections_active')?.set(Math.floor(Math.random() * 10) + 5);
 }, 5000);
