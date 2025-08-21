@@ -548,7 +548,7 @@ onMounted(() => {
   document.addEventListener('keydown', handleKeydown)
   
   console.log('🔌 Connexion socket SocialView')
-  socket = io('http://10.12.2.6:3000')
+  socket = io('http://localhost:3000')
   const username = localStorage.getItem('username')
   
   if (username) {

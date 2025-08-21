@@ -38,10 +38,10 @@ const SERVER_ORIGIN = process.env.SERVER_ORIGIN || null; // ex: "http://localhos
 const FRONT_ORIGINS = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
-  'http://10.12.2.6:5173',
+  // 'http://10.12.2.6:5173',
   'http://localhost:3000',
   'http://127.0.0.1:3000',
-  'http://10.12.2.6:3000'
+  // 'http://10.12.2.6:3000'
 ];
 
 function getLocalIP() {
