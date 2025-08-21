@@ -163,7 +163,7 @@
         </div>
       </div>
 
-      <!-- Onglet Paramètres MODIFIÉ AVEC 2FA -->
+      <!-- Onglet Paramètres -->
       <div v-if="activeTab === 'settings'" class="tab-content">
         <div class="settings-section">
           <!-- Section Profil -->
@@ -268,7 +268,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { logout as authLogout } from '../stores/auth' // adapte le chemin si besoin
-// NOUVEAU IMPORT POUR LA 2FA
 import TwoFactorAuth from '@/components/TwoFactorAuth.vue'
 
 interface User {
