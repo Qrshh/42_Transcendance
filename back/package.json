@@ -12,10 +12,14 @@
   "dependencies": {
     "@fastify/cors": "^11.0.1",
     "@fastify/static": "^8.2.0",
+    "@fastify/multipart": "^9.0.1",
     "bcrypt": "^6.0.0",
     "fastify": "^5.4.0",
-    "fastify-cors": "^6.0.3",
     "socket.io": "^4.8.1",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "prom-client": "^14.2.0",
+    "jsonwebtoken": "^9.0.2",
+    "speakeasy": "^2.0.0",
+    "qrcode": "^1.5.3"
   }
 }

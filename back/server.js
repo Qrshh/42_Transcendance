@@ -12,7 +12,18 @@ const { promisify }  = require('util');
 const { hashPassword, verifyPassword } = require('./utils/hash');
 const fs             = require('fs').promises;
 const client         = require('prom-client');
-
+const { 
+  generateAccessToken, 
+  generateRefreshToken,
+  verifyRefreshToken,
+  generate2FASecret,
+  verify2FAToken,
+  generateBackupCodes,
+  authenticateToken,
+  optionalAuth,
+  authenticateHybrid
+} = require('./utils/auth');
+const qrcode = require('qrcode');
 const fastify = Fastify({ logger: false });
 
 /* =======================
@@ -106,6 +117,34 @@ const addMissingColumns = () => {
         else console.log('✅ Dates created_at mises à jour');
       });
     }
+  });
+  db.run(`ALTER TABLE users ADD COLUMN two_factor_secret TEXT DEFAULT NULL`, (err) => {
+    if (err && !/duplicate column/i.test(err.message)) console.log('ℹ️ Colonne two_factor_secret:', err.message);
+    else console.log('✅ Colonne two_factor_secret OK');
+  });
+
+  db.run(`ALTER TABLE users ADD COLUMN two_factor_enabled BOOLEAN DEFAULT 0`, (err) => {
+    if (err && !/duplicate column/i.test(err.message)) console.log('ℹ️ Colonne two_factor_enabled:', err.message);
+    else console.log('✅ Colonne two_factor_enabled OK');
+  });
+
+  db.run(`ALTER TABLE users ADD COLUMN backup_codes TEXT DEFAULT NULL`, (err) => {
+    if (err && !/duplicate column/i.test(err.message)) console.log('ℹ️ Colonne backup_codes:', err.message);
+    else console.log('✅ Colonne backup_codes OK');
+  });
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS refresh_tokens (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      token TEXT NOT NULL UNIQUE,
+      expires_at DATETIME NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `, (err) => {
+    if (err) console.log('ℹ️ Table refresh_tokens:', err.message);
+    else console.log('✅ Table refresh_tokens créée');
   });
 };
 setTimeout(addMissingColumns, 1000);
@@ -443,22 +482,384 @@ fastify.post('/register', async (req, reply) => {
 });
 
 fastify.post('/login', async (req, reply) => {
-  const { email, password } = req.body || {};
+  const { email, password, twoFactorCode } = req.body || {};
   if (!email || !password) return reply.code(400).send({ error: 'Email et mot de passe requis' });
 
-  const user = await dbGet('SELECT * FROM users WHERE email = ? OR username = ?', [email, email]);
-  if (!user) return reply.code(401).send({ message: 'Email ou username inconnu' });
+  try {
+    const user = await dbGet('SELECT * FROM users WHERE email = ? OR username = ?', [email, email]);
+    if (!user) return reply.code(401).send({ message: 'Email ou username inconnu' });
 
-  const match = verifyPassword(password, user.salt, user.password_hash);
-  if (!match) return reply.code(401).send({ message: 'Mot de passe incorrect' });
+    const match = verifyPassword(password, user.salt, user.password_hash);
+    if (!match) return reply.code(401).send({ message: 'Mot de passe incorrect' });
 
-  // avatar absolu renvoyé au front
-  return reply.send({
-    message: 'Connexion réussie',
-    username: user.username,
-    email: user.email,
-    avatar: absoluteAvatarUrl(user.avatar || '/avatars/default.png', req)
-  });
+    // Vérifier si 2FA est activée
+    if (user.two_factor_enabled) {
+      if (!twoFactorCode) {
+        return reply.code(200).send({ 
+          requiresTwoFactor: true,
+          message: 'Code d\'authentification à deux facteurs requis'
+        });
+      }
+
+      // Vérifier le code 2FA
+      let isValidCode = false;
+      
+      if (user.two_factor_secret) {
+        isValidCode = verify2FAToken(user.two_factor_secret, twoFactorCode);
+      }
+      
+      // Vérifier codes de récupération
+      if (!isValidCode && user.backup_codes) {
+        const backupCodes = JSON.parse(user.backup_codes);
+        const codeIndex = backupCodes.indexOf(twoFactorCode.toUpperCase());
+        if (codeIndex !== -1) {
+          isValidCode = true;
+          backupCodes.splice(codeIndex, 1);
+          await dbRun('UPDATE users SET backup_codes = ? WHERE id = ?', 
+            [JSON.stringify(backupCodes), user.id]);
+        }
+      }
+
+      if (!isValidCode) {
+        return reply.code(401).send({ message: 'Code d\'authentification invalide' });
+      }
+    }
+
+    // Connexion réussie (avec ou sans 2FA)
+    return reply.send({
+      message: 'Connexion réussie',
+      username: user.username,
+      email: user.email,
+      avatar: absoluteAvatarUrl(user.avatar || '/avatars/default.png', req),
+      twoFactorEnabled: !!user.two_factor_enabled
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur login:', error);
+    reply.code(500).send({ error: 'Erreur interne du serveur' });
+  }
+});
+
+/* =======================
+   NOUVELLES ROUTES JWT + 2FA
+======================= */
+
+// Nouvelle route de login avec support 2FA
+fastify.post('/auth/login', async (req, reply) => {
+  const { email, password, twoFactorCode } = req.body || {};
+  if (!email || !password) return reply.code(400).send({ error: 'Email et mot de passe requis' });
+
+  try {
+    const user = await dbGet('SELECT * FROM users WHERE email = ? OR username = ?', [email, email]);
+    if (!user) return reply.code(401).send({ message: 'Email ou username inconnu' });
+
+    const match = verifyPassword(password, user.salt, user.password_hash);
+    if (!match) return reply.code(401).send({ message: 'Mot de passe incorrect' });
+
+    // Si la 2FA est activée, vérifier le code
+    if (user.two_factor_enabled) {
+      if (!twoFactorCode) {
+        return reply.code(200).send({ 
+          requiresTwoFactor: true,
+          message: 'Code d\'authentification à deux facteurs requis'
+        });
+      }
+
+      // Vérifier le code 2FA ou les codes de récupération
+      let isValidCode = false;
+      
+      // Vérifier le code TOTP
+      if (user.two_factor_secret) {
+        isValidCode = verify2FAToken(user.two_factor_secret, twoFactorCode);
+      }
+      
+      // Si le code TOTP échoue, vérifier les codes de récupération
+      if (!isValidCode && user.backup_codes) {
+        const backupCodes = JSON.parse(user.backup_codes);
+        const codeIndex = backupCodes.indexOf(twoFactorCode.toUpperCase());
+        if (codeIndex !== -1) {
+          isValidCode = true;
+          // Supprimer le code de récupération utilisé
+          backupCodes.splice(codeIndex, 1);
+          await dbRun('UPDATE users SET backup_codes = ? WHERE id = ?', 
+            [JSON.stringify(backupCodes), user.id]);
+        }
+      }
+
+      if (!isValidCode) {
+        return reply.code(401).send({ message: 'Code d\'authentification invalide' });
+      }
+    }
+
+    // Générer les tokens JWT
+    const payload = { 
+      userId: user.id, 
+      username: user.username, 
+      email: user.email 
+    };
+    
+    const accessToken = generateAccessToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
+    // Stocker le refresh token en DB
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 jours
+    await dbRun(
+      'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
+      [user.id, refreshToken, expiresAt.toISOString()]
+    );
+
+    return reply.send({
+      message: 'Connexion réussie',
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        avatar: absoluteAvatarUrl(user.avatar || '/avatars/default.png', req),
+        twoFactorEnabled: !!user.two_factor_enabled
+      },
+      tokens: {
+        accessToken,
+        refreshToken
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur login JWT:', error);
+    reply.code(500).send({ error: 'Erreur interne du serveur' });
+  }
+});
+
+// Route pour refresh token
+fastify.post('/auth/refresh', async (req, reply) => {
+  const { refreshToken } = req.body || {};
+  if (!refreshToken) {
+    return reply.code(401).send({ error: 'Refresh token requis' });
+  }
+
+  try {
+    // Vérifier le token
+    const decoded = verifyRefreshToken(refreshToken);
+    
+    // Vérifier qu'il existe en DB et n'est pas expiré
+    const storedToken = await dbGet(
+      'SELECT * FROM refresh_tokens WHERE token = ? AND expires_at > datetime("now")',
+      [refreshToken]
+    );
+    
+    if (!storedToken) {
+      return reply.code(403).send({ error: 'Refresh token invalide ou expiré' });
+    }
+
+    // Récupérer les infos utilisateur
+    const user = await dbGet('SELECT * FROM users WHERE id = ?', [storedToken.user_id]);
+    if (!user) {
+      return reply.code(403).send({ error: 'Utilisateur non trouvé' });
+    }
+
+    // Générer un nouveau access token
+    const payload = { 
+      userId: user.id, 
+      username: user.username, 
+      email: user.email 
+    };
+    const newAccessToken = generateAccessToken(payload);
+
+    reply.send({
+      accessToken: newAccessToken,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        avatar: absoluteAvatarUrl(user.avatar || '/avatars/default.png', req),
+        twoFactorEnabled: !!user.two_factor_enabled
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur refresh token:', error);
+    reply.code(403).send({ error: 'Refresh token invalide' });
+  }
+});
+
+// Route de logout
+fastify.post('/auth/logout', { preHandler: authenticateHybrid }, async (req, reply) => {
+  const { refreshToken } = req.body || {};
+  
+  if (refreshToken) {
+    // Supprimer le refresh token de la DB
+    await dbRun('DELETE FROM refresh_tokens WHERE token = ?', [refreshToken]);
+  }
+  
+  reply.send({ message: 'Déconnexion réussie' });
+});
+
+/* =======================
+   ROUTES 2FA
+======================= */
+
+// Générer un secret 2FA
+fastify.post('/auth/2fa/setup', { preHandler: authenticateHybrid }, async (req, reply) => {
+  try {
+    const username = req.user.username;
+    const user = await dbGet('SELECT * FROM users WHERE username = ?', [username]);
+    if (!user) return reply.code(404).send({ error: 'Utilisateur non trouvé' });
+    if (user.two_factor_enabled) {
+      return reply.code(400).send({ error: '2FA déjà activée' });
+    }
+
+    // Générer un nouveau secret
+    const secret = generate2FASecret(user.username);
+    
+    // Générer le QR code
+    const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
+
+    // Sauvegarder temporairement le secret (pas encore activé)
+    await dbRun('UPDATE users SET two_factor_secret = ? WHERE id = ?', 
+      [secret.base32, user.id]);
+
+    reply.send({
+      secret: secret.base32,
+      qrCode: qrCodeUrl,
+      manualEntryKey: secret.base32
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur setup 2FA:', error);
+    reply.code(500).send({ error: 'Erreur lors de la configuration 2FA' });
+  }
+});
+
+// Activer la 2FA (vérifier le code)
+fastify.post('/auth/2fa/enable', { preHandler: authenticateHybrid }, async (req, reply) => {
+  const { code } = req.body || {};
+  if (!code) return reply.code(400).send({ error: 'Code de vérification requis' });
+
+  try {
+    const username = req.user.username;
+    const user = await dbGet('SELECT * FROM users WHERE username = ?', [username]);
+    
+    if (!user || !user.two_factor_secret) {
+      return reply.code(400).send({ error: 'Configuration 2FA non initialisée' });
+    }
+
+    if (user.two_factor_enabled) {
+      return reply.code(400).send({ error: '2FA déjà activée' });
+    }
+
+    // Vérifier le code
+    const isValid = verify2FAToken(user.two_factor_secret, code);
+    if (!isValid) {
+      return reply.code(400).send({ error: 'Code de vérification invalide' });
+    }
+
+    // Générer des codes de récupération
+    const backupCodes = generateBackupCodes();
+
+    // Activer la 2FA
+    await dbRun(
+      'UPDATE users SET two_factor_enabled = 1, backup_codes = ? WHERE id = ?',
+      [JSON.stringify(backupCodes), user.id]
+    );
+
+    reply.send({
+      message: '2FA activée avec succès',
+      backupCodes: backupCodes
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur activation 2FA:', error);
+    reply.code(500).send({ error: 'Erreur lors de l\'activation 2FA' });
+  }
+});
+
+// Désactiver la 2FA
+fastify.post('/auth/2fa/disable', { preHandler: authenticateHybrid }, async (req, reply) => {
+  const { code, password } = req.body || {};
+  if (!code || !password) {
+    return reply.code(400).send({ error: 'Code 2FA et mot de passe requis' });
+  }
+
+  try {
+    const username = req.user.username;
+    const user = await dbGet('SELECT * FROM users WHERE username = ?', [username]);
+    
+    if (!user) return reply.code(404).send({ error: 'Utilisateur non trouvé' });
+
+    if (!user.two_factor_enabled) {
+      return reply.code(400).send({ error: '2FA déjà désactivée' });
+    }
+
+    // Vérifier le mot de passe
+    const match = verifyPassword(password, user.salt, user.password_hash);
+    if (!match) return reply.code(401).send({ error: 'Mot de passe incorrect' });
+
+    // Vérifier le code 2FA
+    const isValid = verify2FAToken(user.two_factor_secret, code);
+    if (!isValid) {
+      return reply.code(400).send({ error: 'Code 2FA invalide' });
+    }
+
+    // Désactiver la 2FA
+    await dbRun(
+      'UPDATE users SET two_factor_enabled = 0, two_factor_secret = NULL, backup_codes = NULL WHERE id = ?',
+      [user.id]
+    );
+
+    reply.send({ message: '2FA désactivée avec succès' });
+
+  } catch (error) {
+    console.error('❌ Erreur désactivation 2FA:', error);
+    reply.code(500).send({ error: 'Erreur lors de la désactivation 2FA' });
+  }
+});
+
+fastify.post('/auth/2fa/regenerate-backup', { preHandler: authenticateHybrid }, async (req, reply) => {
+  const { code } = req.body || {};
+  if (!code) return reply.code(400).send({ error: 'Code 2FA requis' });
+
+  try {
+    const username = req.user.username;
+    const user = await dbGet('SELECT * FROM users WHERE username = ?', [username]);
+    
+    if (!user || !user.two_factor_enabled) {
+      return reply.code(400).send({ error: '2FA non activée' });
+    }
+
+    // Vérifier le code 2FA
+    const isValid = verify2FAToken(user.two_factor_secret, code);
+    if (!isValid) {
+      return reply.code(400).send({ error: 'Code 2FA invalide' });
+    }
+
+    // Générer de nouveaux codes
+    const backupCodes = generateBackupCodes();
+    await dbRun('UPDATE users SET backup_codes = ? WHERE id = ?', 
+      [JSON.stringify(backupCodes), user.id]);
+
+    reply.send({
+      message: 'Nouveaux codes de récupération générés',
+      backupCodes: backupCodes
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur régénération codes:', error);
+    reply.code(500).send({ error: 'Erreur lors de la régénération des codes' });
+  }
+});
+
+// Route pour vérifier le statut 2FA de l'utilisateur
+fastify.get('/auth/2fa/status', { preHandler: authenticateHybrid }, async (req, reply) => {
+  try {
+    const user = await dbGet('SELECT two_factor_enabled FROM users WHERE id = ?', [req.user.userId]);
+    if (!user) return reply.code(404).send({ error: 'Utilisateur non trouvé' });
+
+    reply.send({
+      twoFactorEnabled: !!user.two_factor_enabled
+    });
+  } catch (error) {
+    console.error('❌ Erreur statut 2FA:', error);
+    reply.code(500).send({ error: 'Erreur lors de la vérification du statut 2FA' });
+  }
 });
 
 /* =======================

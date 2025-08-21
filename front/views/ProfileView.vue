@@ -30,16 +30,16 @@
         </div>
 
         <div class="profile-actions">
-          <button @click="editProfile" class="btn btn-primary">
-            <span class="btn-icon">✏️</span>
-            <span class="btn-text">Éditer le profil</span>
-          </button>
-          <button @click="shareProfile" class="btn btn-secondary">
-            <span class="btn-icon">📤</span>
-            <span class="btn-text">Partager</span>
-          </button>
-        </div>
-      </div>
+			      <button @click="shareProfile" class="btn btn-secondary">
+				    <span class="btn-icon">📤</span>
+				    <span class="btn-text">Partager</span>
+			    </button>
+			    <button @click="logout" class="btn btn-secondary">
+				    <span class="btn-icon">🚪</span>
+				    <span class="btn-text">Déconnexion</span>
+			    </button>
+		    </div>
+		    </div>
     </div>
 
     <!-- Navigation des onglets -->
@@ -163,85 +163,97 @@
         </div>
       </div>
 
-      <!-- Onglet Paramètres -->
+      <!-- Onglet Paramètres MODIFIÉ AVEC 2FA -->
       <div v-if="activeTab === 'settings'" class="tab-content">
         <div class="settings-section">
-          <form @submit.prevent="saveSettings" class="settings-form">
-            <div class="setting-group">
-              <label class="setting-label">Nom d'utilisateur</label>
-              <input 
-                v-model="settings.username" 
-                type="text" 
-                class="setting-input"
-                :readonly="!editMode.username"
-              />
-              <button 
-                type="button" 
-                @click="toggleEdit('username')" 
-                class="edit-btn"
-              >
-                {{ editMode.username ? '✅' : '✏️' }}
-              </button>
-            </div>
+          <!-- Section Profil -->
+          <div class="settings-category">
+            <h3 class="category-title">🔧 Informations du profil</h3>
+            <form @submit.prevent="saveSettings" class="settings-form">
+              <div class="setting-group">
+                <label class="setting-label">Nom d'utilisateur</label>
+                <input 
+                  v-model="settings.username" 
+                  type="text" 
+                  class="setting-input"
+                  :readonly="!editMode.username"
+                />
+                <button 
+                  type="button" 
+                  @click="toggleEdit('username')" 
+                  class="edit-btn"
+                >
+                  {{ editMode.username ? '✅' : '✏️' }}
+                </button>
+              </div>
 
-            <div class="setting-group">
-              <label class="setting-label">Email</label>
-              <input 
-                v-model="settings.email" 
-                type="email" 
-                class="setting-input"
-                :readonly="!editMode.email"
-              />
-              <button 
-                type="button" 
-                @click="toggleEdit('email')" 
-                class="edit-btn"
-              >
-                {{ editMode.email ? '✅' : '✏️' }}
-              </button>
-            </div>
+              <div class="setting-group">
+                <label class="setting-label">Email</label>
+                <input 
+                  v-model="settings.email" 
+                  type="email" 
+                  class="setting-input"
+                  :readonly="!editMode.email"
+                />
+                <button 
+                  type="button" 
+                  @click="toggleEdit('email')" 
+                  class="edit-btn"
+                >
+                  {{ editMode.email ? '✅' : '✏️' }}
+                </button>
+              </div>
 
-            <div class="setting-group">
-              <label class="setting-label">Langue</label>
-              <select v-model="settings.language" class="setting-select">
-                <option value="fr">🇫🇷 Français</option>
-                <option value="en">🇬🇧 English</option>
-                <option value="es">🇪🇸 Español</option>
-              </select>
-            </div>
+              <div class="setting-group">
+                <label class="setting-label">Langue</label>
+                <select v-model="settings.language" class="setting-select">
+                  <option value="fr">🇫🇷 Français</option>
+                  <option value="en">🇬🇧 English</option>
+                  <option value="es">🇪🇸 Español</option>
+                </select>
+              </div>
 
-            <div class="setting-group">
-              <label class="setting-checkbox">
-                <input type="checkbox" v-model="settings.notifications" />
-                <span class="checkbox-custom"></span>
-                <span class="checkbox-text"> tt</span>
-                <span class="checkbox-text"> </span>
-              </label>
-            </div>
+              <div class="setting-group">
+                <label class="setting-checkbox">
+                  <input type="checkbox" v-model="settings.notifications" />
+                  <span class="checkbox-custom"></span>
+                  <span class="checkbox-text">Notifications activées</span>
+                </label>
+              </div>
 
-            <div class="setting-group">
-              <label class="setting-checkbox">
-                <input type="checkbox" v-model="settings.privateProfile" />
-                <span class="checkbox-custom"></span>
-                <span class="checkbox-text">Profil privé</span>
-              </label>
-            </div>
+              <div class="setting-group">
+                <label class="setting-checkbox">
+                  <input type="checkbox" v-model="settings.privateProfile" />
+                  <span class="checkbox-custom"></span>
+                  <span class="checkbox-text">Profil privé</span>
+                </label>
+              </div>
 
-            <div class="settings-actions">
-              <button type="submit" class="btn btn-primary">
-                <span class="btn-icon">💾</span>
-                <span class="btn-text">Sauvegarder</span>
-              </button>
-              
-              <button type="button" @click="resetSettings" class="btn btn-secondary">
-                <span class="btn-icon">🔄</span>
-                <span class="btn-text">Réinitialiser</span>
-              </button>
-            </div>
-          </form>
+              <div class="settings-actions">
+                <button type="submit" class="btn btn-primary">
+                  <span class="btn-icon">💾</span>
+                  <span class="btn-text">Sauvegarder</span>
+                </button>
+                
+                <button type="button" @click="resetSettings" class="btn btn-secondary">
+                  <span class="btn-icon">🔄</span>
+                  <span class="btn-text">Réinitialiser</span>
+                </button>
+              </div>
+            </form>
+          </div>
 
-          <div class="danger-zone">
-            <h3 class="danger-title">Zone dangereuse</h3>
+          <!-- NOUVELLE SECTION 2FA -->
+          <div class="settings-category">
+            <h3 class="category-title">🔒 Sécurité du compte</h3>
+            <div class="security-section">
+              <TwoFactorAuth />
+            </div>
+          </div>
+
+          <!-- Zone dangereuse -->
+          <div class="settings-category danger-zone">
+            <h3 class="danger-title">🗑️ Zone dangereuse</h3>
             <button @click="deleteAccount" class="btn btn-danger">
               <span class="btn-icon">🗑️</span>
               <span class="btn-text">Supprimer le compte</span>
@@ -255,6 +267,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { logout as authLogout } from '../stores/auth' // adapte le chemin si besoin
+// NOUVEAU IMPORT POUR LA 2FA
+import TwoFactorAuth from '@/components/TwoFactorAuth.vue'
 
 interface User {
   id: string
@@ -298,9 +313,9 @@ const user = ref<User>({
 })
 
 const stats = ref<Stats>({
-  totalGames: 42,
-  gamesWon: 28,
-  ranking: 156
+  totalGames: 0,
+  gamesWon: 0,
+  ranking: 0
 })
 
 const gameHistory = ref<GameHistory[]>([
@@ -450,6 +465,11 @@ const resetSettings = () => {
     notifications: true,
     privateProfile: false
   }
+}
+
+const logout = () => {
+  authLogout()
+  window.location.href = '/login' // adapte la route si besoin
 }
 
 const deleteAccount = () => {
@@ -847,6 +867,44 @@ onMounted(() => {
 
 .btn-icon-only.danger:hover {
   background: #f44336;
+}
+
+/* NOUVELLES CLASSES POUR LES CATÉGORIES DE PARAMÈTRES */
+.settings-category {
+  margin-bottom: 3rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.settings-category:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.category-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.security-section {
+  background: var(--color-background);
+  border: 2px solid var(--color-border);
+  border-radius: 15px;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Surcharge pour le composant 2FA dans le profil */
+.security-section :deep(.max-w-md) {
+  max-width: none;
+  margin: 0;
+  box-shadow: none;
+  border-radius: 0;
 }
 
 /* Paramètres */
