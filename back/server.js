@@ -114,6 +114,29 @@ db.run(`
   )
 `);
 
+//table pour les parties
+db.run(`
+  CREATE TABLE IF NOT EXISTS games (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    player_id INTEGER NOT NULL,
+    opponent_id INTEGER,
+    result TEXT NOT NULL,
+    score INTEGER,
+    opponent_score INTEGER,
+    played_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (player_id) REFERENCES users(id)
+  )
+`);
+
+// Après la création des tables (même endroit que addMissingColumns)
+db.run(`
+  CREATE TABLE IF NOT EXISTS users_tmp__add_banner (id)
+`); // no-op: juste pour garantir qu'on passe
+db.run(`ALTER TABLE users ADD COLUMN banner TEXT DEFAULT '/banners/default.jpg'`, (err) => {
+  if (err && !/duplicate column/i.test(err.message)) console.log('ℹ️ Colonne banner:', err.message);
+  else console.log('✅ Colonne banner OK');
+});
+
 // Ajouter colonnes manquantes si besoin
 const addMissingColumns = () => {
   db.run(`ALTER TABLE users ADD COLUMN salt TEXT`, (err) => {
@@ -168,6 +191,13 @@ setTimeout(addMissingColumns, 1000);
 /* =======================
    UTILS
 ======================= */
+const BANNER_DIR = path.join(__dirname, 'banners');
+async function ensureBannerDir() {
+  try { await fs.mkdir(BANNER_DIR, { recursive: true }); }
+  catch (e) { console.error('❌ Impossible de créer banners/:', e); }
+}
+ensureBannerDir();
+
 const AVATAR_DIR = path.join(__dirname, 'avatars');
 async function ensureAvatarDir() {
   try {
@@ -205,6 +235,15 @@ function extFromMime(mime) {
    STATIC & MULTIPART
 ======================= */
 fastify.register(fastifyStatic, {
+  root: BANNER_DIR,
+  prefix: '/banners/',
+  decorateReply: false,
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  }
+});
+
+fastify.register(fastifyStatic, {
   root: AVATAR_DIR,
   prefix: '/avatars/',
   decorateReply: false, // réduit l’overhead
@@ -219,6 +258,23 @@ fastify.register(multipart, {
     files: 1
   }
 });
+
+/* =======================
+   SOCKET SHARED STATE
+======================= */
+let io; // défini après listen()
+const connectedUsers = new Map(); // Map<socketId, username>
+const gameLobbies = new Map();
+const activeGameRooms = new Map();
+const socketsByUser  = new Map();    // username -> socketId
+const usersBySocket  = new Map();  
+const W = 600, H = 400;
+
+function emitToUser(username, event, payload) {
+  if (!io) return;
+  const sid = socketsByUser.get(username);
+  if (sid) io.to(sid).emit(event, payload);
+}
 
 /* =======================
    CHAT
@@ -255,8 +311,33 @@ fastify.post('/chat/block', async (req, reply) => {
 /* =======================
    AMIS
 ======================= */
+
+fastify.get('/friends/:username/full', async (req, reply) => {
+  const { username } = req.params;
+  try {
+    const rows = await dbAll(
+      `SELECT 
+         CASE WHEN f.user1 = ? THEN f.user2 ELSE f.user1 END AS username,
+         u.avatar
+       FROM friends f
+       JOIN users u
+         ON u.username = CASE WHEN f.user1 = ? THEN f.user2 ELSE f.user1 END
+       WHERE (f.user1 = ? OR f.user2 = ?) AND f.status = 'accepted'`,
+      [username, username, username, username]
+    );
+    reply.send(rows.map(r => ({
+      username: r.username,
+      avatar: absoluteAvatarUrl(r.avatar || '/avatars/default.png', req)
+    })));
+  } catch (e) {
+    reply.code(500).send({ error: e.message });
+  }
+});
+
+// Envoi d'une demande d'ami + notification temps réel
 fastify.post('/friends/request', async (req, reply) => {
   const { from, to } = req.body || {};
+  if (!from || !to) return reply.status(400).send({ error: 'Champs manquants' });
   if (from === to) return reply.status(400).send({ error: "Tu ne peux pas t'ajouter toi-même." });
 
   const exists = await dbGet(
@@ -266,25 +347,111 @@ fastify.post('/friends/request', async (req, reply) => {
   if (exists) return reply.status(400).send({ error: 'Une relation existe déjà.' });
 
   await dbRun('INSERT INTO friends (user1, user2, status) VALUES (?, ?, ?)', [from, to, 'pending']);
+
+  // Notification pour le destinataire
+  emitToUser(to, 'newNotification', {
+    id: `fr-${from}-${Date.now()}`,
+    type: 'friendRequest',
+    icon: '👥',
+    title: 'Demande d’ami',
+    message: `${from} souhaite devenir votre ami`,
+    timestamp: new Date().toISOString(),
+    actionable: true,
+    actionText: 'Accepter',
+    actionData: { type: 'friendRequest', fromUser: from }
+  });
+
+  // Optionnel: rafraîchir ses demandes pendantes côté front
+  emitToUser(to, 'friendsUpdated', { users: [to] });
+
+
   reply.send({ success: true, message: 'Demande envoyée.' });
 });
 
+
+// Récupération des demandes en attente
 fastify.get('/friends/requests/:username', async (req, reply) => {
   const { username } = req.params;
-  const requests = await dbAll('SELECT user1 AS fromUser FROM friends WHERE user2 = ? AND status = ?', [username, 'pending']);
+  const requests = await dbAll(
+    'SELECT user1 AS fromUser FROM friends WHERE user2 = ? AND status = ?',
+    [username, 'pending']
+  );
   reply.send(requests);
 });
 
+fastify.delete('/user/:username', async (req, reply) => {
+  const { username } = req.params;
+  try {
+    // Supprime relations (messages, amis, blocks)
+    await dbRun('DELETE FROM messages WHERE sender = ? OR receiver = ?', [username, username]);
+    await dbRun('DELETE FROM friends WHERE user1 = ? OR user2 = ?', [username, username]);
+    await dbRun('DELETE FROM blocked_users WHERE blocker = ? OR blocked = ?', [username, username]);
+
+    // Supprime l’utilisateur
+    const res = await new Promise((resolve, reject) => {
+      db.run('DELETE FROM users WHERE username = ?', [username], function (err) {
+        if (err) return reject(err);
+        resolve({ changes: this.changes });
+      });
+    });
+
+    if (!res.changes) return reply.code(404).send({ error: 'Utilisateur introuvable' });
+
+    // Optionnel: notify sockets & cleanup
+    if (io) {
+      for (const [sid, uname] of connectedUsers.entries()) {
+        if (uname === username) io.to(sid).emit('accountDeleted');
+      }
+    }
+
+    reply.send({ success: true });
+  } catch (e) {
+    console.error('❌ delete user:', e);
+    reply.code(500).send({ error: e.message });
+  }
+});
+
+// Réponse à une demande (accept/reject) + notifications + refresh listes
 fastify.post('/friends/respond', async (req, reply) => {
   const { from, to, accept } = req.body || {};
-  if (accept) {
-    await dbRun(`UPDATE friends SET status = 'accepted' WHERE user1 = ? AND user2 = ?`, [from, to]);
-  } else {
-    await dbRun(`UPDATE friends SET status = 'rejected' WHERE user1 = ? AND user2 = ?`, [from, to]);
+  if (!from || !to || typeof accept !== 'boolean') {
+    return reply.status(400).send({ error: 'Champs manquants' });
   }
+
+  await dbRun(
+    `UPDATE friends SET status = ? WHERE user1 = ? AND user2 = ?`,
+    [accept ? 'accepted' : 'rejected', from, to]
+  );
+
+  // Notifier les 2 côtés
+  const payloadForSender = {
+    id: `fr-respond-${from}-${to}-${Date.now()}`,
+    type: 'friendRespond',
+    icon: accept ? '✅' : '❌',
+    title: accept ? 'Demande acceptée' : 'Demande refusée',
+    message: accept ? `${to} a accepté votre demande.` : `${to} a refusé votre demande.`,
+    timestamp: new Date().toISOString(),
+    actionable: false
+  };
+  emitToUser(from, 'newNotification', payloadForSender);
+
+  const payloadForReceiver = {
+    ...payloadForSender,
+    message: accept
+      ? `Vous êtes maintenant ami(e) avec ${from}.`
+      : `Vous avez refusé la demande de ${from}.`
+  };
+  emitToUser(to, 'newNotification', payloadForReceiver);
+
+  // Demander aux 2 clients de recharger leur liste d'amis
+  emitToUser(from, 'friendsUpdated', { users: [from, to] });
+  emitToUser(to,   'friendsUpdated', { users: [from, to] });
+
   reply.send({ success: true });
 });
 
+
+// Liste des amis acceptés
 fastify.get('/friends/:username', async (req, reply) => {
   const { username } = req.params;
   const friends = await dbAll(
@@ -296,10 +463,16 @@ fastify.get('/friends/:username', async (req, reply) => {
   reply.send(friends);
 });
 
+// Suppression d'un ami + refresh listes
 fastify.delete('/friends/remove', async (req, reply) => {
   const { from, to } = req.body || {};
   try {
-    await dbRun('DELETE FROM friends WHERE (user1 = ? AND user2 = ?) OR (user1 = ? AND user2 = ?)', [from, to, to, from]);
+    await dbRun(
+      'DELETE FROM friends WHERE (user1 = ? AND user2 = ?) OR (user1 = ? AND user2 = ?)',
+      [from, to, to, from]
+    );
+    emitToUser(from, 'friendsUpdated', { users: [from, to] });
+    emitToUser(to,   'friendsUpdated', { users: [from, to] });
     reply.send({ success: true, message: 'Ami supprimé avec succès' });
   } catch (error) {
     reply.code(500).send({ error: error.message });
@@ -332,26 +505,33 @@ fastify.post('/users', async (req, reply) => {
     });
 });
 
-/* =======================
-   PROFIL (email / pwd)
-======================= */
-fastify.put('/user/update', async (req, reply) => {
-  const { username, email, password } = req.body || {};
-  if (!username || !email) return reply.code(400).send({ error: 'Champs manquants' });
 
-  const updates = ['email = ?'];
-  const values = [email];
+//GESTION POUR UPDATE MAIL && MOT DE PASSE
+fastify.put('/user/update', async (req, reply) => {
+  const { username, email, password } = req.body
+
+  if (!username || !email)
+    return reply.code(400).send({ error: 'Champs manquants' })
+
+  const updates = ['email = ?']
+  const values = [email]
 
   if (password) {
-    const { hash, salt } = hashPassword(password);
-    updates.push('password_hash = ?', 'salt = ?');
-    values.push(hash, salt);
+    const { hash, salt } = hashPassword(password)
+    updates.push('password_hash = ?', 'salt = ?')
+    values.push(hash, salt)
   }
-  values.push(username);
 
-  await dbRun(`UPDATE users SET ${updates.join(', ')} WHERE username = ?`, values);
-  reply.send({ success: true });
-});
+  values.push(username)
+
+  await dbRun(
+    `UPDATE users SET ${updates.join(', ')} WHERE username = ?`,
+    values
+  )
+
+  reply.send({ success: true })
+})
+
 
 fastify.put('/user/:username', async (req, reply) => {
   const { username } = req.params;
@@ -445,13 +625,41 @@ fastify.post('/upload-avatar', async (req, reply) => {
   }
 });
 
+fastify.post('/user/:username/banner', async (req, reply) => {
+  try {
+    const { username } = req.params;
+    const data = await req.file();
+    if (!data) return reply.code(400).send({ error: 'Aucun fichier fourni' });
+
+    const userExists = await dbGet('SELECT 1 FROM users WHERE username = ?', [username]);
+    if (!userExists) return reply.code(404).send({ error: 'Utilisateur non trouvé' });
+
+    const allowed = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
+    if (!allowed.has(data.mimetype)) return reply.code(400).send({ error: 'Format non supporté' });
+
+    const buf = await data.toBuffer();
+    if (buf.length > 5 * 1024 * 1024) return reply.code(400).send({ error: 'Fichier trop lourd (max 5 Mo)' });
+
+    const filename = `${username}-${Date.now()}${extFromMime(data.mimetype)}`;
+    const filepath  = path.join(BANNER_DIR, filename);
+    await fs.writeFile(filepath, buf);
+
+    const relative = `/banners/${filename}`;
+    await dbRun('UPDATE users SET banner = ? WHERE username = ?', [relative, username]);
+
+    reply.send({ success: true, bannerUrl: absoluteAvatarUrl(relative, req) });
+  } catch (error) {
+    console.error('❌ Erreur upload banner:', error);
+    reply.code(500).send({ error: error.message });
+  }
+});
+
 // Upload propre: /user/:username/avatar (utilisée par ton front)
 fastify.post('/user/:username/avatar', async (req, reply) => {
   try {
     const { username } = req.params;
     const data = await req.file();
     if (!data) return reply.code(400).send({ error: 'Aucun fichier fourni' });
-
     const userExists = await dbGet('SELECT 1 FROM users WHERE username = ?', [username]);
     if (!userExists) return reply.code(404).send({ error: 'Utilisateur non trouvé' });
 
@@ -919,6 +1127,46 @@ fastify.get('/api/games/available', (req, reply) => {
 });
 
 /* =======================
+   GET STATISTICS
+======================= */
+
+fastify.get('/user/:username/stats', async (req, reply) => {
+  const { username } = req.params;
+  console.log('GET USER STATS:', username);
+  try {
+    const user = await dbGet('SELECT id FROM users WHERE username = ?', [username]);
+	  console.log('USER STATS FOUND:', user);
+    if (!user) return reply.code(404).send({ error: 'Utilisateur non trouvé' });
+    // Nombre de parties jouées
+    const totalGamesRow = await dbGet('SELECT COUNT(*) as count FROM games WHERE player_id = ?', [user.id]);
+    const totalGames = totalGamesRow?.count || 0;
+    // Nombre de victoires
+    const gamesWonRow = await dbGet('SELECT COUNT(*) as count FROM games WHERE player_id = ? AND result = "win"', [user.id]);
+    const gamesWon = gamesWonRow?.count || 0;
+    // Taux de victoire
+    const winRate = totalGames > 0 ? Math.round((gamesWon / totalGames) * 100) : 0;
+    // Classement (par nombre de victoires, 1 = meilleur)
+    const rankingRow = await dbGet(`
+      SELECT rank FROM (
+        SELECT player_id, RANK() OVER (ORDER BY COUNT(CASE WHEN result = "win" THEN 1 END) DESC) as rank
+        FROM games
+        GROUP BY player_id
+      ) WHERE player_id = ?
+    `, [user.id]);
+    const ranking = rankingRow?.rank || null;
+    reply.send({
+      totalGames,
+      gamesWon,
+      winRate,
+      ranking
+    });
+  } catch (error) {
+    console.error('❌ ERREUR GET USER STATS:', error);
+    reply.code(500).send({ error: 'Erreur interne du serveur', details: error.message });
+  }
+});
+
+/* =======================
    PROMETHEUS METRICS
 ======================= */
 client.register.setDefaultLabels({ app: 'ft_transcendance' });
@@ -985,7 +1233,7 @@ fastify.get('/test/websocket', async (request) => {
 /* =======================
    HTTP + SOCKET.IO
 ======================= */
-let io; // déclaré ici pour être utilisé plus bas (API jeux)
+
 
 fastify.listen({ port: PORT, host: HOST }, (err, address) => {
   if (err) {
@@ -993,7 +1241,8 @@ fastify.listen({ port: PORT, host: HOST }, (err, address) => {
     process.exit(1);
   }
   console.log(`🚀 Backend (HTTP) prêt sur ${address}`);
-
+  
+  let io;
   io = new Server(fastify.server, {
     cors: {
       origin: FRONT_ORIGINS,
@@ -1072,8 +1321,35 @@ fastify.listen({ port: PORT, host: HOST }, (err, address) => {
         room.gameState.winner = 'Player 2';
         room.gameState.gameOver = true;
         io.to(roomId).emit('gameEnded', { winner: 'Player 2', finalScore: { ...score } });
+        		//async function to log game results
+		    (async () => {
+		    	const p1SocketId = room.playerSockets.p1;
+		    	const p2SocketId = room.playerSockets.p2;
+		    	const p1Username = room.playerUsernames.p1;
+		    	const p2Username = room.playerUsernames.p2;
+		    	const p1User = await dbGet('SELECT id FROM users WHERE username = ?', [p1Username]);
+		    	const p2User = await dbGet('SELECT id FROM users WHERE username = ?', [p2Username]);
+		    	if (p1User && p2User) {
+		    	console.log('INSERT GAME:', {
+		    	winner: p2User?.username,
+		    	loser: p1User?.username,
+		    	winnerId: p2User?.id,
+		    	loserId: p1User?.id,
+		    	score: score.player2,
+		    	opponent_score: score.player1
+		    	});
+		    	await dbRun(
+		    		'INSERT INTO games (player_id, opponent_id, result, score, opponent_score) VALUES (?, ?, ?, ?, ?)',
+		    		[p2User.id, p1User.id, 'win', score.player2, score.player1]
+		    	);
+		    	await dbRun(
+		    		'INSERT INTO games (player_id, opponent_id, result, score, opponent_score) VALUES (?, ?, ?, ?, ?)',
+		    		[p1User.id, p2User.id, 'lose', score.player1, score.player2]
+		    	);
+		    }
         stopGameForRoom(roomId);
-        return;
+		  })();
+    return;
       } else {
         resetBall(ball);
       }
@@ -1086,7 +1362,34 @@ fastify.listen({ port: PORT, host: HOST }, (err, address) => {
         room.gameState.winner = 'Player 1';
         room.gameState.gameOver = true;
         io.to(roomId).emit('gameEnded', { winner: 'Player 1', finalScore: { ...score } });
-        stopGameForRoom(roomId);
+		    //async function to log game results
+		    (async () => {
+		    	const p1SocketId = room.playerSockets.p1;
+		    	const p2SocketId = room.playerSockets.p2;
+		    	const p1Username = room.playerUsernames.p1;
+		    	const p2Username = room.playerUsernames.p2;
+		    	const p1User = await dbGet('SELECT id FROM users WHERE username = ?', [p1Username]);
+		    	const p2User = await dbGet('SELECT id FROM users WHERE username = ?', [p2Username]);
+		    	if (p1User && p2User) {
+		    	console.log('INSERT GAME:', {
+		    	winner: p1User?.username,
+		    	loser: p2User?.username,
+		    	winnerId: p1User?.id,
+		    	loserId: p2User?.id,
+		    	score: score.player1,
+		    	opponent_score: score.player2
+		    	});
+		    	await dbRun(
+		    		'INSERT INTO games (player_id, opponent_id, result, score, opponent_score) VALUES (?, ?, ?, ?, ?)',
+		    		[p1User.id, p2User.id, 'win', score.player1, score.player2]
+		    	);
+		    	await dbRun(
+		    		'INSERT INTO games (player_id, opponent_id, result, score, opponent_score) VALUES (?, ?, ?, ?, ?)',
+		    		[p2User.id, p1User.id, 'lose', score.player2, score.player1]
+		    	);
+		    	}
+		    	stopGameForRoom(roomId);
+		    })();
         return;
       } else {
         resetBall(ball);
@@ -1111,13 +1414,15 @@ fastify.listen({ port: PORT, host: HOST }, (err, address) => {
   };
 
   io.on('connection', socket => {
-    websocketConnections.inc();
+    client.register.getSingleMetric('websocket_connections_active')?.inc();
     socket.onAny((eventName, ...args) => {
       console.log(`📨 SERVER: ${eventName}`, args?.[0] ?? '');
     });
 
     socket.on('identify', (username) => {
       connectedUsers.set(socket.id, username);
+      usersBySocket.set(socket.id, username);
+      socketsByUser.set(username, socket.id);
       socket.broadcast.emit('userConnected', username);
       const allUsers = Array.from(connectedUsers.values());
       socket.emit('connectedUsersList', allUsers);
@@ -1252,12 +1557,14 @@ fastify.listen({ port: PORT, host: HOST }, (err, address) => {
         newGameState.gameId = gameId;
         newGameState.players.p1 = gameLobby.currentPlayers[0].socketId;
         newGameState.players.p2 = gameLobby.currentPlayers[1].socketId;
-
-        activeGameRooms.set(gameId, {
-          gameState: newGameState,
-          intervalId: null,
-          playerSockets: { p1: newGameState.players.p1, p2: newGameState.players.p2 }
-        });
+		    const p1Username = connectedUsers.get(newGameState.players.p1);
+		    const p2Username = connectedUsers.get(newGameState.players.p2);
+		    activeGameRooms.set(gameId, {
+		      gameState: newGameState,
+		      intervalId: null,
+		      playerSockets: { p1: newGameState.players.p1, p2: newGameState.players.p2 },
+		      playerUsernames: { p1: p1Username, p2: p2Username } // <-- AJOUT
+		    });
 
         setTimeout(() => {
           if (activeGameRooms.has(gameId)) {
@@ -1332,8 +1639,12 @@ fastify.listen({ port: PORT, host: HOST }, (err, address) => {
     });
 
     socket.on('disconnect', () => {
-      websocketConnections.dec();
+      client.register.getSingleMetric('websocket_connections_active')?.dec();
       const username = connectedUsers.get(socket.id);
+      if (username) {
+        socketsByUser.delete(username);
+      }
+      usersBySocket.delete(socket.id);
       if (username) {
         connectedUsers.delete(socket.id);
         socket.broadcast.emit('userDisconnected', username);
@@ -1370,7 +1681,7 @@ fastify.listen({ port: PORT, host: HOST }, (err, address) => {
 ======================= */
 setInterval(() => {
   if (Math.random() > 0.7) {
-    loginAttempts.inc({ status: Math.random() > 0.8 ? 'failure' : 'success', method: 'simulation' });
+    client.register.getSingleMetric('login_attempts_total')?.inc({ status: Math.random() > 0.8 ? 'failure' : 'success', method: 'simulation' });
   }
-  dbConnections.set(Math.floor(Math.random() * 10) + 5);
+  client.register.getSingleMetric('database_connections_active')?.set(Math.floor(Math.random() * 10) + 5);
 }, 5000);
