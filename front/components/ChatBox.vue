@@ -293,7 +293,7 @@ const useSocket = () => {
   } else {
     console.log('⚠️ Création d\'une nouvelle socket (fallback)')
     const { io } = require('socket.io-client')
-    return io('http://localhost:3000')
+    return io('http://10.12.2.6:3000')
   }
 }
 
@@ -361,7 +361,7 @@ const setupSocketListeners = () => {
 const fetchMessages = async () => {
   try {
     console.log(`📋 Chargement messages ${sender} <-> ${props.receiver}`)
-    const res = await axios.get(`http://localhost:3000/chat/message/${sender}/${props.receiver}`)
+    const res = await axios.get(`http://10.12.2.6:3000/chat/message/${sender}/${props.receiver}`)
     messages.value = res.data.map((msg: any) => ({
       ...msg,
       read: msg.sender === sender || msg.read || false

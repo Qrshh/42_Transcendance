@@ -22,7 +22,7 @@
     emits: ['scoreUpdate', 'statusUpdate'], 
     setup(props, { emit }) {
       const canvas = ref(null)
-      const socket = io('http://localhost:3000')
+      const socket = io('http://10.12.2.6:3000')
       let ctx
       const initialState = {
         ball: { x: 300, y: 200, radius: 8 },

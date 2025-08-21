@@ -29,13 +29,13 @@ const { t, setLang, onLangChange } = useI18n()
   const newUsername = ref('')
   
   const fetchUsers = async () => {
-    const res = await axios.get('http://localhost:3000/users')
+    const res = await axios.get('http://10.12.2.6:3000/users')
     users.value = res.data
   }
   
   const addUser = async () => {
     if (!newUsername.value) return
-    await axios.post('http://localhost:3000/users', {
+    await axios.post('http://10.12.2.6:3000/users', {
       username: newUsername.value
     })
     newUsername.value = ''

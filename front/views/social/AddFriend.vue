@@ -10,7 +10,7 @@ const newFriend = ref('')
 const sendRequest = async () => {
   if (!newFriend.value.trim()) return alert("Entrez un nom d'utilisateur")
   try {
-    await axios.post('http://localhost:3000/friends/request', {
+    await axios.post('http://10.12.2.6:3000/friends/request', {
       from: username,
       to: newFriend.value.trim()
     })

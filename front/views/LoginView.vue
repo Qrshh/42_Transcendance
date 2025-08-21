@@ -96,7 +96,7 @@ const handleLogin = async () => {
   loading.value = true
   
   try {
-    const res = await axios.post('http://localhost:3000/login', {
+    const res = await axios.post('http://10.12.2.6:3000/login', {
       email: email.value,
       password: password.value,
     })
@@ -123,7 +123,7 @@ const handleTwoFactorLogin = async () => {
   loading.value = true
   
   try {
-    const res = await axios.post('http://localhost:3000/login', {
+    const res = await axios.post('http://10.12.2.6:3000/login', {
       email: email.value,
       password: password.value,
       twoFactorCode: twoFactorCode.value
@@ -151,7 +151,7 @@ const handleRegister = async () => {
   loading.value = true
   
   try {
-    const res = await axios.post('http://localhost:3000/register', {
+    const res = await axios.post('http://10.12.2.6:3000/register', {
       username: username.value,
       email: email.value,
       password: password.value,

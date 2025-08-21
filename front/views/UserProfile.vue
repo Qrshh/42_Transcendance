@@ -41,7 +41,7 @@ onMounted(() => {
   }
 
   // Connexion socket pour le statut en ligne
-  socket = io('http://localhost:3000')
+  socket = io('http://10.12.2.6:3000')
   socket.emit('identify', currentUsername)
 
   socket.on('userConnected', (username: string) => {

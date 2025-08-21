@@ -8,7 +8,7 @@ const requests = ref<{ fromUser: string }[]>([])
 
 const fetchRequests = async () => {
   try {
-    const res = await axios.get(`http://localhost:3000/friends/requests/${username}`)
+    const res = await axios.get(`http://10.12.2.6:3000/friends/requests/${username}`)
     requests.value = res.data
   } catch (e) {
     console.error('Erreur fetch requests', e)
@@ -17,7 +17,7 @@ const fetchRequests = async () => {
 
 const respondToRequest = async (fromUser: string, accept: boolean) => {
   try {
-    await axios.post('http://localhost:3000/friends/respond', {
+    await axios.post('http://10.12.2.6:3000/friends/respond', {
       from: fromUser,
       to: username,
       accept

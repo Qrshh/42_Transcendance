@@ -14,7 +14,7 @@ const selectedLang = ref('en')
 const socket = ref()
 
 onMounted(() => {
-  socket.value = io('http://localhost:3000')
+  socket.value = io('http://10.12.2.6:3000')
   const username = localStorage.getItem('username')
   if (username && socket.value) {
     socket.value.emit('identify', username)

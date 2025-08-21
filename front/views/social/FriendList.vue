@@ -58,7 +58,7 @@ const props = defineProps<{
 const loadFriends = async () => {
   try {
     const username = localStorage.getItem('username')
-    const response = await fetch(`http://localhost:3000/friends/${username}`)
+    const response = await fetch(`http://10.12.2.6:3000/friends/${username}`)
     friends.value = await response.json()
   } catch (error) {
     console.error('Erreur lors du chargement des amis:', error)
@@ -80,7 +80,7 @@ const blockUser = async (friendName: string) => {
   if (confirm(`Êtes-vous sûr de vouloir bloquer ${friendName} ?`)) {
     try {
       const username = localStorage.getItem('username')
-      await fetch('http://localhost:3000/chat/block', {
+      await fetch('http://10.12.2.6:3000/chat/block', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ blocker: username, blocked: friendName })
@@ -99,7 +99,7 @@ const removeFriend = async (friendName: string) => {
   if (confirm(`Êtes-vous sûr de vouloir retirer ${friendName} de vos amis ?`)) {
     try {
       const username = localStorage.getItem('username')
-      await fetch('http://localhost:3000/friends/remove', {
+      await fetch('http://10.12.2.6:3000/friends/remove', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ from: username, to: friendName })

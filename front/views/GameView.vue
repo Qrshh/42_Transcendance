@@ -136,7 +136,7 @@ export default defineComponent({
     const isSocketConnected = ref(false);
     
     // Initialiser socket
-    const socket: Socket = io('http://localhost:3000');
+    const socket: Socket = io('http://10.12.2.6:3000');
 
     // États de connexion socket
     onMounted(() => {

@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     platform: linux/amd64
     ports:
-      - "5173:5173"
+      - "0.0.0.0:5173:5173"
     volumes:
       - ./front:/app
       - /app/node_modules
@@ -22,7 +22,7 @@ services:
       dockerfile: Dockerfile
     platform: linux/amd64
     ports:
-      - "3000:3000"
+      - "0.0.0.0:3000:3000"
     volumes:
       - ./back:/app
       - /app/node_modules
@@ -38,7 +38,7 @@ services:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml
     ports:
-      - "9090:9090"
+      - "0.0.0.0:9090:9090"
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=15d'
@@ -55,7 +55,7 @@ services:
     image: grafana/grafana:latest
     container_name: grafana
     ports:
-      - "3001:3000"
+      - "0.0.0.0:3001:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=graf123

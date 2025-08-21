@@ -20,7 +20,7 @@ export const tokens = ref<{
 } | null>(null)
 
 // Configuration axios
-axios.defaults.baseURL = 'http://localhost:3000'
+axios.defaults.baseURL = 'http://10.12.2.6:3000'
 
 // Fonction de connexion classique
 export function login(username: string, email: string, avatar: string, twoFactorEnabled?: boolean) {
