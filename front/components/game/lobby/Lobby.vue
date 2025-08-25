@@ -49,6 +49,13 @@
               <p class="card-description">Lance ta propre partie</p>
               <div class="card-players">🚀 Host</div>
             </div>
+
+            <div class="game-mode-card create-card" @click="currentScreen = 'create-tourn'">
+              <div class="card-icon">☠️</div>
+              <h3 class="card-title">Créer</h3>
+              <p class="card-description">Cree ton propre tournoi</p>
+              <div class="card-players">🚀 Host</div>
+            </div>
           </div>
 
           <!-- Statistiques du lobby -->
@@ -96,6 +103,21 @@
           />
         </div>
 
+                <!-- Composant pour le formulaire de création de partie -->
+        <div v-else-if="currentScreen === 'create-tourn'" key="create-tourn" class="screen sub-screen">
+          <div class="screen-header">
+            <button @click="currentScreen = 'main'" class="btn-back">
+              ← Retour
+            </button>
+            <h2 class="screen-title">✨ Créer un tournoi</h2>
+          </div>
+          <CreateTournamentForm
+            :socket="socket"
+            @back="currentScreen = 'main'"
+            @tournamentCreated="onTournamentCreated"
+          />
+        </div>
+
         <!-- Composant pour l'écran d'attente -->
         <div v-else-if="currentScreen === 'waiting-queue'" key="waiting-queue" class="screen sub-screen">
           <div class="screen-header">
@@ -130,6 +152,7 @@ import { Socket } from 'socket.io-client';
 import JoinGameList from './JoinGameList.vue';
 import CreateGameForm from './CreateGameForm.vue';
 import WaitingQueueScreen from './WaitingQueueScreen.vue';
+import CreateTournamentForm from './CreateTournamentForm.vue';
 
 export default defineComponent({
   name: 'Lobby',
@@ -137,6 +160,7 @@ export default defineComponent({
     JoinGameList,
     CreateGameForm,
     WaitingQueueScreen,
+    CreateTournamentForm,
   },
   props: {
     socket: {
@@ -193,6 +217,11 @@ export default defineComponent({
       currentScreen.value = 'waiting-queue';
     };
 
+    const onTournamentCreated = (tournament : {id: string, name: string }) => {
+      console.log('Tournoi cree :', tournament);
+      currentScreen.value = 'join-tourn';
+    }
+
     const onLeftQueue = () => {
       waitingGameId.value = null;
       waitingGameName.value = null;
@@ -230,6 +259,7 @@ export default defineComponent({
       onGameCreated,
       onLeftQueue,
       onGameStarted,
+      onTournamentCreated,
     };
   },
 });
