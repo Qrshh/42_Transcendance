@@ -209,7 +209,7 @@
                 <p class="friend-status" :class="getStatusClass(friend.status)">
                   <span class="status-dot"></span>
                   {{ getStatusText(friend.status) }}
-                </p>a
+                </p>
               </div>
 
               <div v-if="isSelf" class="friend-actions">
@@ -221,6 +221,8 @@
           </div>
         </div>
       </div>
+
+
 
       <!-- Onglet Paramètres (uniquement si isSelf dans tabs) -->
       <div v-if="activeTab === 'settings'" class="tab-content">
@@ -305,6 +307,7 @@
                 <span class="btn-text"> {{ t.reset }}</span>
               </button>
             </div>
+          </form>
              <!-- NOUVELLE SECTION 2FA -->
             <div class="settings-category">
               <h3 class="category-title">🔒 {{ t.accountSecurity }}</h3>
@@ -312,7 +315,6 @@
                 <TwoFactorAuth />
               </div>
             </div>
-          </form>
 
           <div class="danger-zone">
             <h3 class="danger-title">{{ t.dangerousZone }}</h3>
@@ -532,6 +534,19 @@ if (to === selfUsername.value) { addFriendError.value = 'Tu ne peux pas t’ajou
   finally { isAddingFriend.value = false }
 }
 
+/** ====== Suppression compte ====== **/
+const deleteAccount = async () => {
+  if (!confirm('Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.')) return
+  try {
+    const res = await fetch(`${API_BASE}/user/${encodeURIComponent(user.value.username)}`, { method: 'DELETE' })
+    if (!res.ok) { const txt = await res.text().catch(()=> ''); throw new Error(txt || 'Suppression impossible') }
+    localStorage.clear()
+     router.push('/')
+  } catch (e: any) {
+    alert(e.message || 'Erreur lors de la suppression du compte')
+  }
+}
+
 /** ====== Onglets / Computed ====== **/
 const tabs = computed(() => {
   const base = [
@@ -679,6 +694,9 @@ async function updatePasswordIfNeeded(oldUsernameForPath: string) {
 
 const saveSettings = async () => {
   if (!isSelf.value) return
+  if (event && event.target && event.target.closest('.no-save')) {
+    return
+  }
   try {
     const oldUsername = user.value.username
     await updatePasswordIfNeeded(oldUsername)
