@@ -118,7 +118,7 @@ onBeforeUnmount(() => {
           to="/profile"
           class="nav-link"
         >{{ t.profile }}</RouterLink>
-        <RouterLink v-else to="/about" class="nav-link">{{ t.loginRegister }}</RouterLink>
+        <RouterLink v-else to="/login" class="nav-link">{{ t.loginRegister }}</RouterLink>
         <RouterLink v-if="logged" to="/social" class="nav-link">{{ t.messages }}</RouterLink>
         <RouterLink to="/game" class="nav-link">{{ t.play }}</RouterLink>
       </nav>
