@@ -128,6 +128,7 @@ const handleLogin = async () => {
     // connexion directe (2FA off)
     persistTokens(data.tokens)
     persistProfile(data.user)
+    window.dispatchEvent(new Event('auth-changed'))
     router.push('/')
   } catch (err: any) {
     error.value = err?.response?.data?.message || err?.response?.data?.error || 'Erreur de connexion'
@@ -148,6 +149,7 @@ const handleTwoFactorLogin = async () => {
 
     persistTokens(data.tokens)
     persistProfile(data.user)
+    window.dispatchEvent(new Event('auth-changed'))
     router.push('/')
   } catch (err: any) {
     error.value = err?.response?.data?.message || err?.response?.data?.error || 'Code invalide'

@@ -723,8 +723,13 @@ const resetSettings = () => {
 /** ====== Déconnexion ====== **/
 const handleLogout = async () => {
   try { await fetch(`${API_BASE}/logout`, { method: 'POST' }) } catch {}
+  try {
+    localStorage.clear()
+    sessionStorage.clear()
+  } catch {}
+  window.dispatchEvent(new Event('auth-changed'))
   authLogout()
-  router.push('/login')
+  router.replace('/login')
 }
 
 /** ====== Avatar / Bannière ====== **/

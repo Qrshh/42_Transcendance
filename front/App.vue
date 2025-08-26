@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, RouterLink, RouterView } from 'vue-router'
 import { io } from 'socket.io-client'
 
@@ -13,9 +13,16 @@ const router = useRouter()
 const socket = ref<ReturnType<typeof io> | null>(null)
 const API_BASE = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:3000'
 
-/* ==== Session ==== */
-const username = (localStorage.getItem('username') || '').trim()
-const logged = computed(() => !!isLoggedIn && !!username)
+/* ==== Session (réactif !) ==== */
+const userName = ref((localStorage.getItem('username') || '').trim())
+// Si ton store `isLoggedIn` est bien réactif, garde-le.
+// Sinon, tu peux simplifier en: const logged = computed(() => !!userName.value)
+const logged = computed(() => !!isLoggedIn && !!userName.value)
+
+/* Garder le header synchro avec localStorage (login/logout depuis n'importe où) */
+function refreshAuthFromStorage() {
+  userName.value = (localStorage.getItem('username') || '').trim()
+}
 
 /* ==== Lang ==== */
 const selectedLang = ref(localStorage.getItem('lang') || 'en')
@@ -28,7 +35,7 @@ function handleLangChange() {
 const showUserMenu = ref(false)
 const avatarUrl = ref<string | null>(null)
 const userGradient = computed(() => {
-  const u = (username || 'a').charCodeAt(0)
+  const u = (userName.value || 'a').charCodeAt(0)
   const colors = [
     'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
@@ -38,7 +45,7 @@ const userGradient = computed(() => {
   ]
   return colors[u % colors.length]
 })
-const userInitial = computed(() => (username?.[0] || 'U').toUpperCase())
+const userInitial = computed(() => (userName.value?.[0] || 'U').toUpperCase())
 
 function toggleMenu() { showUserMenu.value = !showUserMenu.value }
 function closeMenuOnOutside(e: MouseEvent) {
@@ -49,58 +56,78 @@ function onAvatarKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') showUserMenu.value = false
 }
 
+/* ==== Helpers ==== */
+async function loadAvatar(name?: string | null) {
+  if (!name) { avatarUrl.value = null; return }
+  try {
+    const r = await fetch(`${API_BASE}/user/${encodeURIComponent(name)}`)
+    const j = r.ok ? await r.json() : null
+    avatarUrl.value = j?.avatar || null
+  } catch { avatarUrl.value = null }
+}
+
 /* ==== Actions ==== */
 async function doLogout() {
   try { await fetch(`${API_BASE}/logout`, { method: 'POST' }) } catch {}
   try { localStorage.clear(); sessionStorage.clear() } catch {}
+  // >>> important : synchro immédiate du header
+  refreshAuthFromStorage()
+  window.dispatchEvent(new Event('auth-changed'))
   router.replace('/login')
 }
 function goProfileSettings() {
-  if (!username) { router.push('/login'); return }
-
-  // optionnel: fallback pour les vieux composants
   localStorage.setItem('profile_target_tab', 'settings')
-
-  // ✅ pousse vers TON profil + onglet "settings"
-  router.push({
-    name: 'profile',                      // ← adapte si ton route name est différent
-    params: { username },                 // ← si ta route est /profile/:username
-    query: { tab: 'settings' }
-  })
-
+  router.push({ path: '/profile', query: { tab: 'settings' } })
   showUserMenu.value = false
 }
-
+function canAccessProfile() {
+  return !!userName.value
+}
 
 /* ==== Lifecycle ==== */
 onMounted(async () => {
+  // écouter les changements d'auth globaux
+  window.addEventListener('storage', refreshAuthFromStorage)
+  window.addEventListener('auth-changed', refreshAuthFromStorage)
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshAuthFromStorage()
+  })
+
   // socket + identify
   socket.value = io(API_BASE, { withCredentials: true, transports: ['websocket'] })
-  if (username) socket.value.emit('identify', username)
+  if (userName.value) socket.value.emit('identify', userName.value)
 
   socket.value.on('forceLogout', ({ reason }) => {
     try { localStorage.clear(); sessionStorage.clear() } catch {}
+    refreshAuthFromStorage()
+    window.dispatchEvent(new Event('auth-changed'))
     router.replace({ name: 'login' })
   })
 
   document.addEventListener('click', closeMenuOnOutside)
 
   // Récupère l'avatar s'il existe
-  if (username) {
-    try {
-      const r = await fetch(`${API_BASE}/user/${encodeURIComponent(username)}`)
-      const j = r.ok ? await r.json() : null
-      if (j?.avatar) avatarUrl.value = j.avatar
-    } catch {}
-  }
+  await loadAvatar(userName.value)
 })
 
 onBeforeUnmount(() => {
   socket.value?.off('forceLogout')
   socket.value?.disconnect()
   document.removeEventListener('click', closeMenuOnOutside)
+  window.removeEventListener('storage', refreshAuthFromStorage)
+  window.removeEventListener('auth-changed', refreshAuthFromStorage)
+})
+
+/* ==== Réagir au changement d’utilisateur ==== */
+watch(userName, (n, o) => {
+  if (n !== o) {
+    if (n && socket.value) socket.value.emit('identify', n)
+    loadAvatar(n)
+    showUserMenu.value = false
+  }
 })
 </script>
+
 
 <template>
   <header class="header-modern">
@@ -154,7 +181,7 @@ onBeforeUnmount(() => {
                 <span v-else>{{ userInitial }}</span>
               </div>
               <div class="user-meta">
-                <div class="user-name">{{ username }}</div>
+                <div class="user-name">{{ userName }}</div>
                 <div class="user-status">Connecté</div>
               </div>
             </div>
