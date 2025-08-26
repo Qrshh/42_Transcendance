@@ -26,10 +26,10 @@ function refreshAuthFromStorage() {
 
 /* ==== Lang ==== */
 const selectedLang = ref(localStorage.getItem('lang') || 'en')
-function handleLangChange() {
-  onLangChange()
-  localStorage.setItem('lang', selectedLang.value)
-}
+// function handleLangChange() {
+//   onLangChange()
+//   localStorage.setItem('lang', selectedLang.value)
+// }
 
 /* ==== Avatar & user menu ==== */
 const showUserMenu = ref(false)
@@ -145,14 +145,14 @@ watch(userName, (n, o) => {
           to="/profile"
           class="nav-link"
         >{{ t.profile }}</RouterLink>
-        <RouterLink v-else to="/about" class="nav-link">{{ t.loginRegister }}</RouterLink>
+        <RouterLink v-else to="/login" class="nav-link">{{ t.loginRegister }}</RouterLink>
         <RouterLink v-if="logged" to="/social" class="nav-link">{{ t.messages }}</RouterLink>
         <RouterLink to="/game" class="nav-link">{{ t.play }}</RouterLink>
       </nav>
 
       <!-- Droite : langue + avatar -->
       <div class="header-right">
-        <select v-model="selectedLang" @change="handleLangChange" class="lang-selector" aria-label="Language">
+        <select v-model="selectedLang" @change="onLangChange" class="lang-selector" aria-label="Language">
           <option value="en">🇬🇧 EN</option>
           <option value="fr">🇫🇷 FR</option>
           <option value="es">🇪🇸 ES</option>
