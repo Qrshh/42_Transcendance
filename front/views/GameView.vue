@@ -85,6 +85,7 @@
               :roomId="roomId"
               class="game-container"
               @leaveGame="handleLeaveGame"
+              @gameEnded="onRemoteGameEnded"
             />
           </div>
         </div>
@@ -121,7 +122,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, computed, onMounted, onUnmounted } from 'vue';
+import { defineComponent, ref, onMounted, onUnmounted } from 'vue';
 import { io, Socket } from 'socket.io-client';
 import Lobby from '../components/game/lobby/Lobby.vue';
 import LocalGame from '../components/game/lobby/LocalGame.vue';
@@ -131,31 +132,111 @@ import RemoteGame from '../components/game/lobby/RemoteGame.vue';
 export default defineComponent({
   components: { Lobby, LocalGame, AIGame, RemoteGame },
   setup() {
-    const mode = ref<'lobby'|'local'|'ai'|'remote'>('lobby');
+    const mode   = ref<'lobby'|'local'|'ai'|'remote'>('lobby');
     const roomId = ref<string>('');
     const isSocketConnected = ref(false);
-    
-    // Initialiser socket
-    const socket: Socket = io('http://localhost:3000');
 
-    // États de connexion socket
+    // ⚙️ URL backend
+    const API_BASE = 'http://localhost:3000';
+
+    // 🔌 Socket client (websocket direct, reconnexion auto)
+    const socket: Socket = io(API_BASE, {
+      transports: ['websocket'],
+      autoConnect: true
+    });
+
+    // 🔑 fonction utilitaire pour (ré)identifier
+    const identify = () => {
+      const me = localStorage.getItem('username') || 'anon';
+      socket.emit('identify', me);
+    };
+    
+    /** 👉 évite les doubles join + (re)join partout où il faut */
+    const joinedOnce = ref(false);
+    function ensureJoined() {
+      if (!roomId.value || joinedOnce.value) return;
+      const me = localStorage.getItem('username') || 'anon';
+      socket.emit('joinChallengeRoom', { roomId: roomId.value, username: me });
+      joinedOnce.value = true;
+    }
+
+    /** handler partagé pour l’event window */
+    function onWinChallengeStart(e: any) {
+      const rid = e?.detail?.roomId;
+      if (!rid) return;
+      roomId.value = rid;
+      mode.value = 'remote';
+      joinedOnce.value = false;   // reset la garde
+      ensureJoined();             // 👈 REJOINS LA ROOM ICI AUSSI
+    }
+
     onMounted(() => {
       socket.on('connect', () => {
         isSocketConnected.value = true;
         console.log('✅ Socket connecté');
+        identify();                       // 👈 identifie tout de suite
+      });
+      // Associe le pseudo à ce socket côté serveur
+      const me = localStorage.getItem('username') || 'anon';
+      socket.emit('identify', me);
+
+      // Quand un défi est accepté -> lance la RemoteGame ici
+      socket.on('challengeStart', ({ roomId: rid }) => {
+        roomId.value = rid;
+        mode.value = 'remote';
+        joinedOnce.value = false;
+        ensureJoined(); // 👈
       });
 
-      socket.on('disconnect', () => {
-        isSocketConnected.value = false;
-        console.log('❌ Socket déconnecté');
+      // Au montage si pendingRoomId existe
+      const pending = localStorage.getItem('pendingRoomId');
+      if (pending) {
+        localStorage.removeItem('pendingRoomId');
+        roomId.value = pending;
+        mode.value = 'remote';
+        joinedOnce.value = false;
+        ensureJoined(); // 👈
+      }
+
+      // C) challengeStart relayé **par window** (venant d’un autre socket/vue)
+      window.addEventListener('challengeStart', onWinChallengeStart);
+
+      socket.io.on('reconnect', () => {
+        identify();
+        joinedOnce.value = false;
+        ensureJoined(); // 👈 rejoin auto si on est en remote
+      });
+
+      socket.on('disconnect', () => { isSocketConnected.value = false; });
+      socket.on('playerStatsUpdated', (p: { username: string }) => {
+        const me = localStorage.getItem('username') || 'anon';
+        if (p?.username === me) {
+          window.dispatchEvent(new CustomEvent('playerStatsUpdated'));
+        }
+      });
+
+      // 📈 quand le serveur dit que tes stats ont changé: notifie l’app
+      socket.on('playerStatsUpdated', (p: { username: string }) => {
+        const me = localStorage.getItem('username') || 'anon';
+        if (p?.username === me) {
+          console.log('📈 Stats MAJ pour', me);
+          // permet à ProfileView (ou autre) d’actualiser ses données
+          window.dispatchEvent(new CustomEvent('playerStatsUpdated'));
+        }
       });
     });
 
     onUnmounted(() => {
+      window.removeEventListener('challengeStart', onWinChallengeStart);
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('playerStatsUpdated');
+      // @ts-ignore - manager du client socket.io
+      socket.io?.off?.('reconnect');
       socket.disconnect();
     });
 
-    // Fonctions
+    // ————— UI / navigation —————
     function setMode(m: typeof mode.value) {
       mode.value = m;
       console.log(`🎮 Mode changé vers: ${m}`);
@@ -165,6 +246,10 @@ export default defineComponent({
       roomId.value = rid;
       mode.value = 'remote';
       console.log(`🌐 Jeu en ligne démarré - Room: ${rid}`);
+      const me = localStorage.getItem('username') || 'anon';
+      socket.emit('joinChallengeRoom', { roomId: rid, username: me });
+      joinedOnce.value = false;
+      ensureJoined(); 
     }
 
     function handleLeaveGame() {
@@ -172,59 +257,41 @@ export default defineComponent({
       returnToLobby();
     }
 
+    const endedOnce = ref(false);
+    function onRemoteGameEnded(payload:any){
+      if (endedOnce.value) return;
+      endedOnce.value = true;
+      console.log('🏁 Fin de partie (GameView):', payload);
+      window.dispatchEvent(new CustomEvent('playerStatsUpdated'));
+    }
+
+
     function returnToLobby() {
       mode.value = 'lobby';
       roomId.value = '';
       console.log('🏠 Retour au lobby');
     }
 
-    // Fonctions utilitaires pour l'affichage
+    // ————— helpers d’affichage —————
     function getModeEmoji() {
-      const emojis = {
-        lobby: '🏛️',
-        local: '🏠',
-        ai: '🤖',
-        remote: '🌐'
-      };
-      return emojis[mode.value];
+      return ({ lobby:'🏛️', local:'🏠', ai:'🤖', remote:'🌐' } as const)[mode.value];
     }
-
     function getModeText() {
-      const texts = {
-        lobby: 'Lobby',
-        local: 'Mode Local',
-        ai: 'Mode IA',
-        remote: 'Mode En ligne'
-      };
-      return texts[mode.value];
+      return ({ lobby:'Lobby', local:'Mode Local', ai:'Mode IA', remote:'Mode En ligne' } as const)[mode.value];
     }
-
     function getPlayerCountText() {
-      const counts = {
-        lobby: 'En attente',
-        local: '2 Joueurs',
-        ai: '1 Joueur vs IA',
-        remote: 'Multijoueur'
-      };
-      return counts[mode.value];
+      return ({ lobby:'En attente', local:'2 Joueurs', ai:'1 Joueur vs IA', remote:'Multijoueur' } as const)[mode.value];
     }
 
-    return { 
-      mode, 
-      roomId, 
-      socket, 
-      isSocketConnected,
-      setMode, 
-      onRemoteStart, 
-      handleLeaveGame,
-      returnToLobby,
-      getModeEmoji,
-      getModeText,
-      getPlayerCountText
+    return {
+      mode, roomId, socket, isSocketConnected,
+      setMode, onRemoteStart, handleLeaveGame, onRemoteGameEnded, returnToLobby,
+      getModeEmoji, getModeText, getPlayerCountText
     };
   }
 });
 </script>
+
 
 <style scoped>
 .game-view {

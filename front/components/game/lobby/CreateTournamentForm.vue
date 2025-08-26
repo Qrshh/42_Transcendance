@@ -7,12 +7,12 @@
     </div>
 
     <!-- Formulaire -->
-    <form @submit.prevent="createGame" class="game-form">
+    <form @submit.prevent="createTournament" class="game-form">
       <!-- Nom de la partie -->
       <div class="form-group">
         <label class="form-label">
           <span class="label-icon">🎮</span>
-          <span class="label-text">Nom de la partie</span>
+          <span class="label-text">Nom du tournoi</span>
         </label>
         <input 
           type="text" 
@@ -29,7 +29,7 @@
         <label class="form-checkbox">
           <input type="checkbox" v-model="form.hasPassword" />
           <span class="checkbox-mark"></span>
-          <span class="checkbox-text">🔒 Partie privée (mot de passe)</span>
+          <span class="checkbox-text">🔒 Tournoi privé (mot de passe)</span>
         </label>
         
         <Transition name="slide-down">
@@ -52,7 +52,12 @@
           </label>
           <select v-model.number="form.maxPlayers" class="form-select">
             <option value="2">2 joueurs</option>
+            <option value="3">3 joueurs</option>
             <option value="4">4 joueurs</option>
+            <option value="5">5 joueurs</option>
+            <option value="6">6 joueurs</option>
+            <option value="7">7 joueurs</option>
+            <option value="8">8 joueurs</option>
           </select>
         </div>
 
@@ -88,7 +93,7 @@
           <span v-if="isCreating" class="btn-spinner">⏳</span>
           <span v-else class="btn-icon">🚀</span>
           <span class="btn-text">
-            {{ isCreating ? 'Création...' : 'Créer la partie' }}
+            {{ isCreating ? 'Création...' : 'Créer le tournoi' }}
           </span>
         </button>
         
@@ -132,14 +137,14 @@ import { defineComponent, ref, onMounted, onUnmounted } from 'vue';
 import type { Socket } from 'socket.io-client';
 
 export default defineComponent({
-  name: 'CreateGameForm',
+  name: 'CreateTournamentForm',
   props: {
     socket: {
       type: Object as () => Socket,
       required: true,
     },
   },
-  emits: ['back', 'gameCreated'],
+  emits: ['back', 'tournamentCreated'],
   
   setup(props, { emit }) {
     const form = ref({
@@ -153,13 +158,13 @@ export default defineComponent({
     const errorMessage = ref<string | null>(null);
     const isCreating = ref(false);
 
-    const createGame = async () => {
+    const createTournament = async () => {
       try {
         errorMessage.value = null;
         isCreating.value = true;
         
         if (!form.value.name.trim()) {
-          errorMessage.value = 'Le nom de la partie est requis.';
+          errorMessage.value = 'Le nom du tournoi est requis.';
           isCreating.value = false;
           return;
         }
@@ -170,14 +175,15 @@ export default defineComponent({
           return;
         }
 
-        const gameData = {
+        const tournamentData = {
           name: form.value.name.trim(),
           password: form.value.hasPassword ? form.value.password : undefined,
           maxPlayers: form.value.maxPlayers,
           maxPoints: form.value.maxPoints,
         };
 
-        props.socket.emit('createGame', gameData);
+        console.log("🎮 Création de partie:", tournamentData);
+        props.socket.emit('createGame', tournamentData);
         
         // Timeout de sécurité
         setTimeout(() => {
@@ -193,33 +199,32 @@ export default defineComponent({
         isCreating.value = false;
       }
     };
-
     onMounted(() => {
-      console.log("🔧 CreateGameForm: Configuration des événements");
+    console.log("🔧 CreateTournamentForm: Configuration des événements");
 
-      props.socket.on('gameCreatedConfirmation', (game: { id: string; name: string }) => {
-        console.log("✅ Partie créée avec succès:", game);
+    props.socket.on('tournamentCreated', (tournament: { id: string; name: string }) => {
+        console.log("✅ Tournoi créé avec succès:", tournament);
         isCreating.value = false;
-        emit('gameCreated', game);
-      });
-    
-      props.socket.on('gameCreateError', (data: { message: string }) => {
+        emit('tournamentCreated', tournament);
+    });
+
+    props.socket.on('tournamentError', (data: { message: string }) => {
         console.log("❌ Erreur de création:", data);
         errorMessage.value = data.message;
         isCreating.value = false;
-      });
+    });
     });
 
     onUnmounted(() => {
-      props.socket.off('gameCreatedConfirmation');
-      props.socket.off('gameCreateError');
+    props.socket.off('tournamentCreated');
+    props.socket.off('tournamentError');
     });
 
     return {
       form,
       errorMessage,
       isCreating,
-      createGame,
+      createTournament,
     };
   },
 });

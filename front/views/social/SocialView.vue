@@ -1,265 +1,245 @@
 <template>
-  <div class="social-container">
-    <!-- Header avec tabs -->
+  <div class="social-page">
+    <!-- Header -->
     <div class="social-header">
-      <h2 class="social-title">🌐 Social</h2>
+      <div class="header-left">
+        <h2 class="title">🌐 Social</h2>
+        <p class="subtitle">Retrouve tes amis, discute et reçois tes notifications.</p>
+      </div>
 
-      <div class="social-tabs">
-        <button
-          v-for="tab in tabs"
-          :key="tab.id"
-          @click="activeTab = tab.id"
-          class="tab-btn"
-          :class="{ active: activeTab === tab.id }"
-        >
-          <span class="tab-icon">{{ tab.icon }}</span>
-          <span class="tab-text">{{ tab.label }}</span>
-          <span v-if="tab.count > 0" class="tab-count">{{ tab.count }}</span>
+      <div class="header-actions">
+        <button class="btn btn-secondary" @click="openAddFriend">
+          <span class="btn-icon">➕</span>
+          <span class="btn-text">Ajouter un ami</span>
         </button>
       </div>
     </div>
 
-    <!-- Fenêtre de chat -->
-    <div v-if="activeChatUser" class="chat-overlay" @click="closeIfClickOutside">
-      <div class="chat-window" @click.stop>
-        <div class="chat-header">
-          <div class="chat-user-info">
-            <div
-              class="status-indicator"
-              :class="{ online: isUserOnline(activeChatUser), offline: !isUserOnline(activeChatUser) }"
-            ></div>
-            <h3>💬 {{ activeChatUser }}</h3>
-            <span class="online-status">{{ isUserOnline(activeChatUser) ? 'En ligne' : 'Hors ligne' }}</span>
-          </div>
-          <button @click="closeChat" class="close-btn">✕</button>
-        </div>
-
-        <div class="chat-content">
-          <ChatBox :receiver="activeChatUser" :socket="socket" />
-        </div>
-      </div>
+    <!-- Onglets (mêmes styles que ProfileView) -->
+    <div class="profile-tabs">
+      <button
+        v-for="tab in tabs"
+        :key="tab.id"
+        @click="activeTab = tab.id as any"
+        class="tab-btn"
+        :class="{ active: activeTab === tab.id }"
+      >
+        <span class="tab-icon">{{ tab.icon }}</span>
+        <span class="tab-text">{{ tab.label }}</span>
+        <span v-if="tab.count" class="tab-count">{{ tab.count }}</span>
+      </button>
     </div>
 
-    <!-- Profil -->
-    <ProfileView
-      v-if="selectedProfile && !activeChatUser"
-      :username="selectedProfile"
-      @close="closeProfile"
-      @sendMessage="handleSendMessage"
-    />
-
-    <!-- Interface sociale -->
-    <div v-else-if="!activeChatUser" class="social-interface">
-      <!-- Amis -->
+    <!-- Contenu (mêmes styles que ProfileView) -->
+    <div class="profile-content">
+      <!-- AMIS -->
       <div v-if="activeTab === 'friends'" class="tab-content">
-        <h3 class="section-title">🟢 Amis en ligne ({{ onlineFriends.length }})</h3>
-        <AddFriend @friendAdded="onFriendsChanged" />
-        <!--<FriendRequest @requestHandled="onFriendsChanged" />-->
+        <div class="friends-header">
+          <h3 class="section-title">👥 Mes amis ({{ friendsUsernames.length }})</h3>
+
+        </div>
+
         <FriendList
+          :connectedUsers="connectedUsers"
           @startChat="startChat"
-          @viewProfile="viewProfile"
-          @friendRemoved="onFriendsChanged"
+          @viewProfile="goProfile"
         />
       </div>
 
-      <!-- Messages -->
+      <!-- MESSAGES -->
       <div v-if="activeTab === 'messages'" class="tab-content">
-        <div class="messages-section">
-          <div class="messages-header">
-            <h3 class="section-title">💬 Conversations récentes</h3>
-            <button @click="createNewConversation" class="btn btn-primary">
-              <span class="btn-icon">➕</span>
-              <span class="btn-text">Nouvelle conversation</span>
-            </button>
-          </div>
+        <div class="messages-header">
+          <h3 class="section-title">💬 Conversations récentes</h3>
+          <button class="btn btn-secondary" @click="createNewConversation">
+            <span class="btn-icon">📝</span>
+            <span class="btn-text">Nouvelle</span>
+          </button>
+        </div>
 
-          <div class="conversations-grid">
-            <div
-              v-for="conversation in conversations"
-              :key="conversation.id"
-              @click="openConversation(conversation)"
-              class="conversation-card"
-            >
-              <div class="conversation-avatar" :style="{ background: getUserColor(conversation.participant) }">
-                {{ getDefaultAvatar(conversation.participant) }}
+        <div class="conversations-grid">
+          <button
+            v-for="c in conversations"
+            :key="c.id"
+            class="conversation-card"
+            @click="openConversation(c)"
+          >
+            <div class="friend-avatar" :style="{ background: getUserColor(c.participant) }">
+              <span class="friend-initials">{{ initials(c.participant) }}</span>
+            </div>
+
+            <div class="conv-info">
+              <div class="top">
+                <span class="name">{{ c.participant }}</span>
+                <span class="time">{{ formatTime(c.lastMessage.timestamp) }}</span>
               </div>
 
-              <div class="conversation-info">
-                <div class="conversation-header">
-                  <h4 class="participant-name">{{ conversation.participant }}</h4>
-                  <span class="message-time">{{ formatTime(conversation.lastMessage.timestamp) }}</span>
-                </div>
+              <p class="last">{{ c.lastMessage.content }}</p>
 
-                <p class="last-message" :class="{ unread: conversation.unreadCount > 0 }">
-                  {{ conversation.lastMessage.content }}
-                </p>
+              <div class="bottom">
+                <span
+                  class="status"
+                  :class="isUserOnline(c.participant) ? 'online' : 'offline'"
+                >
+                  <span class="dot"></span>
+                  {{ isUserOnline(c.participant) ? 'En ligne' : 'Hors ligne' }}
+                </span>
 
-                <div class="conversation-footer">
-                  <div class="participant-status" :class="getStatusClass(conversation.participant)">
-                    <span class="status-dot"></span>
-                    <span class="status-text">{{ getStatusText(conversation.participant) }}</span>
-                  </div>
-
-                  <span v-if="conversation.unreadCount > 0" class="unread-badge">
-                    {{ conversation.unreadCount }}
-                  </span>
-                </div>
+                <span v-if="c.unreadCount > 0" class="badge">{{ c.unreadCount }}</span>
               </div>
             </div>
-          </div>
+          </button>
+        </div>
 
-          <!-- Vide -->
-          <div v-if="conversations.length === 0" class="no-conversations">
-            <div class="no-content-icon">💬</div>
-            <h3 class="no-content-title">Aucune conversation</h3>
-            <p class="no-content-text">Commence une nouvelle discussion avec tes amis !</p>
-            <button @click="activeTab = 'friends'" class="btn btn-secondary">
-              <span class="btn-icon">👥</span>
-              <span class="btn-text">Voir mes amis</span>
-            </button>
-          </div>
+        <div v-if="conversations.length === 0" class="empty">
+          <div class="big">💬</div>
+          <h4>Aucune conversation</h4>
+          <p>Démarre une discussion avec un ami.</p>
+          <button class="btn btn-primary" @click="activeTab = 'friends'">Voir mes amis</button>
         </div>
       </div>
 
-      <!-- En ligne (amis uniquement) -->
-      <div v-if="activeTab === 'online'" class="tab-content">
-        <div class="online-section">
-          <div class="section-header">
-            <h3 class="section-title">🟢 Amis en ligne ({{ onlineFriends.length }})</h3>
-          </div>
-
-          <div class="online-users-grid">
-            <div
-              v-for="user in onlineFriends"
-              :key="user"
-              class="online-user-card"
-            >
-              <div class="user-avatar" :style="{ background: getUserColor(user) }">
-                {{ getDefaultAvatar(user) }}
-              </div>
-
-              <div class="user-info">
-                <h4 class="user-name">{{ user }}</h4>
-                <p class="user-status online">
-                  <span class="status-dot"></span>
-                  En ligne
-                </p>
-              </div>
-
-              <div class="user-actions">
-                <button @click.stop="startChat(user)" class="action-btn" title="Message">💬</button>
-                <button @click.stop="viewProfile(user)" class="action-btn" title="Profil">👤</button>
-                <button @click.stop="challengeUser(user)" class="action-btn" title="Défier">🎯</button>
-              </div>
-            </div>
-          </div>
-
-          <div v-if="onlineFriends.length === 0" class="no-users-online">
-            <div class="no-content-icon">😴</div>
-            <h3 class="no-content-title">Personne en ligne</h3>
-            <p class="no-content-text">Tes amis reviendront bientôt !</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Notifications -->
+      <!-- NOTIFICATIONS -->
       <div v-if="activeTab === 'notifications'" class="tab-content">
-        <div class="notifications-section">
-          <div class="section-header">
-            <h3 class="section-title">🔔 Notifications</h3>
-            <button v-if="notifications.length > 0" @click="markAllAsRead" class="btn btn-secondary">
-              <span class="btn-icon">✓</span>
-              <span class="btn-text">Tout marquer comme lu</span>
-            </button>
-          </div>
+        <div class="notif-header">
+          <h3 class="section-title">🔔 Notifications</h3>
+          <button v-if="notifications.length" class="btn btn-secondary" @click="markAllAsRead">
+            <span class="btn-icon">✓</span>
+            <span class="btn-text">Tout marquer lu</span>
+          </button>
+        </div>
 
-          <div class="notifications-list">
-            <div
-              v-for="notification in notifications"
-              :key="notification.id"
-              class="notification-item"
-              :class="{ unread: !notification.read }"
-            >
-              <div class="notification-icon">{{ notification.icon }}</div>
+        <div class="notif-list">
+          <div
+            v-for="n in notifications"
+            :key="n.id"
+            class="notif-card"
+            :class="{ unread: !n.read }"
+          >
+            <div class="notif-ic">{{ n.icon }}</div>
 
-              <div class="notification-content">
-                <h4 class="notification-title">{{ notification.title }}</h4>
-                <p class="notification-message">{{ notification.message }}</p>
-                <span class="notification-time">{{ formatTime(notification.timestamp) }}</span>
-              </div>
+            <div class="notif-content">
+              <h4 class="notif-title">{{ n.title }}</h4>
+              <p class="notif-msg">{{ n.message }}</p>
+              <span class="notif-time">{{ formatTime(n.timestamp) }}</span>
+            </div>
 
-              <div class="notification-actions">
-                <button
-                  v-if="notification.actionable"
-                  @click.stop="handleNotificationAction(notification)"
-                  class="btn btn-primary"
-                >
-                  {{ notification.actionText }}
-                </button>
+            <div class="notif-actions">
+              <button
+                v-if="n.actionable"
+                class="btn btn-primary"
+                @click="handleNotificationAction(n)"
+              >
+                {{ n.actionText || 'Ouvrir' }}
+              </button>
 
-                <button
-                  v-if="notification.actionable && notification.actionData?.type === 'friendRequest'"
-                  @click.stop="declineFriendRequest(notification.actionData.fromUser).then(() => dismissNotification(notification.id))"
-                  class="btn btn-secondary"
-                >
-                  Refuser
-                </button>
+              <button
+                v-if="n.actionable && n.actionData?.type === 'friendRequest'"
+                class="btn btn-secondary"
+                @click="declineFriendRequest(n.actionData.fromUser).then(() => dismissNotification(n.id))"
+              >
+                Refuser
+              </button>
 
+              <button
+                v-if="n.actionable && n.actionData?.type === 'challenge'"
+                class="btn btn-secondary"
+                @click="declineChallenge(n.actionData.id); dismissNotification(n.id)"
+              >
+                Refuser
+              </button>
 
-                <button @click.stop="dismissNotification(notification.id)" class="btn-icon-only">✕</button>
-              </div>
+              <button class="btn-icon-only" @click="dismissNotification(n.id)">✕</button>
             </div>
           </div>
+        </div>
 
-          <div v-if="notifications.length === 0" class="no-notifications">
-            <div class="no-content-icon">🔔</div>
-            <h3 class="no-content-title">Aucune notification</h3>
-            <p class="no-content-text">Tu es à jour ! 🎉</p>
-          </div>
+        <div v-if="notifications.length === 0" class="empty">
+          <div class="big">🎉</div>
+          <h4>Aucune notification</h4>
+          <p>Tu es à jour.</p>
         </div>
       </div>
     </div>
 
-    <!-- Modal nouvelle conversation -->
-    <Transition name="modal">
-      <div v-if="showNewConversationModal" class="modal-overlay" @click.self="showNewConversationModal = false">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h3 class="modal-title">Nouvelle conversation</h3>
-            <button @click="showNewConversationModal = false" class="modal-close">✕</button>
+    <!-- Chat flottant (même logique que ProfileView) -->
+    <Teleport to="body">
+      <ChatBoxLite
+        v-if="activeChatUser"
+        :me="me"
+        :receiver="activeChatUser"
+        :socket="socket"
+        :isOnline="isUserOnline(activeChatUser)"
+        :offsetIndex="0"
+        @close="activeChatUser = null"
+        @challengeUser="onChallengeFromChat"
+        @viewProfile="goProfile"
+      />
+    </Teleport>
+
+    <!-- Modal: nouvelle conversation -->
+    <Transition name="fade">
+      <div v-if="showNewConversationModal" class="af-overlay" @click.self="showNewConversationModal = false">
+        <div class="af-modal">
+          <div class="af-header">
+            <h3>Nouvelle conversation</h3>
+            <button class="af-close" @click="showNewConversationModal = false">✕</button>
           </div>
-
-          <div class="modal-body">
-            <div class="user-search">
-              <input
-                v-model="searchQuery"
-                type="text"
-                placeholder="Rechercher un utilisateur..."
-                class="search-input"
-              />
-
-              <div class="search-results">
-                <div
-                  v-for="user in filteredFriends"
-                  :key="user"
-                  @click="startConversationWithUser(user)"
-                  class="user-result"
-                >
-                  <div class="user-avatar" :style="{ background: getUserColor(user) }">
-                    {{ getDefaultAvatar(user) }}
-                  </div>
-
-                  <div class="user-info">
-                    <h4 class="user-name">{{ user }}</h4>
-                    <p class="user-status" :class="getStatusClass(user)">
-                      <span class="status-dot"></span>
-                      {{ getStatusText(user) }}
-                    </p>
+          <div class="af-body">
+            <input
+              v-model="searchQuery"
+              class="af-input"
+              type="text"
+              placeholder="Rechercher un ami…"
+            />
+            <div class="search-results">
+              <button
+                v-for="u in filteredFriends"
+                :key="u"
+                class="user-result"
+                @click="startConversationWithUser(u)"
+              >
+                <div class="friend-avatar" :style="{ background: getUserColor(u) }">
+                  <span class="friend-initials">{{ initials(u) }}</span>
+                </div>
+                <div class="user-info">
+                  <div class="name">{{ u }}</div>
+                  <div class="mini-status" :class="isUserOnline(u)?'online':'offline'">
+                    <span class="dot"></span>{{ isUserOnline(u) ? 'En ligne' : 'Hors ligne' }}
                   </div>
                 </div>
-              </div>
-            </div><!-- user-search -->
+              </button>
+            </div>
           </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Modal: ajouter un ami (rapide) -->
+    <Transition name="fade">
+      <div v-if="showAddFriend" class="af-overlay" @click.self="closeAddFriend">
+        <div class="af-modal">
+          <div class="af-header">
+            <h3>Ajouter un ami</h3>
+            <button class="af-close" @click="closeAddFriend">✕</button>
+          </div>
+          <form class="af-body" @submit.prevent="submitAddFriend">
+            <input
+              ref="addFriendInputRef"
+              v-model.trim="addFriendForm.username"
+              class="af-input"
+              type="text"
+              placeholder="Pseudo (ex: Alice)"
+              :disabled="isAddingFriend"
+              required
+            />
+            <p v-if="addFriendError" class="af-error">{{ addFriendError }}</p>
+            <div class="af-actions">
+              <button type="button" class="btn btn-secondary" @click="closeAddFriend" :disabled="isAddingFriend">Annuler</button>
+              <button type="submit" class="btn btn-primary" :disabled="isAddingFriend || !addFriendForm.username">
+                {{ isAddingFriend ? 'Ajout…' : 'Ajouter' }}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </Transition>
@@ -267,17 +247,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { io, type Socket } from 'socket.io-client'
-import AddFriend from '../social/AddFriend.vue'
-import FriendRequest from '../social/FriendRequest.vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { io } from 'socket.io-client'
+import type { Socket } from 'socket.io-client'
+import { useRouter } from 'vue-router'
+
 import FriendList from '../social/FriendList.vue'
-import ProfileView from '../ProfileView.vue'
-import ChatBox from '../../components/ChatBox.vue'
+import ChatBoxLite from '../../components/ChatBoxLite.vue'
 
 /* ================== Config ================== */
-const SOCKET_URL = 'http://localhost:3000'
-const API_BASE   = 'http://localhost:3000'
+const SOCKET_URL = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:3000'
+const API_BASE   = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:3000'
 
 /* ================== Types ================== */
 interface Conversation {
@@ -295,72 +275,43 @@ interface Notification {
   read: boolean
   actionable?: boolean
   actionText?: string
-  actionData?: {
-    type: 'friendRequest' | string
-    fromUser?: string
-    // ...autres champs si besoin
-  }
+  actionData?: any
 }
 
 /* ================== State ================== */
-let socket: Socket | null = null
-
+const router = useRouter()
 const me = (localStorage.getItem('username') || '').trim()
+const socket: Socket = io(SOCKET_URL, { transports: ['websocket'] })
+if (me) socket.emit('identify', me);
+const activeTab = ref<'friends'|'messages'|'notifications'>('friends')
 
 const connectedUsersSet = new Set<string>()
 const connectedUsers = ref<string[]>([])
-
 const friendsUsernames = ref<string[]>([])
-
-const selectedProfile = ref<string | null>(null)
-const activeChatUser = ref<string | null>(null)
-const activeTab = ref<'friends'|'messages'|'online'|'notifications'>('friends')
-
-const showNewConversationModal = ref(false)
-const searchQuery = ref('')
 
 const conversations = ref<Conversation[]>([])
 const notifications = ref<Notification[]>([])
 
+const activeChatUser = ref<string | null>(null)
+
+const showNewConversationModal = ref(false)
+const searchQuery = ref('')
+
+/** Add friend modal (rapide) */
+const showAddFriend = ref(false)
+const isAddingFriend = ref(false)
+const addFriendError = ref<string | null>(null)
+const addFriendForm = ref({ username: '' })
+const addFriendInputRef = ref<HTMLInputElement | null>(null)
+
+/* ================== Tabs ================== */
+const tabs = computed(() => [
+  { id: 'friends', label: 'Amis', icon: '👥', count: friendsUsernames.value.length },
+  { id: 'messages', label: 'Messages', icon: '💬', count: conversations.value.reduce((s, c) => s + c.unreadCount, 0) },
+  { id: 'notifications', label: 'Notifications', icon: '🔔', count: notifications.value.filter(n => !n.read).length }
+])
+
 /* ================== Helpers ================== */
-
-const pushFriendRequestNotification = (fromUser: string) => {
-  notifications.value.unshift({
-    id: `fr-${fromUser}-${Date.now()}`,
-    title: 'Demande d’ami',
-    message: `${fromUser} souhaite devenir votre ami`,
-    icon: '👥',
-    timestamp: new Date().toISOString(),
-    read: false,
-    actionable: true,
-    actionText: 'Accepter',
-    actionData: { type: 'friendRequest', fromUser }
-  });
-};
-
-const preloadPendingFriendRequests = async () => {
-  if (!me) return;
-  try {
-    const r = await fetch(`${API_BASE}/friends/requests/${encodeURIComponent(me)}`);
-    if (!r.ok) return;
-    const rows: Array<{ fromUser: string }> = await r.json();
-
-    const existingFrom = new Set(
-      notifications.value
-        .filter(n => n.actionData?.type === 'friendRequest' && n.actionData.fromUser)
-        .map(n => n.actionData!.fromUser as string)
-    );
-
-    rows.forEach(({ fromUser }) => {
-      if (fromUser && !existingFrom.has(fromUser)) pushFriendRequestNotification(fromUser);
-    });
-  } catch (e) {
-    console.warn('preloadPendingFriendRequests error:', e);
-  }
-};
-
-
-
 const normalize = (s: string) => (s || '').trim()
 const toKey = (s: string) => normalize(s).toLowerCase()
 
@@ -381,15 +332,35 @@ const removeConnectedUser = (u: string) => {
   connectedUsersSet.delete(normalize(u))
   connectedUsers.value = Array.from(connectedUsersSet.values())
 }
-
 const isUserOnline = (username: string) => {
   const key = toKey(username)
   for (const u of connectedUsersSet) if (toKey(u) === key) return true
   return false
 }
 
-/* ================== Friends (DB) ================== */
-const loadFriends = async () => {
+const getUserColor = (username: string) => {
+  const colors = [
+    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+    'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+    'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
+  ]
+  const u = (username || 'a').charCodeAt(0)
+  return colors[u % colors.length]
+}
+const initials = (u: string) => (u?.[0] || 'U').toUpperCase()
+const formatTime = (ts: string) => {
+  const d = new Date(ts); const n = new Date()
+  const diff = n.getTime() - d.getTime()
+  if (diff < 60_000) return `À l'instant`
+  if (diff < 3_600_000) return `Il y a ${Math.floor(diff/60_000)} min`
+  if (diff < 86_400_000) return `Il y a ${Math.floor(diff/3_600_000)} h`
+  return d.toLocaleDateString('fr-FR')
+}
+
+/* ================== Friends ================== */
+async function loadFriends() {
   if (!me) return
   try {
     const res = await fetch(`${API_BASE}/friends/${encodeURIComponent(me)}`)
@@ -400,175 +371,222 @@ const loadFriends = async () => {
     console.warn('loadFriends error:', e)
   }
 }
-
-const onFriendsChanged = () => {
-  loadFriends()
-  window.dispatchEvent(new CustomEvent('friends:updated'))
+function openAddFriend() {
+  addFriendError.value = null
+  addFriendForm.value.username = ''
+  showAddFriend.value = true
+  requestAnimationFrame(() => addFriendInputRef.value?.focus())
+}
+function closeAddFriend() { showAddFriend.value = false }
+async function submitAddFriend() {
+  const to = addFriendForm.value.username.trim()
+  if (!to) return
+  if (to === me) { addFriendError.value = 'Tu ne peux pas t’ajouter toi-même 😅'; return }
+  try {
+    isAddingFriend.value = true
+    addFriendError.value = null
+    const res = await fetch(`${API_BASE}/friends/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: me, to })
+    })
+    const payload = await res.json().catch(() => ({}))
+    if (!res.ok) { addFriendError.value = payload?.error || `Erreur HTTP ${res.status}`; return }
+    await loadFriends()
+    activeTab.value = 'friends'
+    closeAddFriend()
+  } catch (e: any) {
+    addFriendError.value = e?.message || 'Erreur inconnue'
+  } finally {
+    isAddingFriend.value = false
+  }
 }
 
-/* ================== Computed ================== */
-const onlineFriends = computed(() =>
-  connectedUsers.value.filter(u => friendsUsernames.value.includes(u))
-)
-
-const tabs = computed(() => [
-  { id: 'friends', label: 'Amis', icon: '👥', count: 0 },
-  { id: 'messages', label: 'Messages', icon: '💬', count: conversations.value.reduce((s, c) => s + c.unreadCount, 0) },
-  { id: 'online', label: 'En ligne', icon: '🟢', count: onlineFriends.value.length },
-  { id: 'notifications', label: 'Notifications', icon: '🔔', count: notifications.value.filter(n => !n.read).length }
-])
-
+/* ================== Conversations ================== */
+function upsertConversation(participant: string, last: Conversation['lastMessage'], addUnread = 0) {
+  const p = normalize(participant)
+  if (!p) return
+  const found = conversations.value.find(c => toKey(c.participant) === toKey(p))
+  if (found) {
+    if (new Date(last.timestamp).getTime() >= new Date(found.lastMessage.timestamp).getTime()) {
+      found.lastMessage = last
+    }
+    found.unreadCount = Math.max(0, (found.unreadCount || 0) + addUnread)
+  } else {
+    conversations.value.push({ id: `conv-${p}`, participant: p, lastMessage: last, unreadCount: addUnread })
+  }
+  conversations.value.sort((a, b) => new Date(b.lastMessage.timestamp).getTime() - new Date(a.lastMessage.timestamp).getTime())
+}
+async function syncConversationsFromServer() {
+  if (!me) return
+  const peers = new Set<string>([...friendsUsernames.value, ...connectedUsers.value])
+  const jobs = Array.from(peers).map(async peer => {
+    if (!peer || peer === me) return
+    try {
+      const r = await fetch(`${API_BASE}/chat/message/${encodeURIComponent(me)}/${encodeURIComponent(peer)}?limit=1`)
+      if (!r.ok) return
+      const arr = await r.json()
+      if (!Array.isArray(arr) || arr.length === 0) return
+      const last = arr[arr.length - 1]
+      const msg = { content: last.content || '', timestamp: last.timestamp || new Date().toISOString(), senderId: last.sender || last.from || peer }
+      upsertConversation(peer, msg, 0)
+    } catch { /* noop */ }
+  })
+  await Promise.allSettled(jobs)
+}
+function startChat(username: string) {
+  activeChatUser.value = username
+  const c = conversations.value.find(x => toKey(x.participant) === toKey(username))
+  if (c) c.unreadCount = 0
+}
+function openConversation(c: Conversation) { startChat(c.participant) }
+function createNewConversation() { showNewConversationModal.value = true; searchQuery.value = '' }
 const filteredFriends = computed(() => {
   const q = searchQuery.value.toLowerCase()
   if (!q) return friendsUsernames.value
   return friendsUsernames.value.filter(u => u.toLowerCase().includes(q))
 })
-
-/* ================== UI utils ================== */
-const getUserColor = (username: string) => {
-  const colors = [
-    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-    'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-    'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
-  ]
-  return colors[username.charCodeAt(0) % colors.length]
-}
-const getDefaultAvatar = (username: string) => {
-  const avatars = ['🎮', '🚀', '⭐', '🎯', '🏆', '💎', '🔥', '⚡', '🌟', '🎨']
-  return avatars[username.charCodeAt(0) % avatars.length]
-}
-const getStatusClass = (username: string) => (isUserOnline(username) ? 'online' : 'offline')
-const getStatusText  = (username: string) => (isUserOnline(username) ? 'En ligne' : 'Hors ligne')
-const formatTime = (ts: string) => {
-  const date = new Date(ts); const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  if (diff < 60_000) return `À l'instant`
-  if (diff < 3_600_000) return `Il y a ${Math.floor(diff/60_000)}min`
-  if (diff < 86_400_000) return `Il y a ${Math.floor(diff/3_600_000)}h`
-  return date.toLocaleDateString('fr-FR')
-}
-
-/* ================== Actions ================== */
-const startChat = (friendName: string) => {
-  selectedProfile.value = null
-  activeChatUser.value = friendName
-  const c = conversations.value.find(x => x.participant === friendName)
-  if (c) c.unreadCount = 0
-}
-const closeChat = () => { activeChatUser.value = null }
-const closeIfClickOutside = (e: MouseEvent) => { if (e.target === e.currentTarget) closeChat() }
-const handleKeydown = (e: KeyboardEvent) => { if (e.key === 'Escape' && activeChatUser.value) closeChat() }
-const viewProfile = (username: string) => { activeChatUser.value = null; selectedProfile.value = username }
-const closeProfile = () => { selectedProfile.value = null }
-const handleSendMessage = (username: string) => startChat(username)
-
-const createNewConversation = () => {
-  showNewConversationModal.value = true
-  searchQuery.value = ''
-}
-const openConversation = (conv: Conversation) => startChat(conv.participant)
-const startConversationWithUser = (user: string) => {
+function startConversationWithUser(u: string) {
   showNewConversationModal.value = false
-  const existing = conversations.value.find(c => c.participant === user)
+  const existing = conversations.value.find(c => toKey(c.participant) === toKey(u))
   if (!existing) {
     conversations.value.unshift({
-      id: Date.now().toString(),
-      participant: user,
+      id: `conv-${u}`,
+      participant: u,
       lastMessage: { content: 'Nouvelle conversation', timestamp: new Date().toISOString(), senderId: me || 'me' },
       unreadCount: 0
     })
   }
-  startChat(user)
+  startChat(u)
 }
 
-const challengeUser = (username: string) => {
-  console.log(`🎯 Défi envoyé à ${username}`)
+/* ================== Notifications (avec persistance) ================== */
+const LS_NOTIF_KEY = computed(() => `social_notifications_${me}`)
+function saveNotifsLS() {
+  try { localStorage.setItem(LS_NOTIF_KEY.value, JSON.stringify(notifications.value)) } catch {}
 }
-
-const markAllAsRead = () => { notifications.value.forEach(n => (n.read = true)) }
-
+function loadNotifsLS() {
+  try {
+    const raw = localStorage.getItem(LS_NOTIF_KEY.value)
+    if (raw) {
+      const arr = JSON.parse(raw)
+      if (Array.isArray(arr)) notifications.value = arr
+    }
+  } catch {}
+}
+const pushFriendRequestNotification = (fromUser: string) => {
+  notifications.value.unshift({
+    id: `fr-${fromUser}-${Date.now()}`,
+    title: 'Demande d’ami',
+    message: `${fromUser} souhaite devenir votre ami`,
+    icon: '👥',
+    timestamp: new Date().toISOString(),
+    read: false,
+    actionable: true,
+    actionText: 'Accepter',
+    actionData: { type: 'friendRequest', fromUser }
+  })
+  saveNotifsLS()
+}
+const preloadPendingFriendRequests = async () => {
+  if (!me) return
+  try {
+    const r = await fetch(`${API_BASE}/friends/requests/${encodeURIComponent(me)}`)
+    if (!r.ok) return
+    const rows: Array<{ fromUser: string }> = await r.json()
+    const existingFrom = new Set(
+      notifications.value
+        .filter(n => n.actionData?.type === 'friendRequest' && n.actionData.fromUser)
+        .map(n => n.actionData!.fromUser as string)
+    )
+    rows.forEach(({ fromUser }) => {
+      if (fromUser && !existingFrom.has(fromUser)) pushFriendRequestNotification(fromUser)
+    })
+  } catch {}
+}
+const markAllAsRead = () => { notifications.value.forEach(n => (n.read = true)); saveNotifsLS() }
 const acceptFriendRequest = async (fromUser: string) => {
-  const body = { from: fromUser, to: me, accept: true };
-  const res = await fetch(`${API_BASE}/friends/respond`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  if (!res.ok) {
-    const err = await res.text().catch(()=>'');
-    console.error('acceptFriendRequest failed:', err);
-  }
-};
-
+  const body = { from: fromUser, to: me, accept: true }
+  await fetch(`${API_BASE}/friends/respond`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+}
 const declineFriendRequest = async (fromUser: string) => {
-  const body = { from: fromUser, to: me, accept: false };
-  const res = await fetch(`${API_BASE}/friends/respond`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  if (!res.ok) {
-    const err = await res.text().catch(()=>'');
-    console.error('declineFriendRequest failed:', err);
-  }
-};
-
+  const body = { from: fromUser, to: me, accept: false }
+  await fetch(`${API_BASE}/friends/respond`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+}
 const handleNotificationAction = async (n: Notification) => {
   if (n.actionData?.type === 'friendRequest') {
-    const fromUser = n.actionData.fromUser;
-    if (!fromUser) { console.warn('friendRequest: fromUser manquant'); return; }
-    await acceptFriendRequest(fromUser);
-    dismissNotification(n.id);
+    const fromUser = n.actionData.fromUser
+    if (!fromUser) return
+    await acceptFriendRequest(fromUser)
+    dismissNotification(n.id)
   }
-};
-
+  if (n.actionData?.type === 'challenge') {
+    acceptChallenge(n.actionData.id)
+    dismissNotification(n.id)
+  }
+}
 const dismissNotification = (id: string) => {
   const i = notifications.value.findIndex(n => n.id === id)
   if (i !== -1) notifications.value.splice(i, 1)
+  saveNotifsLS()
 }
 
-// 1) Déclare le handler UNE SEULE FOIS (tout en haut du <script setup>)
-const handleNewNotification = (raw: any) => {
-  const n = {
-    id: raw.id || `ntf-${Date.now()}`,
-    title: raw.title || 'Notification',
-    message: raw.message || '',
-    icon: raw.icon || '🔔',
-    timestamp: raw.timestamp || new Date().toISOString(),
-    read: false,
-    actionable: !!raw.actionable,
-    actionText: raw.actionText,
-    actionData: raw.actionData
-  };
-  notifications.value.unshift(n);
-};
+/* ==== Challenge depuis SocialView et ChatBoxLite ==== */
+function challengeUser(username: string) {
+  if (!username || !me) return
+  socket.emit('identify', me)
+  socket.emit('challengePlayer', { from: me, to: username, options: { maxPoints: 10, durationMinutes: null } })
+}
+function onChallengeFromChat(username: string) { challengeUser(username) }
+function acceptChallenge(chId: string) { socket.emit('challengeRespond', { challengeId: chId, accept: true }) }
+function declineChallenge(chId: string) { socket.emit('challengeRespond', { challengeId: chId, accept: false }) }
 
+/* ==== Navigation profil ==== */
+function goProfile(username: string) {
+  router.push('/profile/' + encodeURIComponent(username))
+}
+
+/* ====== Challenge start handling (CRUCIAL) ====== */
+let handledStart = false
+function handleChallengeStart(payload: any) {
+  if (!payload || !payload.roomId) return
+  if (handledStart) return
+  handledStart = true
+  const rid = String(payload.roomId)
+  try { localStorage.setItem('pendingRoomId', rid) } catch {}
+  // event global pour GameView si déjà monté
+  window.dispatchEvent(new CustomEvent('challengeStart', { detail: { roomId: rid }}))
+  // naviguer vers la page de jeu (si pas déjà dessus)
+  if (router.currentRoute.value.path !== '/game') {
+    // éviter doublon si on spam click : petit debounce visuel possible
+    router.push('/game').finally(() => {
+      // on relâche le flag après un court instant (optionnel)
+      setTimeout(() => { handledStart = false }, 2000)
+    })
+  } else {
+    // déjà sur /game → libérer après un court instant
+    setTimeout(() => { handledStart = false }, 2000)
+  }
+}
 
 /* ================== Socket lifecycle ================== */
-onMounted(() => {
-  document.addEventListener('keydown', handleKeydown)
+onMounted(async () => {
+  
+  // Notifs LS
+  loadNotifsLS()
 
-  socket = io(SOCKET_URL, { transports: ['websocket'] })
-
-  if (!socket) {
-    socket = io(SOCKET_URL, { transports: ['websocket'] });
-  } else if (!socket.connected) {
-    socket.connect();
-  }
-  const identify = () => { if (me) socket?.emit('identify', me) }
   socket.on('connect', () => {
-    identify()
-    socket?.emit('requestConnectedUsers')
+    if (me) socket.emit('identify', me)
+    socket.emit('requestConnectedUsers')
   })
-
+  socket.io?.on?.('reconnect', () => { if (me) socket.emit('identify', me) });
+  // Présence
   socket.on('connectedUsersList', (users: string[]) => setConnectedUsers(users))
   socket.on('userConnected', (username: string) => addConnectedUser(username))
   socket.on('userDisconnected', (username: string) => removeConnectedUser(username))
-  socket!.off('newNotification', handleNewNotification);
+
+  // Notifications entrantes
   socket.on('newNotification', (n: any) => {
-    // normalise et pousse
     notifications.value.unshift({
       id: n.id || `ntf-${Date.now()}`,
       title: n.title || 'Notification',
@@ -579,154 +597,161 @@ onMounted(() => {
       actionable: !!n.actionable,
       actionText: n.actionText,
       actionData: n.actionData
-    });
-  });
-  socket.on('friendsUpdated', () => loadFriends());
-  // Messages entrants
+    })
+    saveNotifsLS()
+  })
+
+  // Messages entrants → upsert + badge si chat non ouvert
   const onIncoming = (data: { sender: string; message: string; timestamp: string }) => {
-    const conv = conversations.value.find(c => c.participant === data.sender)
-    if (conv) {
-      conv.lastMessage = { content: data.message, timestamp: data.timestamp, senderId: data.sender }
-      if (activeChatUser.value !== data.sender) conv.unreadCount++
-    } else {
-      conversations.value.unshift({
-        id: Date.now().toString(),
-        participant: data.sender,
-        lastMessage: { content: data.message, timestamp: data.timestamp, senderId: data.sender },
-        unreadCount: activeChatUser.value !== data.sender ? 1 : 0
-      })
-    }
+    const last = { content: data.message, timestamp: data.timestamp, senderId: data.sender }
+    const unread = activeChatUser.value && toKey(activeChatUser.value) === toKey(data.sender) ? 0 : 1
+    upsertConversation(data.sender, last, unread)
   }
   socket.on('messageReceived', onIncoming)
   socket.on('newMessage', onIncoming)
 
-  // Rafraîchir amis quand le serveur le demande
-  socket.on('friendsUpdated', (payload: { users?: string[] } = {}) => {
-    if (payload?.users?.includes?.(me)) loadFriends()
-  })
+  // Liste amis
+  socket.on('friendsUpdated', () => loadFriends())
 
-  // Initial load
-  loadFriends()
-  preloadPendingFriendRequests();
-  // Écoute locale
-  window.addEventListener('friends:updated', loadFriends)
+  // ⚠️ Le point qui manquait pour l'acceptant
+  socket.on('challengeStart', handleChallengeStart)
+
+  await loadFriends()
+  await preloadPendingFriendRequests()
+  await syncConversationsFromServer()
+
+  // resync quand on arrive sur Messages
+  watch(activeTab, (t) => { if (t === 'messages') syncConversationsFromServer() })
+  // resync quand amis changent
+  watch(friendsUsernames, () => { syncConversationsFromServer() })
 })
 
 onBeforeUnmount(() => {
-  document.removeEventListener('keydown', handleKeydown)
-  window.removeEventListener('friends:updated', loadFriends)
-   if (socket) {
-    socket.off('newNotification', handleNewNotification);
-    socket.disconnect();
-  }
+  socket.off('connectedUsersList')
+  socket.off('userConnected')
+  socket.off('userDisconnected')
+  socket.off('newNotification')
+  socket.off('messageReceived')
+  socket.off('newMessage')
+  socket.off('challengeStart')
+  socket.disconnect()
 })
+
+
 </script>
 
 <style scoped>
-
-/* Conteneur global */
-.social-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background: linear-gradient(135deg, #667eea0f 0%, #764ba200 100%);
-  color: white;
-  padding: 1rem;
-  position: relative;
+/* ====== En-tête (aligné sur ProfileView) ====== */
+.social-page { max-width: 1000px; margin: 0 auto; padding: 2rem }
+.social-header {
+  background: var(--color-background-soft);
+  border-radius: 20px;
+  padding: 1.25rem 1.5rem;
+  display: flex; align-items: center; justify-content: space-between;
+  box-shadow: var(--shadow-lg);
+  margin-bottom: 1.25rem;
 }
+.header-left .title { margin: 0; font-size: 1.6rem; font-weight: 800; color: var(--color-text) }
+.header-left .subtitle { margin: .25rem 0 0; color: var(--color-text); opacity: .75; font-size: .95rem }
 
-/* Header & Tabs */
-.social-header { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem; }
-.social-title { text-align: center; margin: 0; color: #64b5f6; }
-.social-tabs { display: flex; background: rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 0.5rem; gap: 0.5rem; }
-.tab-btn { display: flex; align-items: center; gap: 0.5rem; background: none; border: none; padding: 0.75rem 1rem; border-radius: 10px; cursor: pointer; color: rgba(255, 255, 255, 0.7); transition: all 0.3s ease; font-weight: 500; flex: 1; justify-content: center; position: relative; }
-.tab-btn:hover { color: white; background: rgba(255, 255, 255, 0.1); }
-.tab-btn.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-.tab-count { background: rgba(255, 255, 255, 0.3); color: white; font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.5rem; border-radius: 12px; min-width: 1.5rem; text-align: center; }
+/* ====== Onglets (copie du style ProfileView) ====== */
+.profile-tabs { display: flex; background: var(--color-background-soft); border-radius: 15px; padding: .5rem; margin-bottom: 1.25rem; gap: .5rem }
+.tab-btn { display: flex; align-items: center; gap: .5rem; background: none; border: none; padding: .75rem 1.5rem; border-radius: 10px; cursor: pointer; color: var(--color-text); opacity: .7; transition: .3s; font-weight: 500; flex: 1; justify-content: center }
+.tab-btn:hover { opacity: 1 }
+.tab-btn.active { background: var(--gradient-primary); color: #fff; opacity: 1 }
+.tab-count { background: rgba(255,255,255,.3); color: #fff; font-size: .75rem; font-weight: 600; padding: .25rem .5rem; border-radius: 12px; min-width: 1.5rem; text-align: center }
 
-/* Transitions / sections */
-.tab-content { animation: fadeIn 0.3s ease; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-.section-header, .messages-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
-.section-title { font-size: 1.3rem; font-weight: 700; color: white; margin: 0; }
+/* ====== Contenu (copie du style ProfileView) ====== */
+.profile-content { background: var(--color-background-soft); border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow-md) }
+.tab-content { animation: fadeIn .25s ease }
+@keyframes fadeIn { from{ opacity:0; transform: translateY(10px) } to{ opacity:1; transform: translateY(0) } }
 
-/* Conversations */
-.conversations-grid { display: grid; gap: 1rem; }
-.conversation-card { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 1rem; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 1rem; }
-.conversation-card:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-2px); }
-.conversation-avatar { width: 3rem; height: 3rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white; flex-shrink: 0; }
-.conversation-info { flex: 1; min-width: 0; }
-.conversation-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; }
-.participant-name { font-weight: 600; color: white; margin: 0; font-size: 1rem; }
-.message-time { font-size: 0.75rem; color: rgba(255, 255, 255, 0.6); }
-.last-message { color: rgba(255, 255, 255, 0.8); margin: 0 0 0.5rem 0; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.last-message.unread { font-weight: 600; color: white; }
-.conversation-footer { display: flex; justify-content: space-between; align-items: center; }
-.participant-status { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; }
-.status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-.participant-status.online { color: #10b981; }
-.participant-status.offline { color: #ef4444; }
-.unread-badge { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 0.7rem; font-weight: 600; padding: 0.25rem 0.5rem; border-radius: 12px; min-width: 1.5rem; text-align: center; }
+.section-title { font-size: 1.2rem; font-weight: 800; color: var(--color-text); margin: 0 }
+.friends-header, .messages-header, .notif-header { display:flex; align-items:center; justify-content:space-between; margin-bottom: 1rem }
 
-/* Amis en ligne */
-.online-users-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
-.online-user-card { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 1rem; display: flex; align-items: center; gap: 1rem; transition: all 0.3s ease; }
-.online-user-card:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-2px); }
-.user-avatar { width: 2.5rem; height: 2.5rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: white; flex-shrink: 0; }
-.user-info { flex: 1; }
-.user-name { font-weight: 600; color: white; margin: 0 0 0.25rem 0; }
-.user-status { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; margin: 0; }
-.user-status.online { color: #10b981; }
-
-/* Notifications */
-.notifications-list { display: flex; flex-direction: column; gap: 1rem; }
-.notification-item { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 1rem; display: flex; align-items: center; gap: 1rem; transition: all 0.3s ease; }
-.notification-item.unread { border-color: #64b5f6; background: rgba(100, 181, 246, 0.1); }
-.notification-icon { font-size: 2rem; flex-shrink: 0; }
-.notification-content { flex: 1; }
-.notification-title { font-weight: 600; color: white; margin: 0 0 0.25rem 0; }
-.notification-message { color: rgba(255, 255, 255, 0.8); margin: 0 0 0.5rem 0; font-size: 0.9rem; }
-.notification-time { font-size: 0.75rem; color: rgba(255, 255, 255, 0.6); }
-.notification-actions { display: flex; gap: 0.5rem; }
-
-/* États vides */
-.no-conversations, .no-users-online, .no-notifications {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 3rem;
+/* ====== Conversations (look proche des cards amis) ====== */
+.conversations-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem;
 }
-.no-content-icon { font-size: 4rem; margin-bottom: 1rem; opacity: 0.5; }
-.no-content-title { font-size: 1.5rem; font-weight: 700; color: white; margin-bottom: 0.5rem; }
-.no-content-text { color: rgba(255, 255, 255, 0.7); margin-bottom: 2rem; }
+.conversation-card {
+  display:flex; gap: .9rem; align-items:center; text-align:left;
+  background: var(--color-background); border: 2px solid var(--color-border);
+  padding: 1rem; border-radius: 15px; transition: .2s; cursor: pointer;
+}
+.conversation-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md) }
+.friend-avatar {
+  width: 3rem; height: 3rem; border-radius: 50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; letter-spacing:.5px
+}
+.friend-initials { font-size: 1.1rem }
+.conv-info { flex:1; min-width:0 }
+.top { display:flex; justify-content:space-between; align-items:center; margin-bottom:.2rem }
+.name { font-weight: 700; color: var(--color-text) }
+.time { color: var(--color-text); opacity:.6; font-size:.85rem }
+.last { margin:.2rem 0 .5rem 0; color: var(--color-text); opacity:.85; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.bottom { display:flex; justify-content:space-between; align-items:center }
+.status { display:inline-flex; align-items:center; gap:.4rem; font-size:.86rem; color: var(--color-text); opacity:.75 }
+.status.online { color: #10b981; opacity:1 }
+.status.offline { color: #ef4444; opacity:1 }
+.status .dot { width:6px; height:6px; border-radius:50%; background: currentColor }
+.badge { background: var(--gradient-primary); color:#fff; border-radius: 12px; padding:.15rem .45rem; font-size:.75rem; font-weight:700 }
 
-/* Boutons */
-.btn { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
-.btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-.btn-secondary { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: white; }
-.btn:hover { transform: translateY(-2px); }
-.btn-icon-only { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; padding: 0.5rem; cursor: pointer; color: white; transition: all 0.3s ease; }
-.btn-icon-only:hover { background: rgba(255, 255, 255, 0.2); }
+/* ====== Notifications ====== */
+.notif-list { display:flex; flex-direction:column; gap:.8rem }
+.notif-card {
+  display:flex; gap:.9rem; align-items:center; background: var(--color-background);
+  border: 2px solid var(--color-border); border-radius: 15px; padding: .9rem 1rem;
+}
+.notif-card.unread { border-color: var(--color-primary) }
+.notif-ic { font-size: 1.6rem; flex-shrink:0 }
+.notif-content { flex:1 }
+.notif-title { margin:0 0 .2rem; font-weight:800; color: var(--color-text) }
+.notif-msg { margin:0 0 .25rem; color: var(--color-text); opacity:.85 }
+.notif-time { font-size:.85rem; color: var(--color-text); opacity:.6 }
+.btn-icon-only { background: var(--color-background); border: 2px solid var(--color-border); color: var(--color-text); border-radius: 10px; width: 2.2rem; height: 2.2rem; cursor: pointer }
+.btn-icon-only:hover { background: var(--color-primary); color:#fff }
 
-/* Modal */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.8); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 2rem; }
-.modal-content { background: linear-gradient(135deg, #1e1e2e, #2a2a3e); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 2rem; max-width: 500px; width: 100%; max-height: 80vh; overflow-y: auto; }
-.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
-.modal-title { font-size: 1.3rem; font-weight: 700; color: white; margin: 0; }
-.modal-close { background: rgba(255, 255, 255, 0.1); border: none; border-radius: 50%; width: 2rem; height: 2rem; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: white; cursor: pointer; transition: all 0.3s ease; }
-.modal-close:hover { background: rgba(255, 255, 255, 0.2); }
-.search-input { width: 100%; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; padding: 0.75rem 1rem; color: white; font-size: 1rem; margin-bottom: 1rem; }
-.search-input:focus { outline: none; border-color: #64b5f6; }
-.search-input::placeholder { color: rgba(255, 255, 255, 0.5); }
-.search-results { max-height: 300px; overflow-y: auto; }
-.user-result { display: flex; align-items: center; gap: 1rem; padding: 1rem; border-radius: 12px; cursor: pointer; transition: all 0.3s ease; }
-.user-result:hover { background: rgba(255, 255, 255, 0.1); }
+/* ====== États vides ====== */
+.empty { text-align:center; padding: 2.4rem 1rem; color: var(--color-text) }
+.empty .big { font-size: 3rem; opacity:.7 }
+.empty h4 { margin:.4rem 0; font-size:1.2rem }
+.empty p { margin:0 0 1rem; opacity:.75 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .social-container { padding: 0.5rem; }
-  .social-tabs { flex-wrap: wrap; }
-  .tab-btn { font-size: 0.8rem; padding: 0.5rem; }
-  .tab-text { display: none; }
-  .online-users-grid { grid-template-columns: 1fr; }
-  .conversation-card, .online-user-card { padding: 0.75rem; }
-  .user-actions { display: none; }
+/* ====== Boutons / commun ====== */
+.btn { display:inline-flex; align-items:center; gap:.5rem; padding:.7rem 1.1rem; border:none; border-radius:12px; font-weight:700; cursor:pointer; transition:.2s }
+.btn-primary { background: var(--gradient-primary); color:#fff }
+.btn-secondary { background: var(--color-background); border: 2px solid var(--color-border); color: var(--color-text) }
+.btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-md) }
+
+/* ====== Modals (add friend + new conversation) ====== */
+.fade-enter-active,.fade-leave-active{ transition: opacity .15s ease }
+.fade-enter-from,.fade-leave-to{ opacity: 0 }
+.af-overlay{ position: fixed; inset: 0; background: rgba(0,0,0,.45); display:grid; place-items:center; z-index: 1000 }
+.af-modal{ width:min(520px, calc(100% - 2rem)); background: var(--color-background); border: 1px solid var(--color-border); border-radius: 16px; box-shadow: var(--shadow-lg); overflow:hidden; animation: popIn .12s ease }
+@keyframes popIn { from { transform: scale(.98); opacity: .9 } to { transform: scale(1); opacity: 1 } }
+.af-header{ display:flex; align-items:center; justify-content:space-between; padding: 1rem 1.2rem; background: var(--color-background-soft); border-bottom: 1px solid var(--color-border) }
+.af-close{ border:0; background:transparent; cursor:pointer; font-size:1.1rem; opacity:.7 }
+.af-close:hover{ opacity:1 }
+.af-body{ padding: 1.2rem }
+.af-input{ width:100%; padding:.8rem 1rem; border-radius:10px; border:2px solid var(--color-border); background: var(--color-background); color: var(--color-text); font-size:1rem }
+.af-input:focus{ outline:none; border-color: var(--color-primary) }
+.af-error{ margin:.6rem 0 0; color:#ff4d4f; font-weight:600 }
+.af-actions{ display:flex; gap:.6rem; justify-content:flex-end; margin-top:1rem }
+.search-results{ margin-top:.8rem; display:flex; flex-direction:column; gap:.5rem }
+.user-result{
+  display:flex; align-items:center; gap:.7rem; border-radius:12px; padding:.6rem .7rem;
+  background: var(--color-background-soft); border: 1px solid var(--color-border); cursor:pointer
+}
+.user-result:hover{ transform: translateY(-1px) }
+.user-info .name{ font-weight:700 }
+.mini-status{ display:flex; align-items:center; gap:.35rem; font-size:.86rem; opacity:.8 }
+.mini-status.online{ color:#10b981; opacity:1 }
+.mini-status.offline{ color:#ef4444; opacity:1 }
+.dot{ width:6px; height:6px; border-radius:50%; background: currentColor }
+
+/* ====== Responsive ====== */
+@media (max-width: 768px){
+  .social-page { padding: 1rem }
+  .profile-tabs { flex-wrap: wrap }
+  .conversations-grid { grid-template-columns: 1fr }
 }
 </style>

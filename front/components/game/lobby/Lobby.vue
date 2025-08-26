@@ -1,105 +1,135 @@
 <template>
-  <div class="lobby-container">
-    <!-- Header du lobby -->
-    <div class="lobby-header">
-      <div class="lobby-title">
+  <div class="lobby-page">
+    <!-- Header -->
+    <header class="lobby-header">
+      <div class="header-left">
         <h1 class="title-main">🏛️ Transcendence Lobby</h1>
-        <p class="title-subtitle">Choisis ton mode de jeu et lance la partie !</p>
+        <p class="subtitle">Choisis un mode et lance la partie.</p>
       </div>
-      
-      <!-- Indicateur de connexion -->
-      <div class="connection-indicator">
-        <div class="connection-status" :class="{ connected: socket.connected }">
-          <span class="status-dot"></span>
-          <span class="status-text">{{ socket.connected ? 'En ligne' : 'Hors ligne' }}</span>
-        </div>
+
+      <div class="header-right">
+        <span class="conn-pill" :class="{ connected: isConnected }" role="status" aria-live="polite">
+          <span class="dot" aria-hidden="true"></span>
+          {{ isConnected ? 'En ligne' : 'Hors ligne' }}
+        </span>
       </div>
-    </div>
+    </header>
 
-    <!-- Contenu principal avec transitions -->
-    <div class="lobby-content">
-      <Transition name="lobby-screen" mode="out-in">
-        <!-- Écran principal du lobby -->
-        <div v-if="currentScreen === 'main'" key="main" class="screen main-screen">
-          <div class="game-modes-grid">
-            <div class="game-mode-card local-card" @click="$emit('startLocal')">
-              <div class="card-icon">🏠</div>
-              <h3 class="card-title">Partie Locale</h3>
-              <p class="card-description">Joue avec un ami sur le même écran</p>
-              <div class="card-players">👥 2 Joueurs</div>
-            </div>
-
-            <div class="game-mode-card ai-card" @click="$emit('startAI')">
-              <div class="card-icon">🤖</div>
-              <h3 class="card-title">Contre l'IA</h3>
-              <p class="card-description">Défi l'intelligence artificielle</p>
-              <div class="card-players">🎯 Solo vs IA</div>
-            </div>
-
-            <div class="game-mode-card online-card" @click="currentScreen = 'join-list'">
-              <div class="card-icon">🌐</div>
-              <h3 class="card-title">Rejoindre</h3>
-              <p class="card-description">Rejoins une partie en cours</p>
-              <div class="card-players">🔍 Multijoueur</div>
-            </div>
-
-            <div class="game-mode-card create-card" @click="currentScreen = 'create-form'">
-              <div class="card-icon">✨</div>
-              <h3 class="card-title">Créer</h3>
-              <p class="card-description">Lance ta propre partie</p>
-              <div class="card-players">🚀 Host</div>
-            </div>
-          </div>
-
-          <!-- Statistiques du lobby -->
-          <div class="lobby-stats">
-            <div class="stat-item">
-              <span class="stat-icon">👥</span>
-              <span class="stat-text">Joueurs connectés</span>
-              <span class="stat-value">{{ onlinePlayersCount }}</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-icon">🎮</span>
-              <span class="stat-text">Parties actives</span>
-              <span class="stat-value">{{ activeGamesCount }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Composant pour la liste des parties -->
-        <div v-else-if="currentScreen === 'join-list'" key="join-list" class="screen sub-screen">
-          <div class="screen-header">
-            <button @click="currentScreen = 'main'" class="btn-back">
-              ← Retour
+    <!-- Corps -->
+    <main class="panel">
+      <Transition name="slidefade" mode="out-in">
+        <!-- Écran principal -->
+        <section v-if="currentScreen === 'main'" key="main" class="section">
+          <div class="modes-grid">
+            <!-- Local -->
+            <button class="mode-card tone-blue" @click="$emit('startLocal')">
+              <div class="ic">🏠</div>
+              <h3 class="card-title">Partie locale</h3>
+              <p class="card-desc">Joue à deux sur le même écran.</p>
+              <span class="chip">👥 2 joueurs</span>
+              <span class="arrow">→</span>
             </button>
-            <h2 class="screen-title">🔍 Rejoindre une partie</h2>
+
+            <!-- IA -->
+            <button class="mode-card tone-green" @click="$emit('startAI')">
+              <div class="ic">🤖</div>
+              <h3 class="card-title">Contre l’IA</h3>
+              <p class="card-desc">Défie l’IA et progresse.</p>
+              <span class="chip">🎯 Solo vs IA</span>
+              <span class="arrow">→</span>
+            </button>
+
+            <!-- Rejoindre -->
+            <button class="mode-card tone-purple" @click="currentScreen = 'join-list'">
+              <div class="ic">🌐</div>
+              <h3 class="card-title">Rejoindre</h3>
+              <p class="card-desc">Trouve une partie en cours.</p>
+              <span class="chip">🔍 Multijoueur</span>
+              <span class="arrow">→</span>
+            </button>
+
+            <!-- Créer une partie -->
+            <button class="mode-card tone-orange" @click="currentScreen = 'create-form'">
+              <div class="ic">✨</div>
+              <h3 class="card-title">Créer</h3>
+              <p class="card-desc">Lance ta propre salle.</p>
+              <span class="chip">🚀 Host</span>
+              <span class="arrow">→</span>
+            </button>
+
+            <!-- Créer un tournoi -->
+            <button class="mode-card tone-orange" @click="currentScreen = 'create-tourn'">
+              <div class="ic">🏆</div>
+              <h3 class="card-title">Tournoi</h3>
+              <p class="card-desc">Crée un tournoi à élimination.</p>
+              <span class="chip">🚀 Host</span>
+              <span class="arrow">→</span>
+            </button>
+          </div>
+
+          <!-- Stats -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="s-ic">👥</div>
+              <div class="s-col">
+                <div class="s-val">{{ onlinePlayersCount }}</div>
+                <div class="s-lb">Joueurs connectés</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="s-ic">🎮</div>
+              <div class="s-col">
+                <div class="s-val">{{ activeGamesCount }}</div>
+                <div class="s-lb">Parties actives</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Rejoindre -->
+        <section v-else-if="currentScreen === 'join-list'" key="join" class="section">
+          <div class="sub-header">
+            <button class="btn ghost" @click="currentScreen = 'main'">← Retour</button>
+            <h2 class="sub-title">🔍 Rejoindre une partie</h2>
           </div>
           <JoinGameList
             :socket="socket"
             @back="currentScreen = 'main'"
             @gameJoined="onGameJoined"
           />
-        </div>
+        </section>
 
-        <!-- Composant pour le formulaire de création de partie -->
-        <div v-else-if="currentScreen === 'create-form'" key="create-form" class="screen sub-screen">
-          <div class="screen-header">
-            <button @click="currentScreen = 'main'" class="btn-back">
-              ← Retour
-            </button>
-            <h2 class="screen-title">✨ Créer une partie</h2>
+        <!-- Créer une partie -->
+        <section v-else-if="currentScreen === 'create-form'" key="create" class="section">
+          <div class="sub-header">
+            <button class="btn ghost" @click="currentScreen = 'main'">← Retour</button>
+            <h2 class="sub-title">✨ Créer une partie</h2>
           </div>
           <CreateGameForm
             :socket="socket"
             @back="currentScreen = 'main'"
             @gameCreated="onGameCreated"
           />
-        </div>
+        </section>
 
-        <!-- Composant pour l'écran d'attente -->
-        <div v-else-if="currentScreen === 'waiting-queue'" key="waiting-queue" class="screen sub-screen">
-          <div class="screen-header">
-            <h2 class="screen-title">⏳ En attente...</h2>
+        <!-- Créer un tournoi -->
+        <section v-else-if="currentScreen === 'create-tourn'" key="create-tourn" class="section">
+          <div class="sub-header">
+            <button class="btn ghost" @click="currentScreen = 'main'">← Retour</button>
+            <h2 class="sub-title">🏆 Créer un tournoi</h2>
+          </div>
+          <CreateTournamentForm
+            :socket="socket"
+            @back="currentScreen = 'main'"
+            @tournamentCreated="onTournamentCreated"
+          />
+        </section>
+
+        <!-- Attente / file d’attente -->
+        <section v-else-if="currentScreen === 'waiting-queue'" key="waiting-queue" class="section">
+          <div class="sub-header">
+            <button class="btn ghost" @click="onLeftQueue()">← Quitter</button>
+            <h2 class="sub-title">⏳ En attente</h2>
           </div>
           <WaitingQueueScreen
             :socket="socket"
@@ -108,481 +138,266 @@
             @leftQueue="onLeftQueue"
             @gameStarted="onGameStarted"
           />
-        </div>
+        </section>
       </Transition>
-    </div>
+    </main>
 
-    <!-- Footer du lobby -->
-    <div class="lobby-footer">
-      <div class="footer-tips">
-        <div class="tip-item">
-          <span class="tip-icon">💡</span>
-          <span class="tip-text">Astuce : Utilise les flèches pour jouer en mode local</span>
-        </div>
+    <!-- Footer -->
+    <footer class="lobby-footer">
+      <div class="tip-pill">
+        <span class="tip-ic">💡</span>
+        <span class="tip-text">Astuce : utilise les flèches pour jouer en local.</span>
       </div>
-    </div>
+    </footer>
   </div>
 </template>
 
+
 <script lang="ts">
-import { defineComponent, ref, onMounted, onUnmounted } from 'vue';
-import { Socket } from 'socket.io-client';
-import JoinGameList from './JoinGameList.vue';
-import CreateGameForm from './CreateGameForm.vue';
-import WaitingQueueScreen from './WaitingQueueScreen.vue';
+import { defineComponent, ref, onMounted, onUnmounted } from 'vue'
+import type { Socket } from 'socket.io-client'
+
+import JoinGameList from './JoinGameList.vue'
+import CreateGameForm from './CreateGameForm.vue'
+import WaitingQueueScreen from './WaitingQueueScreen.vue'
+import CreateTournamentForm from './CreateTournamentForm.vue'
+
+type LobbyScreen = 'main' | 'join-list' | 'create-form' | 'create-tourn' | 'waiting-queue'
 
 export default defineComponent({
   name: 'Lobby',
-  components: {
-    JoinGameList,
-    CreateGameForm,
-    WaitingQueueScreen,
-  },
+  components: { JoinGameList, CreateGameForm, WaitingQueueScreen, CreateTournamentForm },
   props: {
-    socket: {
-      type: Object as () => Socket,
-      required: true,
-    },
+    socket: { type: Object as () => Socket, required: true }
   },
   emits: ['startLocal', 'startAI', 'startRemote'],
-  
   setup(props, { emit }) {
-    type LobbyScreen = 'main' | 'join-list' | 'create-form' | 'waiting-queue';
-    
-    const currentScreen = ref<LobbyScreen>('main');
-    const waitingGameId = ref<string | null>(null);
-    const waitingGameName = ref<string | null>(null);
-    const onlinePlayersCount = ref(0);
-    const activeGamesCount = ref(0);
+    const currentScreen = ref<LobbyScreen>('main')
+    const waitingGameId = ref<string | null>(null)
+    const waitingGameName = ref<string | null>(null)
 
-    // Événements socket
-    const setupSocketListeners = () => {
-      props.socket.on('connect', () => {
-        console.log('✅ Lobby: Socket connecté avec succès !');
-        // Demander les stats du lobby
-        props.socket.emit('requestLobbyStats');
-      });
-      
-      props.socket.on('disconnect', () => {
-        console.log('❌ Lobby: Socket déconnecté');
-      });
+    const onlinePlayersCount = ref(0)
+    const activeGamesCount = ref(0)
+    const isConnected = ref(props.socket.connected)
+    let statsInterval: number | null = null
 
-      // Écouter les stats du lobby
-      props.socket.on('lobbyStats', (stats: { players: number; games: number }) => {
-        onlinePlayersCount.value = stats.players;
-        activeGamesCount.value = stats.games;
-      });
-    };
-
-    const cleanupSocketListeners = () => {
-      props.socket.off('connect');
-      props.socket.off('disconnect');
-      props.socket.off('lobbyStats');
-    };
-
-    const onGameJoined = (game: { id: string; name: string }) => {
-      waitingGameId.value = game.id;
-      waitingGameName.value = game.name;
-      currentScreen.value = 'waiting-queue';
-    };
-
-    const onGameCreated = (game: { id: string; name: string }) => {
-      console.log('🎮 LOBBY: Partie créée reçue:', game);
-      waitingGameId.value = game.id;
-      waitingGameName.value = game.name;
-      currentScreen.value = 'waiting-queue';
-    };
-
-    const onLeftQueue = () => {
-      waitingGameId.value = null;
-      waitingGameName.value = null;
-      currentScreen.value = 'main';
-    };
-
-    const onGameStarted = (roomId: string) => {
-      emit('startRemote', { mode: 'remote', roomId: roomId });
-    };
+    // ---- sockets: connectivité + stats lobby
+    const onConnect = () => { isConnected.value = true }
+    const onDisconnect = () => { isConnected.value = false }
+    const onLobbyStats = (data: { online: number; active: number }) => {
+      onlinePlayersCount.value = data.online
+      activeGamesCount.value = data.active
+    }
 
     onMounted(() => {
-      setupSocketListeners();
-      
-      // Demander les stats périodiquement
-      const statsInterval = setInterval(() => {
-        if (props.socket.connected) {
-          props.socket.emit('requestLobbyStats');
-        }
-      }, 5000); // Toutes les 5 secondes
+      props.socket.on('connect', onConnect)
+      props.socket.on('disconnect', onDisconnect)
+      props.socket.on('lobbyStats', onLobbyStats)
 
-      // Nettoyer à la destruction
-      onUnmounted(() => {
-        cleanupSocketListeners();
-        clearInterval(statsInterval);
-      });
-    });
+      // ping régulier des stats (si ton backend le supporte)
+      statsInterval = window.setInterval(() => {
+        props.socket.emit('getLobbyStats')
+      }, 3000)
+    })
+
+    onUnmounted(() => {
+      props.socket.off('connect', onConnect)
+      props.socket.off('disconnect', onDisconnect)
+      props.socket.off('lobbyStats', onLobbyStats)
+      if (statsInterval) window.clearInterval(statsInterval)
+    })
+
+    // ---- callbacks d’écrans
+    function onGameJoined(g: { id: string; name: string }) {
+      waitingGameId.value = g.id
+      waitingGameName.value = g.name
+      currentScreen.value = 'waiting-queue'
+    }
+
+    function onGameCreated(g: { id: string; name: string }) {
+      waitingGameId.value = g.id
+      waitingGameName.value = g.name
+      currentScreen.value = 'waiting-queue'
+    }
+
+    function onTournamentCreated(t: { id?: string; roomId?: string; name?: string }) {
+      const rid = (t && (t.roomId || t.id)) ? (t.roomId || t.id)! : null
+      if (rid) {
+        waitingGameId.value = rid
+        waitingGameName.value = t?.name || 'Tournoi'
+        currentScreen.value = 'waiting-queue'
+      } else {
+        currentScreen.value = 'main'
+      }
+    }
+
+    function onLeftQueue() {
+      waitingGameId.value = null
+      waitingGameName.value = null
+      currentScreen.value = 'main'
+    }
+
+    function onGameStarted(roomId: string) {
+      emit('startRemote', { mode: 'remote', roomId })
+    }
 
     return {
-      currentScreen,
-      waitingGameId,
-      waitingGameName,
-      onlinePlayersCount,
-      activeGamesCount,
-      onGameJoined,
-      onGameCreated,
-      onLeftQueue,
-      onGameStarted,
-    };
-  },
-});
+      currentScreen, waitingGameId, waitingGameName,
+      onlinePlayersCount, activeGamesCount, isConnected,
+      onGameJoined, onGameCreated, onTournamentCreated, onLeftQueue, onGameStarted
+    }
+  }
+})
 </script>
 
+
 <style scoped>
-.lobby-container {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 2rem;
-  min-height: 600px;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Header */
+/* ========= Palette pensée pour fond sombre façon GameView ========= */
+.lobby-page { max-width: 1000px; margin: 0 auto; padding: 1.6rem }
 .lobby-header {
-  text-align: center;
-  margin-bottom: 3rem;
-  position: relative;
+  display:flex; align-items:center; justify-content:space-between;
+  background: rgba(var(--color-background-soft-rgb, 20,26,46), .75);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 20px;
+  padding: 1rem 1.25rem;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(0,0,0,.25);
+  margin-bottom: 1rem;
 }
-
-.lobby-title {
-  margin-bottom: 2rem;
-}
-
 .title-main {
-  font-size: 3rem;
-  font-weight: 800;
-  background: var(--gradient-primary);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 1rem;
+  margin:0; font-weight: 800; font-size: 1.9rem;
+  background: var(--gradient-primary); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color: transparent;
 }
+.subtitle { margin:.25rem 0 0; color: rgba(255,255,255,.8) }
 
-.title-subtitle {
-  font-size: 1.2rem;
-  color: var(--color-text);
-  opacity: 0.8;
-  margin: 0;
+.conn-pill {
+  display:inline-flex; align-items:center; gap:.5rem;
+  padding:.55rem .9rem; border-radius: 999px; font-weight: 700; font-size:.9rem;
+  color:#ef5350; border:1px solid #ef5350; background: rgba(239,83,80,.12);
 }
+.conn-pill.connected { color:#43c169; border-color:#43c169; background: rgba(67,193,105,.14) }
+.conn-pill .dot { width:8px; height:8px; border-radius:50%; background: currentColor; animation:pulse 2s infinite }
 
-.connection-indicator {
-  display: flex;
-  justify-content: center;
-}
-
-.connection-status {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  background: rgba(255, 82, 82, 0.1);
-  border: 1px solid #ff5252;
-  color: #ff5252;
-  border-radius: 25px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  transition: all 0.3s ease;
-}
-
-.connection-status.connected {
-  background: rgba(76, 175, 80, 0.1);
-  border-color: #4caf50;
-  color: #4caf50;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor;
-  animation: pulse 2s infinite;
-}
-
-/* Contenu principal */
-.lobby-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.screen {
-  width: 100%;
-}
-
-.main-screen {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
-.sub-screen {
-  min-height: 400px;
-}
-
-.screen-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.btn-back {
-  padding: 0.75rem 1.5rem;
-  background: var(--color-background-soft);
-  border: 1px solid var(--color-border);
-  border-radius: 15px;
-  color: var(--color-text);
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-weight: 500;
-}
-
-.btn-back:hover {
-  background: var(--color-primary);
-  color: white;
-  transform: translateY(-2px);
-}
-
-.screen-title {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: var(--color-text);
-  margin: 0;
-}
-
-/* Grille des modes de jeu */
-.game-modes-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.game-mode-card {
-  background: var(--color-background-soft);
-  border: 2px solid var(--color-border);
+/* Corps/panel : surface plus sombre (contraste avec cartes) */
+.panel{
+  background: rgba(var(--color-background-rgb, 10,14,28), .55);
+  border: 1px solid rgba(255,255,255,.06);
   border-radius: 20px;
-  padding: 2rem;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
+  padding: 1.2rem;
+  box-shadow: 0 6px 24px rgba(0,0,0,.25) inset, 0 6px 18px rgba(0,0,0,.22);
 }
 
-.game-mode-card:hover {
-  transform: translateY(-8px);
-  box-shadow: var(--shadow-lg);
+/* Cartes modes : surface plus claire que panel (meilleur contraste) */
+.modes-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: .9rem; margin-bottom: 1rem }
+.mode-card{
+  position:relative; text-align:left; overflow:hidden; cursor:pointer;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 16px;
+  padding: 1rem;
+  transition: transform .18s ease, box-shadow .25s ease, border-color .25s ease, background .25s ease;
+  will-change: transform, box-shadow;
 }
-
-.game-mode-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  transition: left 0.5s ease;
-}
-
-.game-mode-card:hover::before {
-  left: 100%;
-}
-
-.local-card:hover {
-  border-color: #2196f3;
-  box-shadow: 0 10px 30px rgba(33, 150, 243, 0.3);
-}
-
-.ai-card:hover {
-  border-color: #4caf50;
-  box-shadow: 0 10px 30px rgba(76, 175, 80, 0.3);
-}
-
-.online-card:hover {
-  border-color: #9c27b0;
-  box-shadow: 0 10px 30px rgba(156, 39, 176, 0.3);
-}
-
-.create-card:hover {
-  border-color: #ff9800;
-  box-shadow: 0 10px 30px rgba(255, 152, 0, 0.3);
-}
-
-.card-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-  display: block;
-}
-
-.card-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-  color: var(--color-text);
-}
-
-.card-description {
-  font-size: 1rem;
-  color: var(--color-text);
-  opacity: 0.8;
-  margin-bottom: 1rem;
-}
-
-.card-players {
-  padding: 0.5rem 1rem;
+.mode-card .ic{ font-size:1.6rem; margin-bottom:.4rem }
+.card-title{ margin:0 0 .2rem 0; font-weight:800; font-size:1.05rem; color:#fff }
+.card-desc{ margin:0 0 .6rem 0; color: rgba(255,255,255,.78) }
+.chip{
+  display:inline-block; padding:.25rem .55rem; border-radius:12px;
+  font-size:.8rem; font-weight:700; color:#fff;
   background: var(--gradient-primary);
-  color: white;
-  border-radius: 15px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  display: inline-block;
+  box-shadow: 0 4px 16px rgba(0,0,0,.25);
 }
 
-/* Statistiques du lobby */
-.lobby-stats {
-  display: flex;
-  justify-content: center;
-  gap: 2rem;
-  flex-wrap: wrap;
+/* reflets au hover (sheen) + élévation */
+.mode-card::before{
+  content:""; position:absolute; inset:-30% -60%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.12), transparent);
+  transform: translateX(-60%) rotate(12deg);
+  transition: transform .6s ease;
+  pointer-events:none;
 }
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 1.5rem;
-  background: var(--color-background-soft);
-  border: 1px solid var(--color-border);
-  border-radius: 20px;
-  transition: all 0.3s ease;
+.mode-card:hover{
+  transform: translateY(-6px);
+  box-shadow: 0 16px 40px rgba(0,0,0,.35);
+  border-color: rgba(255,255,255,.16);
+  background: rgba(255,255,255,.055);
 }
+.mode-card:hover::before{ transform: translateX(60%) rotate(12deg) }
+.mode-card:active{ transform: translateY(-2px) scale(.995) }
+.mode-card:focus-visible{ outline:3px solid rgba(99,102,241,.55); outline-offset:2px }
 
-.stat-item:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-md);
+.arrow{
+  position:absolute; right:.8rem; bottom:.7rem; opacity:.35; font-weight:800;
+  transition: transform .18s ease, opacity .18s ease;
 }
+.mode-card:hover .arrow{ transform: translateX(4px); opacity:.6 }
 
-.stat-icon {
-  font-size: 1.2rem;
+/* teintes d’ombre légère lors du hover (sans peindre la carte entière) */
+.tone-blue:hover   { box-shadow: 0 12px 30px rgba(33,150,243,.22) }
+.tone-green:hover  { box-shadow: 0 12px 30px rgba(76,175,80,.22) }
+.tone-purple:hover { box-shadow: 0 12px 30px rgba(156,39,176,.22) }
+.tone-orange:hover { box-shadow: 0 12px 30px rgba(255,152,0,.22) }
+
+/* Stats : même surface que cartes */
+.stats-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap:.9rem }
+.stat-card{
+  display:flex; align-items:center; gap:.8rem;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 16px; padding:.9rem;
+  transition: transform .18s ease, box-shadow .25s ease;
 }
-
-.stat-text {
-  font-size: 0.9rem;
-  color: var(--color-text);
-  opacity: 0.8;
-}
-
-.stat-value {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--color-primary);
+.stat-card:hover{ transform: translateY(-3px); box-shadow: 0 10px 24px rgba(0,0,0,.28) }
+.s-ic{ font-size:1.5rem }
+.s-col{ display:grid }
+.s-val{
+  font-size:1.4rem; font-weight:800;
   background: var(--gradient-primary);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color: transparent;
 }
+.s-lb{ color: rgba(255,255,255,.78) }
+
+/* Sous-écrans */
+.section{ animation: soft-in .22s ease }
+.sub-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:.9rem }
+.sub-title{ margin:0; font-weight:800; color:#fff }
+
+/* Boutons */
+.btn{ display:inline-flex; align-items:center; gap:.5rem; padding:.72rem 1.1rem; border-radius:12px; border:none; cursor:pointer; font-weight:700; transition: transform .16s ease, box-shadow .2s ease }
+.btn.ghost{
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  color:#fff;
+}
+.btn:hover{ transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0,0,0,.22) }
 
 /* Footer */
-.lobby-footer {
-  margin-top: 2rem;
-  text-align: center;
+.lobby-footer{ display:flex; justify-content:center; margin-top:1rem }
+.tip-pill{
+  display:inline-flex; align-items:center; gap:.5rem;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 999px;
+  padding:.6rem .95rem; color:#fff;
 }
+.tip-ic{ opacity:.9 }
 
-.footer-tips {
-  display: flex;
-  justify-content: center;
-}
+/* Motion/Transitions */
+.slidefade-enter-active, .slidefade-leave-active{ transition: all .28s ease }
+.slidefade-enter-from{ opacity:0; transform: translateY(8px) scale(.98) }
+.slidefade-leave-to  { opacity:0; transform: translateY(-8px) scale(.98) }
+@keyframes pulse{ 0%{opacity:1} 50%{opacity:.5} 100%{opacity:1} }
+@keyframes soft-in{ from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:translateY(0)} }
 
-.tip-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  background: rgba(var(--color-primary-rgb), 0.1);
-  border: 1px solid var(--color-primary);
-  border-radius: 20px;
-  color: var(--color-text);
-  font-size: 0.9rem;
-}
-
-.tip-icon {
-  font-size: 1.1rem;
-}
-
-/* Transitions */
-.lobby-screen-enter-active, .lobby-screen-leave-active {
-  transition: all 0.4s ease;
-}
-
-.lobby-screen-enter-from {
-  opacity: 0;
-  transform: translateX(30px) scale(0.95);
-}
-
-.lobby-screen-leave-to {
-  opacity: 0;
-  transform: translateX(-30px) scale(0.95);
-}
-
-/* Animations */
-@keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.5; }
-  100% { opacity: 1; }
+@media (prefers-reduced-motion: reduce){
+  .mode-card, .stat-card, .btn, .slidefade-enter-active, .slidefade-leave-active{ transition:none !important }
+  .conn-pill .dot{ animation:none }
 }
 
 /* Responsive */
-@media (max-width: 768px) {
-  .lobby-container {
-    padding: 1rem;
-  }
-  
-  .title-main {
-    font-size: 2rem;
-  }
-  
-  .game-modes-grid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-  
-  .lobby-stats {
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-  }
-  
-  .screen-header {
-    flex-direction: column;
-    text-align: center;
-    gap: 1rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .game-mode-card {
-    padding: 1.5rem;
-  }
-  
-  .card-icon {
-    font-size: 2.5rem;
-  }
-  
-  .card-title {
-    font-size: 1.3rem;
-  }
+@media (max-width: 768px){
+  .lobby-page{ padding: 1rem }
+  .lobby-header{ flex-direction:column; gap:.6rem; text-align:center }
+  .modes-grid, .stats-grid{ grid-template-columns: 1fr }
 }
 </style>

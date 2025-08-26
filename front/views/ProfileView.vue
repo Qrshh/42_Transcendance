@@ -1,10 +1,15 @@
 <template>
   <div class="profile-page">
-    <!-- Header du profil -->
+    <!-- Header du profil (toujours visible) -->
     <div class="profile-header">
       <div class="profile-banner" :style="bannerStyle">
         <div class="banner-gradient"></div>
-        <button class="edit-banner-btn" @click="triggerAvatarPicker" :disabled="isUploadingBanner">
+        <button
+          class="edit-banner-btn"
+          v-if="isSelf"
+          @click="triggerBannerPicker"
+          :disabled="isUploadingBanner"
+        >
           <span class="edit-icon">{{ isUploadingBanner ? '⏳' : '📸' }}</span>
           <span class="edit-text">Changer la bannière</span>
         </button>
@@ -18,7 +23,7 @@
         />
       </div>
 
-      <!-- ⚠️ profile-info DOIT être à l’intérieur de profile-header -->
+      <!-- ⚠️ profile-info DOIT rester dans profile-header -->
       <div class="profile-info">
         <div class="avatar-section">
           <div class="avatar-container">
@@ -35,7 +40,13 @@
               </span>
             </div>
 
-            <button class="avatar-edit" @click="triggerAvatarPicker" :disabled="isUploadingAvatar" title="Changer l’avatar">
+            <button
+              class="avatar-edit"
+              v-if="isSelf"
+              @click="triggerAvatarPicker"
+              :disabled="isUploadingAvatar"
+              title="Changer l’avatar"
+            >
               {{ isUploadingAvatar ? '⏳' : '✏️' }}
             </button>
             <input
@@ -49,7 +60,9 @@
           </div>
 
           <div class="user-details">
-            <h1 class="username">{{ user.username }}</h1>
+            <h1 class="username">
+              {{ user.username }}
+            </h1>
             <p class="user-status" :class="getStatusClass(user.status)">
               <span class="status-dot"></span>
               {{ getStatusText(user.status) }}
@@ -57,18 +70,21 @@
             <p class="join-date">Membre depuis {{ formatDate(user.createdAt) }}</p>
           </div>
         </div>
-
         <div class="profile-actions">
           <button @click="shareProfile" class="btn btn-secondary">
             <span class="btn-icon">📤</span>
             <span class="btn-text">Partager</span>
           </button>
+          <button v-if="isSelf" @click="handleLogout" class="btn btn-secondary" style="background-color: #850606;">
+              <span class="btn-icon">🚪</span>
+              <span class="btn-text">Déconnexion</span>
+            </button>
         </div>
       </div>
     </div> <!-- /profile-header -->
 
-    <!-- Navigation des onglets -->
-    <div class="profile-tabs">
+    <!-- Navigation des onglets (masquée si profil privé et que ce n’est pas moi) -->
+    <div v-if="!user.isPrivate || isSelf" class="profile-tabs">
       <button
         v-for="tab in tabs"
         :key="tab.id"
@@ -82,8 +98,8 @@
       </button>
     </div>
 
-    <!-- Contenu des onglets -->
-    <div class="profile-content">
+    <!-- Contenu des onglets (masqué si profil privé et que ce n’est pas moi) -->
+    <div v-if="!user.isPrivate || isSelf" class="profile-content">
       <!-- Onglet Statistiques -->
       <div v-if="activeTab === 'stats'" class="tab-content">
         <div class="stats-grid">
@@ -140,7 +156,7 @@
             </div>
 
             <div class="game-details">
-              <h4 class="opponent">vs {{ game.opponent }}</h4>
+              <h4 class="opponent">Joue contre: {{ game.opponent }}</h4>
               <p class="game-score">{{ game.playerScore }} - {{ game.opponentScore }}</p>
               <p class="game-date">{{ formatDate(game.date) }}</p>
             </div>
@@ -157,7 +173,12 @@
         <div class="friends-section">
           <div class="friends-header">
             <h3 class="section-title">Mes amis ({{ friends.length }})</h3>
-            <button class="btn btn-primary" @click="openAddFriend" :disabled="isAddingFriend">
+            <button
+              v-if="isSelf"
+              class="btn btn-primary"
+              @click="openAddFriend"
+              :disabled="isAddingFriend"
+            >
               <span class="btn-icon">{{ isAddingFriend ? '⏳' : '➕' }}</span>
               <span class="btn-text">{{ isAddingFriend ? 'Ajout...' : 'Ajouter un ami' }}</span>
             </button>
@@ -188,10 +209,10 @@
                 <p class="friend-status" :class="getStatusClass(friend.status)">
                   <span class="status-dot"></span>
                   {{ getStatusText(friend.status) }}
-                </p>
+                </p>a
               </div>
 
-              <div class="friend-actions">
+              <div v-if="isSelf" class="friend-actions">
                 <button @click.stop="challengeFriend(friend)" class="btn-icon-only" title="Défier">🎯</button>
                 <button @click.stop="messageFriend(friend)" class="btn-icon-only" title="Message">💬</button>
                 <button @click.stop="removeFriend(friend)" class="btn-icon-only danger" title="Supprimer">🗑️</button>
@@ -201,7 +222,7 @@
         </div>
       </div>
 
-      <!-- Onglet Paramètres -->
+      <!-- Onglet Paramètres (uniquement si isSelf dans tabs) -->
       <div v-if="activeTab === 'settings'" class="tab-content">
         <div class="settings-section">
           <form @submit.prevent="saveSettings" class="settings-form">
@@ -231,6 +252,40 @@
               </button>
             </div>
 
+            <!-- Mot de passe -->
+            <div class="setting-group">
+              <label class="setting-label">Mot de passe</label>
+              <input type="password" class="setting-input" :value="'••••••••'" readonly />
+              <button type="button" @click="toggleEdit('password')" class="edit-btn">
+                {{ editMode.password ? '✅' : '✏️' }}
+              </button>
+            </div>
+
+            <div class="setting-group" v-if="editMode.password">
+              <label class="setting-label">Sécurité</label>
+              <input
+                v-model="passwordForm.current"
+                type="password"
+                class="setting-input"
+                placeholder="Mot de passe actuel"
+                autocomplete="current-password"
+              />
+              <input
+                v-model="passwordForm.new1"
+                type="password"
+                class="setting-input"
+                placeholder="Nouveau mot de passe"
+                autocomplete="new-password"
+              />
+              <input
+                v-model="passwordForm.new2"
+                type="password"
+                class="setting-input"
+                placeholder="Confirmer le nouveau"
+                autocomplete="new-password"
+              />
+            </div>
+
             <div class="setting-group">
               <label class="setting-label">Langue</label>
               <select v-model="settings.language" class="setting-select">
@@ -238,14 +293,6 @@
                 <option value="en">🇬🇧 English</option>
                 <option value="es">🇪🇸 Español</option>
               </select>
-            </div>
-
-            <div class="setting-group">
-              <label class="setting-checkbox">
-                <input type="checkbox" v-model="settings.notifications" />
-                <span class="checkbox-custom"></span>
-                <span class="checkbox-text">Recevoir les notifications</span>
-              </label>
             </div>
 
             <div class="setting-group">
@@ -267,33 +314,14 @@
                 <span class="btn-text">Réinitialiser</span>
               </button>
             </div>
+             <!-- NOUVELLE SECTION 2FA -->
+            <div class="settings-category">
+              <h3 class="category-title">🔒 Sécurité du compte</h3>
+              <div class="security-section">
+                <TwoFactorAuth />
+              </div>
+            </div>
           </form>
-
-          <!-- Petit bloc MAJ email/mdp (optionnel) -->
-          <div class="space-y-4" style="margin-top:1rem">
-            <label class="block font-semibold">Mettre à jour l'email</label>
-            <input
-              v-model="newEmail"
-              type="email"
-              placeholder="Nouvel email"
-              class="w-full p-2 border rounded"
-            />
-
-            <label class="block font-semibold">Changer le mot de passe</label>
-            <input
-              v-model="newPassword"
-              type="password"
-              placeholder="Nouveau mot de passe"
-              class="w-full p-2 border rounded"
-            />
-
-            <button
-              @click="updateUserInfo"
-              class="w-full px-6 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition"
-            >
-              Enregistrer les modifications
-            </button>
-          </div>
 
           <div class="danger-zone">
             <h3 class="danger-title">Zone dangereuse</h3>
@@ -306,14 +334,40 @@
       </div>
     </div> <!-- /profile-content -->
 
-    <div class="text-center" style="margin-top:1rem">
-      <button
-        @click="handleLogout"
-        class="px-6 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition"
-      >
-        🚪 Déconnexion
-      </button>
+    <!-- Vue restreinte (si profil privé et que ce n'est PAS moi) -->
+    <div v-else class="profile-content">
+      <div class="no-access text-center" style="padding:2rem">
+        <div style="font-size:3rem; line-height:1">🔒</div>
+        <h3 class="no-content-title" style="margin:.5rem 0">Profil privé</h3>
+        <p class="no-content-text">
+          Ce joueur a rendu son profil privé. Tu ne peux voir que les informations d’en-tête.
+        </p>
+      </div>
     </div>
+
+    <!-- Bouton Déconnexion (toujours caché si pas soi-même) -->
+    <div class="text-center" style="margin-top:1rem">
+      <div class="danger-zone">
+        <button v-if="isSelf" @click="handleLogout" class="btn btn-danger">
+          <span class="btn-icon">🚪</span>
+          <span class="btn-text">Déconnexion</span>
+        </button>
+      </div>
+    </div>
+    <!-- ===== Chat flottant ===== -->
+    <Teleport to="body">
+      <ChatBoxLite
+        v-if="showChat && selectedUser"
+        :me="selfUsername"
+        :receiver="selectedUser"
+        :socket="statsSocket"
+        :isOnline="true"
+        :offsetIndex="0"
+        @close="showChat = false"
+        @challengeUser="challengeFriend({ username: $event } as any)"
+        @viewProfile="(u) => router.push('/profile/' + encodeURIComponent(u))"
+      />
+    </Teleport>
 
     <!-- ===== Modal Ajouter un ami ===== -->
     <transition name="fade">
@@ -340,10 +394,19 @@
             <p v-if="addFriendError" class="af-error">{{ addFriendError }}</p>
 
             <div class="af-actions">
-              <button type="button" class="btn btn-secondary" @click="closeAddFriend" :disabled="isAddingFriend">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                @click="closeAddFriend"
+                :disabled="isAddingFriend"
+              >
                 Annuler
               </button>
-              <button type="submit" class="btn btn-primary" :disabled="isAddingFriend || !addFriendForm.username">
+              <button
+                type="submit"
+                class="btn btn-primary"
+                :disabled="isAddingFriend || !addFriendForm.username"
+              >
                 {{ isAddingFriend ? 'Ajout...' : 'Ajouter' }}
               </button>
             </div>
@@ -355,15 +418,21 @@
   </div>
 </template>
 
-
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
-import { logout as authLogout } from '../stores/auth' // adapte le chemin si besoin
-import { useRouter } from 'vue-router'
-const router = useRouter()
+import { ref, computed, watch, onMounted, onBeforeUnmount, onUnmounted, nextTick  } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { logout as authLogout } from '../stores/auth'
+// NOUVEAU IMPORT POUR LA 2FA
+import TwoFactorAuth from '../components/TwoFactorAuth.vue'
+import { io } from 'socket.io-client';
+import ChatBoxLite from '../components/ChatBoxLite.vue'
 
 /** ====== Config API ====== **/
-const API_BASE = 'http://localhost:3000'
+const API_BASE = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:3000'
+const route = useRoute()
+const router = useRouter()
+
+const statsSocket = io(API_BASE, { transports: ['websocket'] });
 
 /** ====== Types ====== **/
 interface User {
@@ -374,28 +443,73 @@ interface User {
   banner?: string | null
   status: 'online' | 'offline' | 'playing'
   createdAt: string
+  isPrivate?: boolean
 }
 interface Stats { totalGames: number; gamesWon: number; ranking: number }
-interface GameHistory { id: string; opponent: string; result: 'win' | 'loss'; playerScore: number; opponentScore: number; date: string; duration: string }
+interface GameHistory {
+  id: string
+  opponent: string
+  result: 'win' | 'loss'
+  playerScore: number
+  opponentScore: number
+  date: string
+  duration: string
+}
 interface Friend { id: string; username: string; avatar?: string | null; status: 'online' | 'offline' | 'playing' }
+
+/** ====== Session / Profil affiché ====== **/
+const selfUsername = ref(localStorage.getItem('username') || 'Joueur')
+const viewedUsername = computed(() =>
+  (route.params.username as string) || selfUsername.value
+)
+const isSelf = computed(() => viewedUsername.value === selfUsername.value)
 
 /** ====== État ====== **/
 const user = ref<User>({
-  id: '1',
-  username: localStorage.getItem('username') || 'Joueur',
-  email: 'joueur@example.com',
+  id: '0',
+  username: viewedUsername.value,
+  email: 'user@example.com',
   avatar: null,
   banner: null,
   status: 'online',
-  createdAt: '2024-01-01'
+  createdAt: '2024-01-01',
+  isPrivate: false
 })
 const stats = ref<Stats>({ totalGames: 0, gamesWon: 0, ranking: 0 })
-const gameHistory = ref<GameHistory[]>([{ id: '1', opponent: 'Alice', result: 'win', playerScore: 21, opponentScore: 18, date: '2024-01-15', duration: '5m 23s' }])
+const gameHistory = ref<GameHistory[]>([])
 const friends = ref<Friend[]>([])
 
 const activeTab = ref<'stats'|'history'|'friends'|'settings'>('stats')
-const editMode = ref({ username: false, email: false })
-const settings = ref({ username: user.value.username, email: user.value.email, language: 'fr', notifications: true, privateProfile: false })
+
+const showChat = ref(false)
+const selectedUser = ref<string | null>(null)
+function openChatWithUser(username: string) { selectedUser.value = username; showChat.value = true }
+
+/** Paramètres (Settings) **/
+const editMode = ref({ username: false, email: false, password: false })
+const settings = ref({
+  username: user.value.username,
+  email: user.value.email,
+  language: localStorage.getItem('pref_language') || 'fr',
+  privateProfile: localStorage.getItem('pref_private') === 'true'
+})
+const passwordForm = ref({ current: '', new1: '', new2: '' })
+// --- sélection de l’onglet via l’URL (et fallback localStorage) ---
+const validTabs = new Set(['stats','history','friends','settings'])
+
+function applyTabFromRouteOrMemory() {
+  const qTab = typeof route.query.tab === 'string' ? route.query.tab : ''
+  const mem  = localStorage.getItem('profile_target_tab') || ''
+  const picked = (qTab || mem).toLowerCase()
+
+  // settings uniquement pour soi-même
+  if (picked && validTabs.has(picked) && (picked !== 'settings' || isSelf.value)) {
+    activeTab.value = picked as any
+  }
+
+  // on nettoie la mémoire pour éviter des effets collatéraux
+  localStorage.removeItem('profile_target_tab')
+}
 
 /** ====== Modal Ajouter un ami ====== **/
 const showAddFriend = ref(false)
@@ -403,64 +517,43 @@ const isAddingFriend = ref(false)
 const addFriendError = ref<string | null>(null)
 const addFriendForm = ref({ username: '' })
 const addFriendInputRef = ref<HTMLInputElement | null>(null)
-
-const openAddFriend = () => {
-  addFriendError.value = null
-  addFriendForm.value.username = ''
-  showAddFriend.value = true
-  requestAnimationFrame(() => addFriendInputRef.value?.focus())
-}
+const openAddFriend = () => { addFriendError.value = null; addFriendForm.value.username = ''; showAddFriend.value = true; requestAnimationFrame(() => addFriendInputRef.value?.focus()) }
 const closeAddFriend = () => { showAddFriend.value = false }
-// helpers en haut du <script setup>
-// ➜ remplace intégralement ta fonction submitAddFriend par ceci
 const submitAddFriend = async () => {
-  const to = addFriendForm.value.username.trim()
-  if (!to) return
-  if (to === user.value.username) { 
-    addFriendError.value = 'Tu ne peux pas t’ajouter toi-même 😅'
-    return
-  }
-
+const to = addFriendForm.value.username.trim()
+if (!to) return
+if (to === selfUsername.value) { addFriendError.value = 'Tu ne peux pas t’ajouter toi-même 😅'; return }
   try {
     isAddingFriend.value = true
     addFriendError.value = null
-
-    // IMPORTANT : correspond à ton server.js
     const res = await fetch(`${API_BASE}/friends/request`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: user.value.username, to })
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: selfUsername.value, to })
     })
-
     const payload = await res.json().catch(() => ({}))
-    if (!res.ok) {
-      addFriendError.value = payload?.error || `Erreur HTTP ${res.status}`
-      return
-    }
-
-    // succès : on recharge (au cas où) et on ferme la modal
+    if (!res.ok) { addFriendError.value = payload?.error || `Erreur HTTP ${res.status}`; return }
     await fetchFriends()
     activeTab.value = 'friends'
     closeAddFriend()
-  } catch (e: any) {
-    addFriendError.value = e?.message || 'Erreur inconnue'
-  } finally {
-    isAddingFriend.value = false
-  }
+  } catch (e: any) { addFriendError.value = e?.message || 'Erreur inconnue' }
+  finally { isAddingFriend.value = false }
 }
 
-
 /** ====== Onglets / Computed ====== **/
-const tabs = computed(() => [
-  { id: 'stats', label: 'Statistiques', icon: '📊' },
-  { id: 'history', label: 'Historique', icon: '📜', count: gameHistory.value.length },
-  { id: 'friends', label: 'Amis', icon: '👥', count: friends.value.length },
-  { id: 'settings', label: 'Paramètres', icon: '⚙️' }
-])
+const tabs = computed(() => {
+  const base = [
+    { id: 'stats', label: 'Statistiques', icon: '📊' },
+    { id: 'history', label: 'Historique', icon: '📜', count: gameHistory.value.length },
+    { id: 'friends', label: 'Amis', icon: '👥', count: friends.value.length },
+  ]
+  if (isSelf.value) base.push({ id: 'settings', label: 'Paramètres', icon: '⚙️' })
+  return base
+})
 const winRate = computed(() => stats.value.totalGames === 0 ? 0 : Math.round((stats.value.gamesWon / stats.value.totalGames) * 100))
 
 /** ====== Utils ====== **/
 const getUserColor = (username: string) => {
+  if (!username || !username.length) return 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
   const colors = [
     'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
@@ -470,19 +563,69 @@ const getUserColor = (username: string) => {
   ]
   return colors[username.charCodeAt(0) % colors.length]
 }
-const getStatusClass = (status: string) => ({ 'status-online': status === 'online', 'status-offline': status === 'offline', 'status-playing': status === 'playing' })
-const getStatusText = (status: string) => ({ online: 'En ligne', offline: 'Hors ligne', playing: 'En jeu' } as any)[status] || 'Inconnu'
-const formatDate = (date: string) => new Date(date).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' })
+const getStatusClass = (status: string) => ({
+  'status-online': status === 'online',
+  'status-offline': status === 'offline',
+  'status-playing': status === 'playing'
+})
+const getStatusText = (status: string) =>
+  ({ online: 'En ligne', offline: 'Hors ligne', playing: 'En jeu' } as any)[status] || 'Inconnu'
+const formatDate = (date: string) =>
+  new Date(date).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' })
 
 /** ====== Actions ====== **/
-watch(activeTab, (tab) => { if (tab === 'friends') fetchFriends() })
-
-const shareProfile = () => {
-  navigator.share?.({ title: `Profil de ${user.value.username}`, text: `Découvre le profil de ${user.value.username} sur MasterPong !`, url: window.location.href })
+const shareProfile = async () => {
+  const title = `Profil de ${user.value.username}`
+  const url = window.location.href
+  try {
+    if (navigator.share) await navigator.share({ title, text: title, url })
+    else { await navigator.clipboard.writeText(url); alert('Lien copié !') }
+  } catch { /* noop */ }
 }
+
+const fetchUser = async () => {
+  try {
+    const u = encodeURIComponent(viewedUsername.value)
+    const r = await fetch(`${API_BASE}/user/${u}`)
+    if (!r.ok) return
+    const data = await r.json()
+    user.value.id = String(data.id)
+    user.value.username = data.username
+    user.value.email = data.email
+    user.value.avatar = data.avatar ?? null
+    user.value.banner = data.banner ?? null
+    user.value.status = data.status ?? 'offline'
+    user.value.createdAt = data.createdAt || data.created_at || user.value.createdAt
+    user.value.isPrivate = !!data.isPrivate
+    if (isSelf.value) settings.value.privateProfile = !!data.isPrivate
+    settings.value.username = data.username
+    settings.value.email = data.email
+  } catch (e) { console.warn('fetchUser error:', e) }
+}
+
+const fetchStats = async () => {
+  try {
+    const r = await fetch(`${API_BASE}/user/${encodeURIComponent(viewedUsername.value)}/stats`)
+    if (!r.ok) return
+    const s = await r.json()
+    stats.value.totalGames = Number(s.totalGames) || 0
+    stats.value.gamesWon = Number(s.gamesWon) || 0
+    stats.value.ranking = Number(s.ranking) || 0
+    await nextTick(); renderPerformanceChart()
+  } catch (e) { console.warn('fetchStats error:', e) }
+}
+
+const fetchHistory = async () => {
+  try {
+    const r = await fetch(`${API_BASE}/user/${encodeURIComponent(viewedUsername.value)}/history`)
+    gameHistory.value = r.ok ? await r.json() : []
+    await nextTick(); renderPerformanceChart()
+  } catch (e) { console.warn('fetchHistory error:', e); gameHistory.value = [] }
+}
+
 const fetchFriends = async () => {
   try {
-    const u = encodeURIComponent(user.value.username)
+    const u = encodeURIComponent(viewedUsername.value)
     let r = await fetch(`${API_BASE}/friends/${u}/full`)
     if (!r.ok) {
       r = await fetch(`${API_BASE}/friends/${u}`)
@@ -491,55 +634,97 @@ const fetchFriends = async () => {
       friends.value = rows.map((x, i) => ({ id: String(i + 1), username: x.friend, avatar: x.avatar ?? null, status: 'offline' }))
       return
     }
-    const rows: Array<{ username: string; avatar: string | null }> = await r.json()
-    friends.value = rows.map((x, i) => ({ id: String(i + 1), username: x.username, avatar: x.avatar, status: 'offline' }))
-  } catch (e) {
-    console.warn('fetchFriends error:', e)
-    friends.value = []
-  }
+    const rows: Array<{ username: string; avatar: string | null; status?: string }> = await r.json()
+    friends.value = rows.map((x, i) => ({ id: String(i + 1), username: x.username, avatar: x.avatar, status: (x.status as Friend['status']) || 'offline' }))
+  } catch (e) { console.warn('fetchFriends error:', e); friends.value = [] }
 }
-const onFriendAvatarError = (e: Event) => { (e.target as HTMLImageElement).style.display = 'none' }
-const messageFriend = (friend: Friend) => { localStorage.setItem('openChatWith', friend.username); console.log('Message à', friend.username) }
-const challengeFriend = (friend: Friend) => { console.log('Défier', friend.username) }
-const viewFriend = (friend: Friend) => { window.location.href = `/profile/${encodeURIComponent(friend.username)}` }
 
+const onFriendAvatarError = (e: Event) => { (e.target as HTMLImageElement).style.display = 'none' }
+const messageFriend = (friend: Friend) => { openChatWithUser(friend.username) }
+const challengeFriend = (friend: Friend) => {
+  if (!isSelf.value) return;
+  const me = selfUsername.value;
+  const to = friend.username;
+  console.log('🎯 Envoi d’un défi à', to);
+  statsSocket.emit('identify', me);
+  statsSocket.emit('challengePlayer', { from: me, to, options: { maxPoints: 10, durationMinutes: null } });
+};
+
+const viewFriend = (friend: Friend) => { router.push(`/profile/${encodeURIComponent(friend.username)}`) }
 const removeFriend = async (friend: Friend) => {
+  if (!isSelf.value) return
   if (!confirm(`Supprimer ${friend.username} de vos amis ?`)) return
   try {
     const res = await fetch(`${API_BASE}/friends/remove`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: user.value.username, to: friend.username })
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: selfUsername.value, to: friend.username })
     })
-    if (!res.ok) {
-      const txt = await res.text().catch(()=> '')
-      throw new Error(txt || 'Erreur suppression ami')
-    }
+    if (!res.ok) { const txt = await res.text().catch(() => ''); throw new Error(txt || 'Erreur suppression ami') }
     friends.value = friends.value.filter(f => f.username !== friend.username)
-  } catch (e: any) {
-    alert(e.message || 'Suppression impossible')
-  }
+  } catch (e: any) { alert(e.message || 'Suppression impossible') }
 }
 
-const toggleEdit = (field: string) => { (editMode.value as any)[field] = !(editMode.value as any)[field] }
-const saveSettings = () => { localStorage.setItem('username', settings.value.username); user.value.username = settings.value.username }
-const resetSettings = () => { settings.value = { username: user.value.username, email: user.value.email, language: 'fr', notifications: true, privateProfile: false } }
-const logout = () => {
-  authLogout()
-  window.location.href = '/login' // adapte la route si besoin
+/** ====== Settings & Password ====== **/
+const toggleEdit = (field: 'username' | 'email' | 'password') => { editMode.value[field] = !editMode.value[field] }
+
+async function updatePasswordIfNeeded(oldUsernameForPath: string) {
+  if (!editMode.value.password) return
+  const cur = passwordForm.value.current.trim()
+  const n1  = passwordForm.value.new1.trim()
+  const n2  = passwordForm.value.new2.trim()
+  if (!cur || !n1 || !n2) throw new Error('Complète tous les champs mot de passe')
+  if (n1.length < 6) throw new Error('Le nouveau mot de passe doit faire au moins 6 caractères')
+  if (n1 !== n2) throw new Error('La confirmation ne correspond pas')
+  const r = await fetch(`${API_BASE}/user/${encodeURIComponent(oldUsernameForPath)}/password`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ currentPassword: cur, newPassword: n1 })
+  })
+  const j = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(j?.error || j?.message || 'Échec de la mise à jour du mot de passe')
+  passwordForm.value.current = ''; passwordForm.value.new1 = ''; passwordForm.value.new2 = ''; editMode.value.password = false
 }
 
-/** ====== Suppression compte ====== **/
-const deleteAccount = async () => {
-  if (!confirm('Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.')) return
+const saveSettings = async () => {
+  if (!isSelf.value) return
   try {
-    const res = await fetch(`${API_BASE}/user/${encodeURIComponent(user.value.username)}`, { method: 'DELETE' })
-    if (!res.ok) { const txt = await res.text().catch(()=> ''); throw new Error(txt || 'Suppression impossible') }
-    localStorage.clear()
-    window.location.href = '/'
-  } catch (e: any) {
-    alert(e.message || 'Erreur lors de la suppression du compte')
+    const oldUsername = user.value.username
+    await updatePasswordIfNeeded(oldUsername)
+    const payload: Record<string, any> = {}
+    if (settings.value.username && settings.value.username !== user.value.username) payload.username = settings.value.username.trim()
+    if (settings.value.email && settings.value.email !== user.value.email) payload.email = settings.value.email.trim()
+    payload.is_private = settings.value.privateProfile ? 1 : 0
+    localStorage.setItem('pref_language', settings.value.language)
+    localStorage.setItem('pref_private', String(settings.value.privateProfile))
+    if (Object.keys(payload).length > 0) {
+      const r = await fetch(`${API_BASE}/user/${encodeURIComponent(oldUsername)}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(j?.error || j?.message || 'Échec de la mise à jour du profil')
+      if (payload.username) { user.value.username = payload.username; selfUsername.value = payload.username; localStorage.setItem('username', payload.username) }
+      if (payload.email) user.value.email = payload.email
+    }
+    editMode.value.username = false; editMode.value.email = false
+    alert('Paramètres enregistrés ✔')
+  } catch (e: any) { alert(e?.message || 'Impossible d’enregistrer les paramètres') }
+}
+
+const resetSettings = () => {
+  settings.value = {
+    username: user.value.username,
+    email: user.value.email,
+    language: localStorage.getItem('pref_language') || 'fr',
+    privateProfile: localStorage.getItem('pref_private') === 'true'
   }
+  passwordForm.value.current = ''; passwordForm.value.new1 = ''; passwordForm.value.new2 = ''
+  editMode.value.password = false
+}
+
+/** ====== Déconnexion ====== **/
+const handleLogout = async () => {
+  try { await fetch(`${API_BASE}/logout`, { method: 'POST' }) } catch {}
+  authLogout()
+  router.push('/login')
 }
 
 /** ====== Avatar / Bannière ====== **/
@@ -550,10 +735,13 @@ const onAvatarError = (e: Event) => { (e.target as HTMLImageElement).style.displ
 
 const bannerInput = ref<HTMLInputElement | null>(null)
 const isUploadingBanner = ref(false)
-const bannerStyle = computed(() => ({ background: user.value.banner ? `url("${user.value.banner}") center/cover no-repeat` : `var(--gradient-primary)` }))
+const bannerStyle = computed(() => ({
+  background: user.value.banner ? `url("${user.value.banner}") center/cover no-repeat` : `var(--gradient-primary)`
+}))
 const triggerBannerPicker = () => bannerInput.value?.click()
 
 const uploadBanner = async (evt: Event) => {
+  if (!isSelf.value) { (evt.target as HTMLInputElement).value=''; return }
   const input = evt.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
@@ -561,21 +749,19 @@ const uploadBanner = async (evt: Event) => {
   const ALLOWED = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
   if (!ALLOWED.includes(file.type)) { alert('Formats autorisés: PNG, JPEG, WEBP, GIF'); input.value = ''; return }
   if (file.size > MAX_MB * 1024 * 1024) { alert(`Fichier trop lourd (max ${MAX_MB} Mo)`); input.value = ''; return }
-
   try {
     isUploadingBanner.value = true
-    const form = new FormData()
-    form.append('file', file)
+    const form = new FormData(); form.append('file', file)
     const res = await fetch(`${API_BASE}/user/${encodeURIComponent(user.value.username)}/banner`, { method: 'POST', body: form })
-    const data = await res.json()
-    if (!res.ok || !data?.success) throw new Error(data?.error || 'Upload bannière échoué')
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || !data?.bannerUrl) throw new Error(data?.error || 'Upload bannière échoué')
     user.value.banner = data.bannerUrl
-  } catch (err: any) {
-    alert(`Erreur upload bannière: ${err.message || err}`)
-  } finally { isUploadingBanner.value = false; input.value = '' }
+  } catch (err: any) { alert(`Erreur upload bannière: ${err.message || err}`) }
+  finally { isUploadingBanner.value = false; input.value = '' }
 }
 
 const uploadAvatar = async (evt: Event) => {
+  if (!isSelf.value) { (evt.target as HTMLInputElement).value=''; return }
   const input = evt.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
@@ -583,40 +769,103 @@ const uploadAvatar = async (evt: Event) => {
   const ALLOWED = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
   if (!ALLOWED.includes(file.type)) { alert('Formats autorisés: PNG, JPEG, WEBP, GIF'); input.value = ''; return }
   if (file.size > MAX_MB * 1024 * 1024) { alert(`Fichier trop lourd (max ${MAX_MB} Mo)`); input.value = ''; return }
-
   try {
     isUploadingAvatar.value = true
-    const form = new FormData()
-    form.append('file', file)
+    const form = new FormData(); form.append('file', file)
     const res = await fetch(`${API_BASE}/user/${encodeURIComponent(user.value.username)}/avatar`, { method: 'POST', body: form })
-    const data = await res.json()
-    if (!res.ok || !data?.success) throw new Error(data?.error || 'Upload échoué')
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || !data?.avatarUrl) throw new Error(data?.error || 'Upload avatar échoué')
     user.value.avatar = data.avatarUrl || null
-  } catch (err: any) {
-    alert(`Erreur upload avatar: ${err.message || err}`)
-  } finally { isUploadingAvatar.value = false; input.value = '' }
+  } catch (err: any) { alert(`Erreur upload avatar: ${err.message || err}`) }
+  finally { isUploadingAvatar.value = false; input.value = '' }
 }
 
+/** ====== Mini chart perfs ====== **/
+const performanceChart = ref<HTMLCanvasElement | null>(null)
+const renderPerformanceChart = () => {
+  const canvas = performanceChart.value; if (!canvas) return
+  const ctx = canvas.getContext('2d'); if (!ctx) return
+  const W = canvas.width = canvas.clientWidth || 480
+  const H = canvas.height = 200
+  const data = gameHistory.value.slice(-20).reverse()
+  const yVals: number[] = []; let cum = 0
+  for (const g of data) { cum += g.result === 'win' ? 1 : -1; yVals.push(cum) }
+  ctx.clearRect(0,0,W,H)
+  if (yVals.length === 0) { ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillText('Aucune donnée', 10, 20); return }
+  const yMax = Math.max(...yVals) || 1
+  const pad = 20
+  const stepX = (W - pad*2) / Math.max(1, yVals.length - 1)
+  ctx.globalAlpha = 0.15; ctx.beginPath()
+  for (let i = 0; i <= 4; i++) { const y = pad + (H - pad*2) * (i / 4); ctx.moveTo(pad, y); ctx.lineTo(W - pad, y) }
+  ctx.strokeStyle = '#000'; ctx.stroke(); ctx.globalAlpha = 1
+  ctx.beginPath()
+  yVals.forEach((v, i) => {
+    const x = pad + i * stepX
+    const y = H - pad - (v / yMax) * (H - pad*2)
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
+  })
+  ctx.lineWidth = 2; ctx.strokeStyle = '#4facfe'; ctx.stroke()
+  ctx.fillStyle = '#4facfe'
+  yVals.forEach((v, i) => { const x = pad + i * stepX; const y = H - pad - (v / yMax) * (H - pad*2); ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI*2); ctx.fill() })
+}
+
+const refetchProfileData = async () => { await Promise.allSettled([fetchStats(), fetchHistory()]) }
+
 /** ====== Lifecycle ====== **/
+let handledStart = false
 onMounted(async () => {
-  try {
-    // Récupère les statistiques de l'utilisateur
-    const statsRes = await fetch(`${API_BASE}/user/${encodeURIComponent(user.value.username)}/stats`)
-    if (statsRes.ok) {
-      const statsData = await statsRes.json()
-      stats.value.totalGames = statsData.totalGames
-      stats.value.gamesWon = statsData.gamesWon
-      stats.value.ranking = statsData.ranking
+  const me = localStorage.getItem('username') || 'anon';
+  statsSocket.emit('identify', me);
+
+  const handleChallengeStart = ({ roomId }: { roomId: string }) => {
+    if (!roomId) return
+    if (handledStart) return
+    handledStart = true
+    console.log('🎮 challengeStart (ProfileView):', roomId);
+    window.dispatchEvent(new CustomEvent('challengeStart', { detail: { roomId } }));
+    try { localStorage.setItem('pendingRoomId', roomId) } catch {}
+    if (router.currentRoute.value.path !== '/game') {
+      router.push('/game').finally(() => setTimeout(() => { handledStart = false }, 2000))
+    } else {
+      setTimeout(() => { handledStart = false }, 2000)
     }
-  } catch (e) {
-    console.warn('Impossible de charger le profil ou les stats:', e)
-  fetchFriends()
-  }
+  };
+  applyTabFromRouteOrMemory()
+
+  statsSocket.on('challengeStart', handleChallengeStart);
+  statsSocket.on('playerStatsUpdated', (p: { username: string }) => {
+    if (!p || (p.username !== viewedUsername.value)) return;
+    Promise.allSettled([fetchStats(), fetchHistory()]);
+  });
+
+  await fetchUser();
+  await Promise.allSettled([fetchStats(), fetchHistory(), fetchFriends()]);
+  await nextTick(); renderPerformanceChart()
 })
 
-/** ====== Expose ====== **/
+watch(() => route.query.tab, () => {
+  applyTabFromRouteOrMemory()
+})
+watch(() => route.params.username, async () => {
+  await fetchUser()
+  await Promise.allSettled([fetchStats(), fetchHistory(), fetchFriends()])
+})
+watch(activeTab, async (tab) => {
+  if (tab === 'friends') await fetchFriends()
+  if (tab === 'history') await fetchHistory()
+  if (tab === 'stats') await fetchStats()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('playerStatsUpdated', refetchProfileData)
+  statsSocket.off('challengeStart'); 
+})
+onUnmounted(() => { statsSocket.disconnect() })
+
+/** ====== Expose (si besoin) ====== **/
 const editAvatar = () => triggerAvatarPicker()
 </script>
+
 
 <style scoped>
 .username { font-size: 2rem; font-weight: 700; color: var(--color-text); margin-top: 25px; line-height: 1.2; position: relative; display: inline-block; transition: color .3s }
@@ -688,6 +937,14 @@ const editAvatar = () => triggerAvatarPicker()
 .btn-icon-only:hover { background: var(--color-primary); color: #fff }
 .btn-icon-only.danger:hover { background: #f44336 }
 
+/* NOUVELLES CLASSES POUR LES CATÉGORIES DE PARAMÈTRES */
+.settings-category { margin-bottom: 3rem; padding-bottom: 2rem; border-bottom: 1px solid var(--color-border); }
+.settings-category:last-child { border-bottom: none; margin-bottom: 0; }
+.category-title { font-size: 1.3rem; font-weight: 700; color: var(--color-text); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; }
+.security-section { background: var(--color-background); border: 2px solid var(--color-border); border-radius: 15px; padding: 0; overflow: hidden; }
+
+/* Surcharge pour le composant 2FA dans le profil */
+.security-section :deep(.max-w-md) { max-width: none; margin: 0; box-shadow: none; border-radius: 0; }
 .settings-form { display: flex; flex-direction: column; gap: 2rem; margin-bottom: 3rem }
 .setting-group { display: flex; align-items: center; gap: 1rem }
 .setting-label { font-weight: 600; color: var(--color-text); min-width: 120px }
