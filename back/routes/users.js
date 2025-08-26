@@ -118,7 +118,25 @@ module.exports = fp(async function usersRoutes(fastify) {
     } catch (e) { reply.code(500).send({ error: e.message }); }
   });
 
+  // register/login/logout
+  fastify.post('/register', async (req, reply) => {
+    const { username, email, password } = req.body || {};
+    if (!username || !email || !password) return reply.code(400).send({ error: 'Champs manquants' });
+    const { hash, salt } = hashPassword(password);
+    dbRun('INSERT INTO users (username, email, password_hash, salt) VALUES (?, ?, ?, ?)', [username, email, hash, salt])
+      .then(function () { reply.send({ message: 'Utilisateur créé', id: this.lastID }); })
+      .catch(err => reply.code(400).send({ error: err.message }));
+  });
 
+  fastify.post('/login', async (req, reply) => {
+    const { email, password } = req.body || {};
+    if (!email || !password) return reply.code(400).send({ error: 'Email et mot de passe requis' });
+    const user = await dbGet('SELECT * FROM users WHERE email = ? OR username = ?', [email, email]);
+    if (!user) return reply.code(401).send({ message: 'Email ou username inconnu' });
+    const match = verifyPassword(password, user.salt, user.password_hash);
+    if (!match) return reply.code(401).send({ message: 'Mot de passe incorrect' });
+    return reply.send({ message: 'Connexion réussie', username: user.username, email: user.email, avatar: user.avatar || '/avatars/default.png' });
+  });
 
   fastify.post('/logout', async (_, reply) => reply.send({ message: 'Déconnexion réussie' }));
 });
