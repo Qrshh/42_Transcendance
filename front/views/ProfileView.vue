@@ -11,7 +11,7 @@
           :disabled="isUploadingBanner"
         >
           <span class="edit-icon">{{ isUploadingBanner ? '⏳' : '📸' }}</span>
-          <span class="edit-text">Changer la bannière</span>
+          <span class="edit-text">{{ t.changeBannerBtn }}</span>
         </button>
         <input
           ref="bannerInput"
@@ -67,17 +67,17 @@
               <span class="status-dot"></span>
               {{ getStatusText(user.status) }}
             </p>
-            <p class="join-date">Membre depuis {{ formatDate(user.createdAt) }}</p>
+            <p class="join-date"> {{t.memberSince}} {{formatDate(user.createdAt) }}</p>
           </div>
         </div>
         <div class="profile-actions">
           <button @click="shareProfile" class="btn btn-secondary">
             <span class="btn-icon">📤</span>
-            <span class="btn-text">Partager</span>
+            <span class="btn-text">{{ t.shareBtn }}</span>
           </button>
           <button v-if="isSelf" @click="handleLogout" class="btn btn-secondary" style="background-color: #850606;">
               <span class="btn-icon">🚪</span>
-              <span class="btn-text">Déconnexion</span>
+              <span class="btn-text">{{ t.logoutBtn }}</span>
             </button>
         </div>
       </div>
@@ -107,7 +107,7 @@
             <div class="stat-icon">🏆</div>
             <div class="stat-info">
               <h3 class="stat-number">{{ stats.gamesWon }}</h3>
-              <p class="stat-label">Parties gagnées</p>
+              <p class="stat-label"> {{ t.gameWin }}</p>
             </div>
           </div>
 
@@ -115,7 +115,7 @@
             <div class="stat-icon">🎮</div>
             <div class="stat-info">
               <h3 class="stat-number">{{ stats.totalGames }}</h3>
-              <p class="stat-label">Parties jouées</p>
+              <p class="stat-label"> {{ t.gamePlayed }}</p>
             </div>
           </div>
 
@@ -123,7 +123,7 @@
             <div class="stat-icon">📊</div>
             <div class="stat-info">
               <h3 class="stat-number">{{ winRate }}%</h3>
-              <p class="stat-label">Taux de victoire</p>
+              <p class="stat-label"> {{ t.winrate }}</p>
             </div>
           </div>
 
@@ -131,14 +131,14 @@
             <div class="stat-icon">⭐</div>
             <div class="stat-info">
               <h3 class="stat-number">{{ stats.ranking }}</h3>
-              <p class="stat-label">Classement</p>
+              <p class="stat-label"> {{ t.ranking }}</p>
             </div>
           </div>
         </div>
 
         <div class="charts-section">
           <div class="chart-card">
-            <h3 class="chart-title">Historique des performances</h3>
+            <h3 class="chart-title">{{ t.perfHistory }}</h3>
             <div class="performance-chart">
               <canvas ref="performanceChart"></canvas>
             </div>
@@ -172,7 +172,7 @@
       <div v-if="activeTab === 'friends'" class="tab-content">
         <div class="friends-section">
           <div class="friends-header">
-            <h3 class="section-title">Mes amis ({{ friends.length }})</h3>
+            <h3 class="section-title"> {{ t.myFriends }} ({{ friends.length }})</h3>
             <button
               v-if="isSelf"
               class="btn btn-primary"
@@ -180,7 +180,7 @@
               :disabled="isAddingFriend"
             >
               <span class="btn-icon">{{ isAddingFriend ? '⏳' : '➕' }}</span>
-              <span class="btn-text">{{ isAddingFriend ? 'Ajout...' : 'Ajouter un ami' }}</span>
+              <span class="btn-text">{{ isAddingFriend ? 'Ajout...' : t.addFriend }}</span>
             </button>
           </div>
 
@@ -227,7 +227,7 @@
         <div class="settings-section">
           <form @submit.prevent="saveSettings" class="settings-form">
             <div class="setting-group">
-              <label class="setting-label">Nom d'utilisateur</label>
+              <label class="setting-label"> {{ t.username }}</label>
               <input
                 v-model="settings.username"
                 type="text"
@@ -240,7 +240,7 @@
             </div>
 
             <div class="setting-group">
-              <label class="setting-label">Email</label>
+              <label class="setting-label">{{ t.emailPlaceholder }}</label>
               <input
                 v-model="settings.email"
                 type="email"
@@ -254,7 +254,7 @@
 
             <!-- Mot de passe -->
             <div class="setting-group">
-              <label class="setting-label">Mot de passe</label>
+              <label class="setting-label"> {{ t.passwordPlaceholder }}</label>
               <input type="password" class="setting-input" :value="'••••••••'" readonly />
               <button type="button" @click="toggleEdit('password')" class="edit-btn">
                 {{ editMode.password ? '✅' : '✏️' }}
@@ -287,36 +287,27 @@
             </div>
 
             <div class="setting-group">
-              <label class="setting-label">Langue</label>
-              <select v-model="settings.language" class="setting-select">
-                <option value="fr">🇫🇷 Français</option>
-                <option value="en">🇬🇧 English</option>
-                <option value="es">🇪🇸 Español</option>
-              </select>
-            </div>
-
-            <div class="setting-group">
               <label class="setting-checkbox">
                 <input type="checkbox" v-model="settings.privateProfile" />
                 <span class="checkbox-custom"></span>
-                <span class="checkbox-text">Profil privé</span>
+                <span class="checkbox-text"> {{ t.privateProfil }}</span>
               </label>
             </div>
 
             <div class="settings-actions">
               <button type="submit" class="btn btn-primary">
                 <span class="btn-icon">💾</span>
-                <span class="btn-text">Sauvegarder</span>
+                <span class="btn-text"> {{ t.save }}</span>
               </button>
 
               <button type="button" @click="resetSettings" class="btn btn-secondary">
                 <span class="btn-icon">🔄</span>
-                <span class="btn-text">Réinitialiser</span>
+                <span class="btn-text"> {{ t.reset }}</span>
               </button>
             </div>
              <!-- NOUVELLE SECTION 2FA -->
             <div class="settings-category">
-              <h3 class="category-title">🔒 Sécurité du compte</h3>
+              <h3 class="category-title">🔒 {{ t.accountSecurity }}</h3>
               <div class="security-section">
                 <TwoFactorAuth />
               </div>
@@ -324,10 +315,10 @@
           </form>
 
           <div class="danger-zone">
-            <h3 class="danger-title">Zone dangereuse</h3>
+            <h3 class="danger-title">{{ t.dangerousZone }}</h3>
             <button @click="deleteAccount" class="btn btn-danger">
               <span class="btn-icon">🗑️</span>
-              <span class="btn-text">Supprimer le compte</span>
+              <span class="btn-text">{{ t.deleteAccount }}</span>
             </button>
           </div>
         </div>
@@ -350,7 +341,7 @@
       <div class="danger-zone">
         <button v-if="isSelf" @click="handleLogout" class="btn btn-danger">
           <span class="btn-icon">🚪</span>
-          <span class="btn-text">Déconnexion</span>
+          <span class="btn-text"> {{ t.logoutBtn }}</span>
         </button>
       </div>
     </div>
@@ -374,12 +365,12 @@
       <div v-if="showAddFriend" class="af-overlay" @click.self="closeAddFriend">
         <div class="af-modal" role="dialog" aria-modal="true" aria-labelledby="af-title">
           <div class="af-header">
-            <h3 id="af-title">Ajouter un ami</h3>
+            <h3 id="af-title"> {{ t.addFriend }}</h3>
             <button class="af-close" @click="closeAddFriend" aria-label="Fermer">✕</button>
           </div>
 
           <form class="af-body" @submit.prevent="submitAddFriend">
-            <label class="af-label" for="af-username">Pseudo de l’ami</label>
+            <label class="af-label" for="af-username"> {{ t.friendUsername }}</label>
             <input
               id="af-username"
               ref="addFriendInputRef"
@@ -400,14 +391,14 @@
                 @click="closeAddFriend"
                 :disabled="isAddingFriend"
               >
-                Annuler
+                {{ t.cancelBtn }}
               </button>
               <button
                 type="submit"
                 class="btn btn-primary"
                 :disabled="isAddingFriend || !addFriendForm.username"
               >
-                {{ isAddingFriend ? 'Ajout...' : 'Ajouter' }}
+                {{ isAddingFriend ? 'Ajout...' :  t.add}}
               </button>
             </div>
           </form>
@@ -422,6 +413,8 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount, onUnmounted, nextTick  } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { logout as authLogout } from '../stores/auth'
+import { useI18n } from '../composables/useI18n'
+const { t, onLangChange } = useI18n()
 // NOUVEAU IMPORT POUR LA 2FA
 import TwoFactorAuth from '../components/TwoFactorAuth.vue'
 import { io } from 'socket.io-client';
@@ -542,11 +535,11 @@ if (to === selfUsername.value) { addFriendError.value = 'Tu ne peux pas t’ajou
 /** ====== Onglets / Computed ====== **/
 const tabs = computed(() => {
   const base = [
-    { id: 'stats', label: 'Statistiques', icon: '📊' },
-    { id: 'history', label: 'Historique', icon: '📜', count: gameHistory.value.length },
-    { id: 'friends', label: 'Amis', icon: '👥', count: friends.value.length },
+    { id: 'stats', label: t.value.statis, icon: '📊' },
+    { id: 'history', label: t.value.history, icon: '📜', count: gameHistory.value.length },
+    { id: 'friends', label: t.value.friends, icon: '👥', count: friends.value.length },
   ]
-  if (isSelf.value) base.push({ id: 'settings', label: 'Paramètres', icon: '⚙️' })
+  if (isSelf.value) base.push({ id: 'settings', label: t.value.settings, icon: '⚙️' })
   return base
 })
 const winRate = computed(() => stats.value.totalGames === 0 ? 0 : Math.round((stats.value.gamesWon / stats.value.totalGames) * 100))
