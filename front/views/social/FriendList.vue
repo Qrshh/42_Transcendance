@@ -3,7 +3,7 @@
    
 
     <div v-if="friends.length === 0" class="no-friends">
-      Aucun ami pour le moment
+      {{t.noFrdMsg}}
     </div>
 
     <div class="friend-grid">
@@ -56,8 +56,8 @@
           class="actions-menu"
           @click.stop
         >
-          <button class="action-item danger" @click="blockUser(f.friend)">🚫 Bloquer</button>
-          <button class="action-item danger" @click="removeFriend(f.friend)">❌ Retirer</button>
+          <button class="action-item danger" @click="blockUser(f.friend)">🚫 {{ t.block }}</button>
+          <button class="action-item danger" @click="removeFriend(f.friend)">❌ {{ t.remove }}</button>
         </div>
       </div>
     </div>
@@ -67,6 +67,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from '../../composables/useI18n'
+const { t, onLangChange } = useI18n()
 
 type FriendRow = { friend: string; avatar?: string | null }
 

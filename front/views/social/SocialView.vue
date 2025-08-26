@@ -4,13 +4,13 @@
     <div class="social-header">
       <div class="header-left">
         <h2 class="title">🌐 Social</h2>
-        <p class="subtitle">Retrouve tes amis, discute et reçois tes notifications.</p>
+        <p class="subtitle">{{ t.socialMsg }}</p>
       </div>
 
       <div class="header-actions">
         <button class="btn btn-secondary" @click="openAddFriend">
           <span class="btn-icon">➕</span>
-          <span class="btn-text">Ajouter un ami</span>
+          <span class="btn-text"> {{ t.addFriend }}</span>
         </button>
       </div>
     </div>
@@ -35,7 +35,7 @@
       <!-- AMIS -->
       <div v-if="activeTab === 'friends'" class="tab-content">
         <div class="friends-header">
-          <h3 class="section-title">👥 Mes amis ({{ friendsUsernames.length }})</h3>
+          <h3 class="section-title">👥 {{t.myFriends}} ({{ friendsUsernames.length }})</h3>
 
         </div>
 
@@ -49,10 +49,10 @@
       <!-- MESSAGES -->
       <div v-if="activeTab === 'messages'" class="tab-content">
         <div class="messages-header">
-          <h3 class="section-title">💬 Conversations récentes</h3>
+          <h3 class="section-title">💬 {{ t.recentConv }}</h3>
           <button class="btn btn-secondary" @click="createNewConversation">
             <span class="btn-icon">📝</span>
-            <span class="btn-text">Nouvelle</span>
+            <span class="btn-text">{{ t.new }}</span>
           </button>
         </div>
 
@@ -92,19 +92,19 @@
 
         <div v-if="conversations.length === 0" class="empty">
           <div class="big">💬</div>
-          <h4>Aucune conversation</h4>
-          <p>Démarre une discussion avec un ami.</p>
-          <button class="btn btn-primary" @click="activeTab = 'friends'">Voir mes amis</button>
+          <h4>{{ t.noConv }}</h4>
+          <p>{{ t.startConvMsg }}</p>
+          <button class="btn btn-primary" @click="activeTab = 'friends'">{{ t.viewFriends }}</button>
         </div>
       </div>
 
       <!-- NOTIFICATIONS -->
       <div v-if="activeTab === 'notifications'" class="tab-content">
         <div class="notif-header">
-          <h3 class="section-title">🔔 Notifications</h3>
+          <h3 class="section-title">🔔 {{ t.notif }}</h3>
           <button v-if="notifications.length" class="btn btn-secondary" @click="markAllAsRead">
             <span class="btn-icon">✓</span>
-            <span class="btn-text">Tout marquer lu</span>
+            <span class="btn-text">{{ t.allReadBtn }}</span>
           </button>
         </div>
 
@@ -137,7 +137,7 @@
                 class="btn btn-secondary"
                 @click="declineFriendRequest(n.actionData.fromUser).then(() => dismissNotification(n.id))"
               >
-                Refuser
+                {{ t.declineBtn }}
               </button>
 
               <button
@@ -145,7 +145,7 @@
                 class="btn btn-secondary"
                 @click="declineChallenge(n.actionData.id); dismissNotification(n.id)"
               >
-                Refuser
+                {{ t.declineBtn }}
               </button>
 
               <button class="btn-icon-only" @click="dismissNotification(n.id)">✕</button>
@@ -155,8 +155,8 @@
 
         <div v-if="notifications.length === 0" class="empty">
           <div class="big">🎉</div>
-          <h4>Aucune notification</h4>
-          <p>Tu es à jour.</p>
+          <h4>{{ t.noNotif }}</h4>
+          <p>{{ t.youUpToD }}</p>
         </div>
       </div>
     </div>
@@ -181,7 +181,7 @@
       <div v-if="showNewConversationModal" class="af-overlay" @click.self="showNewConversationModal = false">
         <div class="af-modal">
           <div class="af-header">
-            <h3>Nouvelle conversation</h3>
+            <h3>{{ t.newConv }}</h3>
             <button class="af-close" @click="showNewConversationModal = false">✕</button>
           </div>
           <div class="af-body">
@@ -189,7 +189,7 @@
               v-model="searchQuery"
               class="af-input"
               type="text"
-              placeholder="Rechercher un ami…"
+              :placeholder= "t.lookForFrnd"
             />
             <div class="search-results">
               <button
@@ -204,7 +204,7 @@
                 <div class="user-info">
                   <div class="name">{{ u }}</div>
                   <div class="mini-status" :class="isUserOnline(u)?'online':'offline'">
-                    <span class="dot"></span>{{ isUserOnline(u) ? 'En ligne' : 'Hors ligne' }}
+                    <span class="dot"></span>{{ isUserOnline(u) ? t.online : t.offline}}
                   </div>
                 </div>
               </button>
@@ -219,7 +219,7 @@
       <div v-if="showAddFriend" class="af-overlay" @click.self="closeAddFriend">
         <div class="af-modal">
           <div class="af-header">
-            <h3>Ajouter un ami</h3>
+            <h3>{{ t.addFriend }}</h3>
             <button class="af-close" @click="closeAddFriend">✕</button>
           </div>
           <form class="af-body" @submit.prevent="submitAddFriend">
@@ -234,9 +234,9 @@
             />
             <p v-if="addFriendError" class="af-error">{{ addFriendError }}</p>
             <div class="af-actions">
-              <button type="button" class="btn btn-secondary" @click="closeAddFriend" :disabled="isAddingFriend">Annuler</button>
+              <button type="button" class="btn btn-secondary" @click="closeAddFriend" :disabled="isAddingFriend">{{ t.cancelBtn }}</button>
               <button type="submit" class="btn btn-primary" :disabled="isAddingFriend || !addFriendForm.username">
-                {{ isAddingFriend ? 'Ajout…' : 'Ajouter' }}
+                {{ isAddingFriend ? 'Ajout…' : t.add }}
               </button>
             </div>
           </form>
@@ -251,6 +251,8 @@ import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { io } from 'socket.io-client'
 import type { Socket } from 'socket.io-client'
 import { useRouter } from 'vue-router'
+import { useI18n } from '../../composables/useI18n'
+const { t, onLangChange } = useI18n()
 
 import FriendList from '../social/FriendList.vue'
 import ChatBoxLite from '../../components/ChatBoxLite.vue'
