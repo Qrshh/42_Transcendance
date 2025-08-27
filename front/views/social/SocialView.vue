@@ -308,9 +308,9 @@ const addFriendInputRef = ref<HTMLInputElement | null>(null)
 
 /* ================== Tabs ================== */
 const tabs = computed(() => [
-  { id: 'friends', label: 'Amis', icon: '👥', count: friendsUsernames.value.length },
-  { id: 'messages', label: 'Messages', icon: '💬', count: conversations.value.reduce((s, c) => s + c.unreadCount, 0) },
-  { id: 'notifications', label: 'Notifications', icon: '🔔', count: notifications.value.filter(n => !n.read).length }
+  { id: 'friends', label: t.value.friends, icon: '👥', count: friendsUsernames.value.length },
+  { id: 'messages', label: t.value.messages , icon: '💬', count: conversations.value.reduce((s, c) => s + c.unreadCount, 0) },
+  { id: 'notifications', label: t.value.notif, icon: '🔔', count: notifications.value.filter(n => !n.read).length }
 ])
 
 /* ================== Helpers ================== */

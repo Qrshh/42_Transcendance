@@ -29,7 +29,7 @@ export default {
 	accountSecurity: "Account security",
 	reset: "Reset",
 	save: "Save",
-	privateProfil: "Private profil",
+	privateProfil: "Private profile",
 	myFriends: "My friends",
 	friends: "Friends",
 	addFriend: "Add a friend",
