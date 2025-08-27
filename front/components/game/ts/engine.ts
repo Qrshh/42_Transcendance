@@ -32,6 +32,9 @@ function resetBall(ball: Ball): void {
 * Sert à updater les mouvevents de paddles et de balles,
 * de rebond sur les mur et paddles et enfin la gestion du score
 */
+const SPEED_INCREMENT = 1.05
+const MAX_SPEED = 20
+
 export function updateGame(state: GameState): void {
   const { ball, paddles, score } = state
 
@@ -49,7 +52,11 @@ export function updateGame(state: GameState): void {
   }
 
   if (collides(ball, paddles.p1) || collides(ball, paddles.p2)) {
-    ball.vx *= -1
+    ball.vx *= -1 * SPEED_INCREMENT
+    ball.vy = ball.vy * SPEED_INCREMENT
+
+    ball.vx = Math.max(Math.min(ball.vx, MAX_SPEED), -MAX_SPEED)
+    ball.vy = Math.max(Math.min(ball.vy, MAX_SPEED), -MAX_SPEED)
   }
 
   if (ball.x - ball.radius < 0) {
