@@ -1,5 +1,7 @@
 COMPOSE_FILE = docker-compose.yml
 
+LOCAL_IP := $(shell ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' || hostname -I 2>/dev/null | awk '{print $$1}' || ifconfig 2>/dev/null | grep -E "inet.*broadcast" | awk '{print $$2}' | head -1)
+
 all: build up
 
 build:
@@ -9,7 +11,7 @@ build:
 up:
 	@echo "Starting containers..."
 	@docker-compose -f $(COMPOSE_FILE) up -d
-	@echo "Frontend available at: http://localhost:5173"
+	@echo "Frontend available at: http://$(LOCAL_IP):5173"
 	@echo "Backend available at: http://localhost:3000"
 	@echo "Prometheus available at: http://localhost:9090"
 	@echo "Grafana available at: http://localhost:3001"

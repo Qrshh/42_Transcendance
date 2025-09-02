@@ -37,8 +37,27 @@ module.exports = fp(async function socketsPlugin(fastify) {
 
   // Crée io quand le serveur http est prêt
   fastify.addHook('onReady', async () => {
+    function isPrivateIp(host) {
+      return /^10\./.test(host) || /^192\.168\./.test(host) || /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host) || /^127\./.test(host) || host === 'localhost';
+    }
+    function isWsOriginAllowed(origin) {
+      if (!origin) return true;
+      try {
+        const u = new URL(origin);
+        if (isPrivateIp(u.hostname)) return true;
+      } catch {}
+      return Array.isArray(FRONT_ORIGINS) && FRONT_ORIGINS.some((o) => o === origin);
+    }
     const io = new Server(fastify.server, {
-      cors: { origin: FRONT_ORIGINS, methods: ['GET','POST'], credentials: true, allowedHeaders: ['X-Username'] }
+      cors: {
+        origin: (origin, cb) => {
+          if (isWsOriginAllowed(origin)) return cb(null, true);
+          cb(new Error('WS CORS not allowed'));
+        },
+        methods: ['GET','POST'],
+        credentials: true,
+        allowedHeaders: ['X-Username','Content-Type','Authorization']
+      }
     });
     fastify.decorate('io', io);
     // ajoute juste après "fastify.decorate('io', io);" dans onReady
@@ -97,6 +116,10 @@ module.exports = fp(async function socketsPlugin(fastify) {
 
     function stopGameForRoom(roomId, silent = false) {
       const room = activeGameRooms.get(roomId);
+      if (room) {
+        if (room.durationTimer) { clearTimeout(room.durationTimer); room.durationTimer = null; }
+        clearBots(room); // si tu utilises attachBot(...)
+      }
       if (!room) return;
       if (room.intervalId) clearInterval(room.intervalId);
       if (room.durationTimer) clearTimeout(room.durationTimer);
@@ -140,9 +163,316 @@ module.exports = fp(async function socketsPlugin(fastify) {
       } catch (e) {
         console.error('persistAndNotifyRoomResult failed:', e);
       } finally {
+              // 👇 IMPORTANT : informer le tournoi AVANT de fermer la room
+        const room = activeGameRooms.get(roomId);
+        if (room?.tournamentContext && room?.playerUsernames) {
+          const winnerUsername = (winnerSide === 'p1')
+            ? room.playerUsernames.p1
+            : room.playerUsernames.p2;
+        
+          if (winnerUsername) {
+            handleTournamentMatchEnd(
+              room.tournamentContext.tournamentId,
+              room.tournamentContext.matchId,
+              winnerUsername
+            );
+          }
+        }
+        // garde ton stop/silent comme avant
         stopGameForRoom(roomId, true);
       }
     }
+    // ==========================  TOURNAMENT SYSTEM  ==========================
+// Ajoute une gestion complète de tournoi par dessus le moteur 2-joueurs existant.
+
+const tournaments = new Map(); // id -> Tournament
+
+// ⏱ règles & helpers
+const TOURN_FILL_TIMEOUT_MS = 60_000;  // cooldown pour remplir / auto-bots
+const ROUND_COOLDOWN_MS     = 10_000;  // attente entre 2 rounds
+const MATCH_START_COUNTDOWN = 3;       // compte à rebours avant chaque match
+const allowedSizes = new Set([2,4,6,8]);
+
+function nextPow2(n){let p=1;while(p<n)p<<=1;return p}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function pickSocket(username){const set=socketsByUserMulti.get(username);return set&&set.size?Array.from(set)[0]:null}
+
+function buildBracket(participants /* [{username,isBot?}] */){
+  const size=Math.max(2,nextPow2(participants.length));
+  const roundsNb=Math.log2(size);
+  const filled=participants.slice();
+  while(filled.length<size) filled.push({username:'BYE',isBye:true});
+  const rounds=[]; let idSeq=0;
+  const r0=[];
+  for(let i=0;i<size;i+=2){
+    r0.push({id:`m${idSeq++}`,roundIndex:0,index:i/2,p1:filled[i]??null,p2:filled[i+1]??null,status:'pending',winner:null,roomId:null});
+  }
+  rounds.push(r0);
+  let prevLen=r0.length;
+  for(let r=1;r<roundsNb;r++){
+    const arr=[]; for(let i=0;i<prevLen/2;i++) arr.push({id:`m${idSeq++}`,roundIndex:r,index:i,p1:null,p2:null,status:'pending',winner:null,roomId:null});
+    rounds.push(arr); prevLen=arr.length;
+  }
+  for(let r=0;r<rounds.length-1;r++){
+    for(let i=0;i<rounds[r].length;i++){
+      const m=rounds[r][i]; m.nextMatchIndex=Math.floor(i/2); m.nextSlot=(i%2===0)?'p1':'p2';
+    }
+  }
+  return { rounds, size, roundsNb };
+}
+
+function tournamentToPublic(t){
+  return {
+    id:t.id,name:t.name,host:t.host,status:t.status,
+    maxPlayers:t.maxPlayers,maxPoints:t.maxPoints,durationMinutes:t.durationMinutes,
+    createdAt:t.createdAt, currentRoundIndex:t.currentRoundIndex, ranking:t.ranking??null,
+    participants:t.participants.map(p=>({username:p.username,isBot:!!p.isBot,eliminated:!!p.eliminated})),
+    bracket:t.bracket, runningRooms:Array.from(t.runningRooms??[]),
+    timeLeftToFill: t.fillDeadline ? Math.max(0,Math.floor((t.fillDeadline-Date.now())/1000)) : 0,
+  };
+}
+function emitTournamentToAll(t){ io.to(`tournament:${t.id}`).emit('tournamentUpdate', tournamentToPublic(t)); }
+function fillWithBotsIfNeeded(t){ const need=t.maxPlayers - t.participants.length; for(let i=0;i<need;i++) t.participants.push({username:`BOT#${Math.random().toString(36).slice(2,6)}`,isBot:true}) }
+
+function attachBot(room, side /* 'p1'|'p2' */, opts={tickMs:1000,error:35}){
+  if(!room.botControllers) room.botControllers=[];
+  const h=setInterval(()=>{ const gs=room.gameState; if(!gs||gs.status!=='playing') return;
+    const paddle=side==='p1'?gs.paddles.p1:gs.paddles.p2; const ballY=gs.ball.y+(Math.random()*2*opts.error-opts.error);
+    const center=paddle.y+paddle.height/2; const dy=ballY-center; let vy=0;
+    if(Math.abs(dy)>10) vy=dy>0?5:-5; // volontairement lent et grossier
+    const atTop=paddle.y<=0, atBottom=paddle.y>=(H-paddle.height);
+    if((atTop&&vy<0)||(atBottom&&vy>0)) vy=0;
+    paddle.vy=vy;
+  }, opts.tickMs);
+  room.botControllers.push(h);
+}
+function clearBots(room){ if(!room?.botControllers) return; for(const h of room.botControllers) clearInterval(h); room.botControllers=[]; }
+
+function launchMatch(t, match){
+  const MAX_MATCH_MS_DEFAULT = 180_000; // 3 min sécurité
+  const MAX_MATCH_MS_BOTVSBOT = 60_000; // 1 min si bot vs bot
+
+  const p1U=match.p1?.username, p2U=match.p2?.username;
+  const roomId=`tourn-${t.id}-r${match.roundIndex+1}-m${match.index}-${Math.random().toString(36).slice(2,8)}`;
+  match.roomId=roomId;
+
+  const gs={ gameId:roomId,
+    ball:{x:W/2,y:H/2,vx:4,vy:4,radius:8},
+    paddles:{p1:{x:10,y:H/2-50,width:10,height:100,vy:0},p2:{x:W-20,y:H/2-50,width:10,height:100,vy:0}},
+    players:{p1:null,p2:null}, score:{player1:0,player2:0}, status:'starting',
+    usernames:{p1:p1U,p2:p2U}
+  };
+  const p1Sid= p1U && !match.p1.isBot ? pickSocket(p1U) : null;
+  const p2Sid= p2U && !match.p2.isBot ? pickSocket(p2U) : null;
+  if(p1Sid) io.sockets.sockets.get(p1Sid)?.join(roomId);
+  if(p2Sid) io.sockets.sockets.get(p2Sid)?.join(roomId);
+  gs.players={p1:p1Sid,p2:p2Sid};
+
+  const room={ gameState:gs, intervalId:null, durationTimer:null,
+    playerSockets:{p1:p1Sid,p2:p2Sid}, playerUsernames:{p1:p1U,p2:p2U},
+    maxPoints:Number(t.maxPoints)||10, durationMinutes:Number(t.durationMinutes)||null,
+    tournamentContext:{ tournamentId:t.id, matchId:match.id }
+  };
+  activeGameRooms.set(roomId, room);
+  if(!t.runningRooms) t.runningRooms=new Set(); t.runningRooms.add(roomId);
+
+  io.to(`tournament:${t.id}`).emit('tournamentMatchStart',{tournamentId:t.id,roomId,roundIndex:match.roundIndex,matchIndex:match.index,p1:p1U,p2:p2U});
+
+  // Compte à rebours: envoie aussi 0 avant de démarrer
+  let count = MATCH_START_COUNTDOWN;
+  io.to(roomId).emit('matchCountdown', { roomId, count });
+  const cd = setInterval(() => {
+    count -= 1;
+    io.to(roomId).emit('matchCountdown', { roomId, count });
+    if (count <= 0) {
+      clearInterval(cd);
+      startGameForRoom(roomId);
+      if(match.p1?.isBot) attachBot(room,'p1');
+      if(match.p2?.isBot) attachBot(room,'p2');
+    }
+  }, 1000);
+  const bothBots = !!(match.p1?.isBot && match.p2?.isBot);
+const maxMs = bothBots ? MAX_MATCH_MS_BOTVSBOT
+  : (room.durationMinutes ? room.durationMinutes * 60_000 : MAX_MATCH_MS_DEFAULT);
+
+// ⏱️ Watchdog : si le match traîne, on choisit un gagnant (score >, sinon tirage)
+room.durationTimer = setTimeout(() => {
+  try {
+    const sc1 = room.gameState?.score?.player1 ?? 0;
+    const sc2 = room.gameState?.score?.player2 ?? 0;
+    let winnerSide = 'p1';
+    if (sc2 > sc1) winnerSide = 'p2';
+    else if (sc2 === sc1) winnerSide = (Math.random() < 0.5 ? 'p1' : 'p2');
+
+    persistAndNotifyRoomResult(roomId, winnerSide);
+  } catch (e) { console.error('[watchdog] end match failed', e); }
+}, maxMs);
+}
+
+function propagateWinner(t, fromMatch, winnerParticipant){
+  const nextIndex=Math.floor(fromMatch.index/2), nextSlot=(fromMatch.index%2===0)?'p1':'p2';
+  const target=t.bracket.rounds[fromMatch.roundIndex+1]?.[nextIndex]; if(!target) return;
+  target[nextSlot]={ username:winnerParticipant.username, isBot:!!winnerParticipant.isBot };
+}
+const roundPlayableMatches = (round)=> round.filter(m=>!m.p1?.isBye && !m.p2?.isBye);
+
+function autoResolveByes(t, rIndex){
+  const round=t.bracket.rounds[rIndex];
+  for(const m of round){
+    if(m.status!=='pending') continue;
+    if(m.p1?.isBye && m.p2?.isBye){ m.status='done'; m.winner=null; continue; }
+    if(m.p1?.isBye && m.p2 && !m.p2.isBye){ m.status='done'; m.winner=m.p2.username; propagateWinner(t,m,m.p2); }
+    else if(m.p2?.isBye && m.p1 && !m.p1.isBye){ m.status='done'; m.winner=m.p1.username; propagateWinner(t,m,m.p1); }
+  }
+}
+
+function tryStartRound(t, rIndex){
+  t.currentRoundIndex=rIndex;
+  autoResolveByes(t, rIndex);
+  emitTournamentToAll(t);
+
+  const round=t.bracket.rounds[rIndex];
+  const playable=roundPlayableMatches(round);
+  if(playable.length===0){
+    if(rIndex < t.bracket.rounds.length-1) setTimeout(()=>tryStartRound(t,rIndex+1),0);
+    else finishTournament(t);
+    return;
+  }
+  t.roundProgress={played:0,total:playable.length};
+  for(const m of round){ if(m.p1?.isBye || m.p2?.isBye) continue; m.status='playing'; launchMatch(t,m); }
+  emitTournamentToAll(t);
+}
+
+function handleTournamentMatchEnd(tournamentId, matchId, winnerUsername){
+  const t=tournaments.get(tournamentId); if(!t||t.status!=='running') return;
+  const round=t.bracket.rounds[t.currentRoundIndex]; const match=round.find(m=>m.id===matchId);
+  if(!match || match.status==='done') return;
+  match.status='done'; match.winner=winnerUsername;
+  
+  const loser=(match.p1?.username===winnerUsername)?match.p2?.username:match.p1?.username;
+  if(loser && loser!=='BYE'){ const p=t.participants.find(pp=>pp.username===loser); if(p) p.eliminated=true; }
+
+  const winnerPart=(match.p1?.username===winnerUsername)?match.p1:match.p2;
+  if(winnerPart) propagateWinner(t,match,winnerPart);
+
+  if(t.roundProgress) t.roundProgress.played++;
+  if (match.roomId && t.runningRooms) {
+    t.runningRooms.delete(match.roomId);
+  }
+  emitTournamentToAll(t);
+
+  const remaining = roundPlayableMatches(round).length - (t.roundProgress?.played ?? 0);
+  if(remaining<=0){
+    io.to(`tournament:${t.id}`).emit('tournamentRoundComplete',{tournamentId:t.id,roundIndex:t.currentRoundIndex,cooldownMs:ROUND_COOLDOWN_MS});
+    setTimeout(()=>{ if(t.currentRoundIndex < t.bracket.rounds.length-1) tryStartRound(t,t.currentRoundIndex+1); else finishTournament(t); }, ROUND_COOLDOWN_MS);
+  }
+}
+
+function computeFullRanking(t){
+  const last=t.bracket.rounds.length-1, rank=new Map();
+  const final=t.bracket.rounds[last][0];
+  if(final.winner) rank.set(final.winner,1);
+  const finalLoser=(final.p1?.username===final.winner)?final.p2?.username:final.p1?.username;
+  if(finalLoser && finalLoser!=='BYE') rank.set(finalLoser,2);
+  if(last>=1){for(const m of t.bracket.rounds[last-1]){const loser=(m.winner===m.p1?.username)?m.p2?.username:m.p1?.username; if(loser && loser!=='BYE') rank.set(loser,3)}}
+  if(last>=2){for(const m of t.bracket.rounds[last-2]){const loser=(m.winner===m.p1?.username)?m.p2?.username:m.p1?.username; if(loser && loser!=='BYE') rank.set(loser,5)}}
+  for(const p of t.participants){ if(!rank.has(p.username) && !p.eliminated) rank.set(p.username,5) }
+  return Array.from(rank.entries()).map(([username,place])=>({username,place})).sort((a,b)=>a.place-b.place);
+}
+function finishTournament(t){
+  const last=t.bracket.rounds[t.bracket.rounds.length-1][0];
+  const champion=last.winner;
+  const runnerUp=(last.p1?.username===champion)?last.p2?.username:last.p1?.username;
+  const semis = t.bracket.rounds.length>=2 ? t.bracket.rounds[t.bracket.rounds.length-2] : [];
+  const thirdPlaces=[]; for(const m of semis){ if(m.p1?.username && m.p2?.username){ const loser=(m.winner===m.p1.username)?m.p2.username:m.p1.username; if(loser && loser!=='BYE') thirdPlaces.push(loser) } }
+  t.status='completed'; t.ranking={champion,runnerUp,thirdPlaces,full:computeFullRanking(t)};
+  emitTournamentToAll(t); io.to(`tournament:${t.id}`).emit('tournamentFinished', t.ranking);
+}
+
+function tournamentSummary(t){
+  return {
+    id: t.id, name: t.name, host: t.host,
+    participants: t.participants.length, maxPlayers: t.maxPlayers,
+    status: t.status,
+    timeLeftToFill: t.fillDeadline ? Math.max(0, Math.floor((t.fillDeadline - Date.now())/1000)) : 0
+  };
+}
+
+function broadcastTournamentList(){
+  const arr = Array.from(tournaments.values()).map(tournamentSummary);
+  io.emit('tournamentList', arr);
+}
+
+io.on('connection', (socket) => {
+  socket.on('getTournamentList', () => {
+    const arr = Array.from(tournaments.values()).map(tournamentSummary);
+    socket.emit('tournamentList', arr);
+  });
+});
+
+
+// ────────── Socket handlers pour tournois ──────────
+io.on('connection', (socket) => {
+  socket.on('createTournament', (data) => {
+    try{
+      const host=connectedUsers.get(socket.id)||'anon';
+      const name=String(data?.name||`Tournoi de ${host}`).slice(0,60);
+      const maxPlayers=Number(data?.maxPlayers)||4;
+      const maxPoints=Number(data?.maxPoints)||10;
+      const durationMinutes=data?.durationMinutes?Number(data.durationMinutes):null;
+      if(!allowedSizes.has(maxPlayers)) return socket.emit('tournamentError',{message:'Taille invalide (2/4/6/8).'});
+      const id=`t-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
+      const t={ id,name,host,createdAt:Date.now(),status:'waiting',maxPlayers,maxPoints,durationMinutes,
+        participants:[{username:host}], bracket:null, currentRoundIndex:0, fillDeadline:Date.now()+TOURN_FILL_TIMEOUT_MS, runningRooms:new Set()
+      };
+      tournaments.set(id,t); socket.join(`tournament:${id}`);
+      t.fillTimer=setTimeout(()=>{ if(t.status!=='waiting') return; fillWithBotsIfNeeded(t); startTournamentInternal(t); }, TOURN_FILL_TIMEOUT_MS);
+      socket.emit('tournamentCreated',{id,name}); emitTournamentToAll(t);
+    }catch(e){ console.error('createTournament',e); socket.emit('tournamentError',{message:'Création impossible.'}) }
+  });
+
+  socket.on('joinTournament', ({tournamentId})=>{
+    const t=tournaments.get(tournamentId); if(!t || t.status!=='waiting') return socket.emit('tournamentError',{message:'Tournoi introuvable'});
+    const username=connectedUsers.get(socket.id)||'anon';
+    if(t.participants.some(p=>p.username===username)) return socket.emit('tournamentError',{message:'Déjà inscrit'});
+    if(t.participants.length>=t.maxPlayers) return socket.emit('tournamentError',{message:'Tournoi plein'});
+    t.participants.push({username}); socket.join(`tournament:${t.id}`); emitTournamentToAll(t);
+  });
+
+  socket.on('leaveTournament', ({tournamentId})=>{
+    const t=tournaments.get(tournamentId); if(!t) return;
+    const username=connectedUsers.get(socket.id)||'anon';
+    t.participants=t.participants.filter(p=>p.username!==username);
+    socket.leave(`tournament:${t.id}`); emitTournamentToAll(t);
+  });
+
+  socket.on('forceFillWithBots', ({tournamentId})=>{
+    const t=tournaments.get(tournamentId); const username=connectedUsers.get(socket.id)||'anon';
+    if(!t || t.host!==username || t.status!=='waiting') return;
+    fillWithBotsIfNeeded(t); emitTournamentToAll(t);
+  });
+
+  socket.on('startTournament', ({tournamentId})=>{
+    const t=tournaments.get(tournamentId); const username=connectedUsers.get(socket.id)||'anon';
+    if(!t || t.host!==username || t.status!=='waiting') return socket.emit('tournamentError',{message:'Impossible de démarrer.'});
+    startTournamentInternal(t);
+  });
+
+  socket.on('spectateMatch', ({roomId})=>{
+    if(!roomId || !activeGameRooms.has(roomId)) return socket.emit('tournamentError',{message:'Match introuvable'});
+    socket.join(roomId); const room=activeGameRooms.get(roomId); if(room?.gameState) socket.emit('gameState', room.gameState);
+  });
+});
+
+function startTournamentInternal(t){
+  if(t.status!=='waiting') return;
+  // BYE gérés dans buildBracket ; bots ajoutés si timer a déjà rempli
+  t.bracket = buildBracket(t.participants.map(p=>({username:p.username,isBot:!!p.isBot})));
+  t.status='running'; t.currentRoundIndex=0;
+  if(t.fillTimer){ clearTimeout(t.fillTimer); t.fillTimer=null; }
+  emitTournamentToAll(t); tryStartRound(t,0);
+}
+// ========================  END TOURNAMENT SYSTEM  ========================
 
     function startGameForRoom(roomId) {
       const room = activeGameRooms.get(roomId);
@@ -462,9 +792,15 @@ module.exports = fp(async function socketsPlugin(fastify) {
         fastify.emitToUser(ch.from, 'challengeStart', { roomId, mode: 'remote' });
         fastify.emitToUser(ch.to,   'challengeStart', { roomId, mode: 'remote' });
       });
-        // Pousser un état initial et démarrer
+        // Pousser un état initial, puis compte à rebours (inclut 0) comme en tournoi
         fastify.io.to(roomId).emit('gameState', gs);
-        setTimeout(() => startGameForRoom(roomId), 1500);
+        let count = MATCH_START_COUNTDOWN || 3;
+        fastify.io.to(roomId).emit('matchCountdown', { roomId, count });
+        const cd = setInterval(() => {
+          count -= 1;
+          fastify.io.to(roomId).emit('matchCountdown', { roomId, count });
+          if (count <= 0) { clearInterval(cd); startGameForRoom(roomId); }
+        }, 1000);
       });
       
       // Annulation du défi par l’émetteur
@@ -624,6 +960,7 @@ module.exports = fp(async function socketsPlugin(fastify) {
 
         // nettoyer lobbies
         for (const [gameId, lobby] of gameLobbies.entries()) {
+          
           const before = lobby.currentPlayers.length;
           lobby.currentPlayers = lobby.currentPlayers.filter(p => p.socketId !== socket.id);
           if (lobby.currentPlayers.length < before) {
@@ -638,10 +975,17 @@ module.exports = fp(async function socketsPlugin(fastify) {
         }
         for (const [gid, room] of activeGameRooms.entries()) {
           if (room.playerSockets.p1 === socket.id || room.playerSockets.p2 === socket.id) {
-            stopGameForRoom(gid);
+            if (room.tournamentContext) {
+              const winnerSide = (room.playerSockets.p1 === socket.id) ? 'p2' : 'p1'; // forfait
+              persistAndNotifyRoomResult(gid, winnerSide);
+              
+            } else {
+              stopGameForRoom(gid);
+            }
             break;
           }
         }
+
       });
     });
 

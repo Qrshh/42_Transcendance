@@ -5,12 +5,14 @@ services:
       dockerfile: Dockerfile
     platform: linux/amd64
     ports:
-      - "5173:5173"
+      - "${FRONT_PORT:-5173}:5173"
     volumes:
       - ./front:/app
       - /app/node_modules
     environment:
       - NODE_ENV=development
+    env_file:
+      - .env
     depends_on:
       - backend
     networks:
@@ -22,12 +24,14 @@ services:
       dockerfile: Dockerfile
     platform: linux/amd64
     ports:
-      - "3000:3000"
+      - "${BACK_PORT:-3000}:3000"
     volumes:
       - ./back:/app
       - /app/node_modules
     environment:
       - NODE_ENV=development
+    env_file:
+      - .env
     networks:
       - transcendance
 
@@ -38,7 +42,7 @@ services:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_PORT:-9090}:9090"
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=15d'
@@ -55,10 +59,10 @@ services:
     image: grafana/grafana:latest
     container_name: grafana
     ports:
-      - "3001:3000"
+      - "${GRAFANA_PORT:-3001}:3000"
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=graf123
+      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-graf123}
     volumes:
       - grafana-storage:/var/lib/grafana
     networks:

@@ -64,7 +64,14 @@
             @click="openConversation(c)"
           >
             <div class="friend-avatar" :style="{ background: getUserColor(c.participant) }">
-              <span class="friend-initials">{{ initials(c.participant) }}</span>
+              <img
+                v-if="convAvatar(c.participant)"
+                class="friend-avatar-img"
+                :src="convAvatar(c.participant)"
+                :alt="`Avatar ${c.participant}`"
+                @error="onConvAvatarError(c.participant)"
+              />
+              <span v-else class="friend-initials">{{ initials(c.participant) }}</span>
             </div>
 
             <div class="conv-info">
@@ -258,8 +265,7 @@ import FriendList from '../social/FriendList.vue'
 import ChatBoxLite from '../../components/ChatBoxLite.vue'
 
 /* ================== Config ================== */
-const SOCKET_URL = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:3000'
-const API_BASE   = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:3000'
+import { API_BASE, SOCKET_URL } from '../../config'
 
 /* ================== Types ================== */
 interface Conversation {
@@ -361,6 +367,32 @@ const formatTime = (ts: string) => {
   return d.toLocaleDateString('fr-FR')
 }
 
+// Avatars des participants des conversations
+const avatarByUser = ref<Record<string, string | null>>({})
+const toAbs = (u?: string | null) => {
+  if (!u) return null
+  return u.startsWith('http') ? u : `${API_BASE}${u}`
+}
+const keyOf = (u: string) => toKey(u)
+function convAvatar(u: string): string | null {
+  return avatarByUser.value[keyOf(u)] || null
+}
+function onConvAvatarError(u: string) {
+  const k = keyOf(u)
+  avatarByUser.value[k] = null
+}
+async function ensureAvatar(u: string) {
+  const k = keyOf(u)
+  if (!k || k === toKey(me)) return
+  if (k in avatarByUser.value) return
+  try {
+    const r = await fetch(`${API_BASE}/user/${encodeURIComponent(u)}`)
+    if (!r.ok) { avatarByUser.value[k] = null; return }
+    const j = await r.json()
+    avatarByUser.value[k] = toAbs(j?.avatar || null)
+  } catch { avatarByUser.value[k] = null }
+}
+
 /* ================== Friends ================== */
 async function loadFriends() {
   if (!me) return
@@ -418,6 +450,8 @@ function upsertConversation(participant: string, last: Conversation['lastMessage
     conversations.value.push({ id: `conv-${p}`, participant: p, lastMessage: last, unreadCount: addUnread })
   }
   conversations.value.sort((a, b) => new Date(b.lastMessage.timestamp).getTime() - new Date(a.lastMessage.timestamp).getTime())
+  // Précharge l'avatar en tâche de fond
+  ensureAvatar(p)
 }
 async function syncConversationsFromServer() {
   if (!me) return
@@ -432,6 +466,7 @@ async function syncConversationsFromServer() {
       const last = arr[arr.length - 1]
       const msg = { content: last.content || '', timestamp: last.timestamp || new Date().toISOString(), senderId: last.sender || last.from || peer }
       upsertConversation(peer, msg, 0)
+      ensureAvatar(peer)
     } catch { /* noop */ }
   })
   await Promise.allSettled(jobs)
@@ -622,6 +657,9 @@ onMounted(async () => {
   await preloadPendingFriendRequests()
   await syncConversationsFromServer()
 
+  // Précharger avatars pour les conversations présentes
+  conversations.value.forEach(c => ensureAvatar(c.participant))
+
   // resync quand on arrive sur Messages
   watch(activeTab, (t) => { if (t === 'messages') syncConversationsFromServer() })
   // resync quand amis changent
@@ -684,6 +722,7 @@ onBeforeUnmount(() => {
 .friend-avatar {
   width: 3rem; height: 3rem; border-radius: 50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; letter-spacing:.5px
 }
+.friend-avatar-img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block }
 .friend-initials { font-size: 1.1rem }
 .conv-info { flex:1; min-width:0 }
 .top { display:flex; justify-content:space-between; align-items:center; margin-bottom:.2rem }
@@ -731,7 +770,7 @@ onBeforeUnmount(() => {
 .af-modal{ width:min(520px, calc(100% - 2rem)); background: var(--color-background); border: 1px solid var(--color-border); border-radius: 16px; box-shadow: var(--shadow-lg); overflow:hidden; animation: popIn .12s ease }
 @keyframes popIn { from { transform: scale(.98); opacity: .9 } to { transform: scale(1); opacity: 1 } }
 .af-header{ display:flex; align-items:center; justify-content:space-between; padding: 1rem 1.2rem; background: var(--color-background-soft); border-bottom: 1px solid var(--color-border) }
-.af-close{ border:0; background:transparent; cursor:pointer; font-size:1.1rem; opacity:.7 }
+.af-close{ color:white; border:0; background:transparent; cursor:pointer; font-size:1.1rem; opacity:.7 }
 .af-close:hover{ opacity:1 }
 .af-body{ padding: 1.2rem }
 .af-input{ width:100%; padding:.8rem 1rem; border-radius:10px; border:2px solid var(--color-border); background: var(--color-background); color: var(--color-text); font-size:1rem }

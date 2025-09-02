@@ -228,6 +228,7 @@
       <div v-if="activeTab === 'settings'" class="tab-content">
         <div class="settings-section">
           <form @submit.prevent="saveSettings" class="settings-form">
+            <h3 class="category-title">🔒 {{ t.infoaccount }}</h3>
             <div class="setting-group">
               <label class="setting-label"> {{ t.username }}</label>
               <input
@@ -309,20 +310,29 @@
             </div>
           </form>
              <!-- NOUVELLE SECTION 2FA -->
-            <div class="settings-category">
-              <h3 class="category-title">🔒 {{ t.accountSecurity }}</h3>
-              <div class="security-section">
-                <TwoFactorAuth />
-              </div>
+              <!-- Titre de catégorie existant -->
+          <h3 class="category-title">🔒 {{ t.accountSecurity }}</h3>
+                  
+          <!-- ⚠️ NOUVEL agencement : 2 colonnes -->
+          <div class="security-section">
+            <!-- Carte 2FA -->
+            <div class="twofa-card">
+              <TwoFactorAuth />
             </div>
-
-          <div class="danger-zone">
-            <h3 class="danger-title">{{ t.dangerousZone }}</h3>
-            <button @click="deleteAccount" class="btn btn-danger">
-              <span class="btn-icon">🗑️</span>
-              <span class="btn-text">{{ t.deleteAccount }}</span>
-            </button>
+          
+            <!-- Carte Danger Zone -->
+            <div class="danger-card" role="region" aria-labelledby="danger-zone-title">
+              <h3 id="danger-zone-title" class="danger-title">{{ t.dangerousZone }}</h3>
+              <p class="danger-desc">
+                {{ t.dangerDesc || 'Action irréversible : supprime définitivement votre compte et vos données.' }}
+              </p>
+              <button @click="deleteAccount" class="btn btn-danger full">
+                <span class="btn-icon">🗑️</span>
+                <span class="btn-text">{{ t.deleteAccount }}</span>
+              </button>
+            </div>
           </div>
+          
         </div>
       </div>
     </div> <!-- /profile-content -->
@@ -339,21 +349,13 @@
     </div>
 
     <!-- Bouton Déconnexion (toujours caché si pas soi-même) -->
-    <div class="text-center" style="margin-top:1rem">
-      <div class="danger-zone">
-        <button v-if="isSelf" @click="handleLogout" class="btn btn-danger">
-          <span class="btn-icon">🚪</span>
-          <span class="btn-text"> {{ t.logoutBtn }}</span>
-        </button>
-      </div>
-    </div>
+    
     <!-- ===== Chat flottant ===== -->
     <Teleport to="body">
       <ChatBoxLite
         v-if="showChat && selectedUser"
         :me="selfUsername"
         :receiver="selectedUser"
-        :socket="statsSocket"
         :isOnline="true"
         :offsetIndex="0"
         @close="showChat = false"
@@ -419,15 +421,15 @@ import { useI18n } from '../composables/useI18n'
 const { t, onLangChange } = useI18n()
 // NOUVEAU IMPORT POUR LA 2FA
 import TwoFactorAuth from '../components/TwoFactorAuth.vue'
-import { io } from 'socket.io-client';
+import { useSocket } from './plugins/socket'
 import ChatBoxLite from '../components/ChatBoxLite.vue'
 
 /** ====== Config API ====== **/
-const API_BASE = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:3000'
+import { API_BASE } from '../config'
 const route = useRoute()
 const router = useRouter()
 
-const statsSocket = io(API_BASE, { transports: ['websocket'] });
+const socket = useSocket()
 
 /** ====== Types ====== **/
 interface User {
@@ -654,8 +656,8 @@ const challengeFriend = (friend: Friend) => {
   const me = selfUsername.value;
   const to = friend.username;
   console.log('🎯 Envoi d’un défi à', to);
-  statsSocket.emit('identify', me);
-  statsSocket.emit('challengePlayer', { from: me, to, options: { maxPoints: 10, durationMinutes: null } });
+  socket.emit('identify', me);
+  socket.emit('challengePlayer', { from: me, to, options: { maxPoints: 10, durationMinutes: null } });
 };
 
 const viewFriend = (friend: Friend) => { router.push(`/profile/${encodeURIComponent(friend.username)}`) }
@@ -692,9 +694,9 @@ async function updatePasswordIfNeeded(oldUsernameForPath: string) {
   passwordForm.value.current = ''; passwordForm.value.new1 = ''; passwordForm.value.new2 = ''; editMode.value.password = false
 }
 
-const saveSettings = async () => {
+const saveSettings = async (e?: Event) => {
   if (!isSelf.value) return
-  if (event && event.target && event.target.closest('.no-save')) {
+  if (e && (e.target as Element | null)?.closest('.no-save')) {
     return
   }
   try {
@@ -733,7 +735,7 @@ const resetSettings = () => {
 
 /** ====== Déconnexion ====== **/
 const handleLogout = async () => {
-  try { await fetch(`${API_BASE}/logout`, { method: 'POST' }) } catch {}
+  try { await fetch(`${API_BASE}/auth/logout`, { method: 'POST' }) } catch {}
   try {
     localStorage.clear()
     sessionStorage.clear()
@@ -831,7 +833,7 @@ const refetchProfileData = async () => { await Promise.allSettled([fetchStats(),
 let handledStart = false
 onMounted(async () => {
   const me = localStorage.getItem('username') || 'anon';
-  statsSocket.emit('identify', me);
+  socket.emit('identify', me);
 
   const handleChallengeStart = ({ roomId }: { roomId: string }) => {
     if (!roomId) return
@@ -848,11 +850,14 @@ onMounted(async () => {
   };
   applyTabFromRouteOrMemory()
 
-  statsSocket.on('challengeStart', handleChallengeStart);
-  statsSocket.on('playerStatsUpdated', (p: { username: string }) => {
+  socket.on('challengeStart', handleChallengeStart);
+  socket.on('playerStatsUpdated', (p: { username: string }) => {
     if (!p || (p.username !== viewedUsername.value)) return;
     Promise.allSettled([fetchStats(), fetchHistory()]);
   });
+
+  // Écoute de l’événement global lorsque d’autres vues signalent des MAJ
+  window.addEventListener('playerStatsUpdated', refetchProfileData)
 
   await fetchUser();
   await Promise.allSettled([fetchStats(), fetchHistory(), fetchFriends()]);
@@ -874,9 +879,8 @@ watch(activeTab, async (tab) => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('playerStatsUpdated', refetchProfileData)
-  statsSocket.off('challengeStart'); 
+  socket.off('challengeStart');
 })
-onUnmounted(() => { statsSocket.disconnect() })
 
 /** ====== Expose (si besoin) ====== **/
 const editAvatar = () => triggerAvatarPicker()
@@ -946,6 +950,7 @@ const editAvatar = () => triggerAvatarPicker()
 .friend-avatar { width: 3rem; height: 3rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #fff; overflow: hidden }
 .friend-avatar-img { width: 100%; height: 100%; object-fit: cover; display: block }
 .friend-initials { font-weight: 700; font-size: 1.1rem; line-height: 1; color: #fff }
+.friend-avatar { position: relative; border: 2px solid rgba(255,255,255,.12); box-shadow: 0 6px 14px rgba(0,0,0,.25) }
 .friend-info { flex: 1 }
 .friend-name { font-weight: 600; margin-bottom: .25rem }
 .friend-actions { display: flex; gap: .5rem }
@@ -956,11 +961,81 @@ const editAvatar = () => triggerAvatarPicker()
 /* NOUVELLES CLASSES POUR LES CATÉGORIES DE PARAMÈTRES */
 .settings-category { margin-bottom: 3rem; padding-bottom: 2rem; border-bottom: 1px solid var(--color-border); }
 .settings-category:last-child { border-bottom: none; margin-bottom: 0; }
-.category-title { font-size: 1.3rem; font-weight: 700; color: var(--color-text); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; }
-.security-section { background: var(--color-background); border: 2px solid var(--color-border); border-radius: 15px; padding: 0; overflow: hidden; }
+.category-title{
+  display:flex; align-items:center; gap:.6rem;
+  font-size:1.25rem; font-weight:800; margin:1.25rem 0 .75rem;
+}
+.category-title::before{
+  content:""; width:8px; height:22px; border-radius:999px;
+  background: var(--gradient-primary);
+}
 
-/* Surcharge pour le composant 2FA dans le profil */
-.security-section :deep(.max-w-md) { max-width: none; margin: 0; box-shadow: none; border-radius: 0; }
+/* ——— Grille sécurité : 2FA + Danger Zone ——— */
+.security-section{
+  display:grid; grid-template-columns: 1.2fr .8fr;
+  gap:1.25rem; padding:1.25rem;
+  border-radius:16px; border:1px solid var(--color-border);
+  background: linear-gradient(180deg,
+    rgba(var(--color-background-soft-rgb), .9) 0%,
+    rgba(var(--color-background-rgb), .9) 100%);
+}
+@media (max-width: 900px){
+  .security-section{ grid-template-columns: 1fr; }
+}
+
+/* Carte 2FA */
+.twofa-card{
+  position:relative;
+  background: var(--color-background);
+  border:1px solid var(--color-border);
+  border-radius:14px; padding:1rem 1.25rem;
+  box-shadow: var(--shadow-sm);
+  overflow:hidden;
+}
+.twofa-card::after{
+  content:""; position:absolute; right:-40px; bottom:-40px; width:160px; height:160px;
+  background: radial-gradient(closest-side, var(--color-primary) 0%, transparent 70%);
+  opacity:.14; transform: rotate(24deg); pointer-events:none;
+}
+
+/* Harmonise le composant 2FA interne (sans toucher son code) */
+.security-section :deep(.max-w-md){
+  max-width:none; margin:0; padding:0;
+  background:transparent; border:none; box-shadow:none; border-radius:0;
+}
+.security-section :deep(h2), .security-section :deep(h3){ margin-top:0; }
+/* Carte Danger Zone */
+.danger-card{
+  background: linear-gradient(180deg, rgba(244,67,54,.08), rgba(244,67,54,.04));
+  border:1px solid rgba(244,67,54,.35);
+  border-radius:14px; padding:1rem 1.25rem;
+  box-shadow: 0 8px 24px rgba(244,67,54,.12);
+}
+.danger-title{
+  color:#ff6b6b; font-weight:800; margin:0 0 .5rem;
+  display:flex; align-items:center; gap:.5rem;
+}
+.danger-desc{
+  margin:0 0 1rem; font-size:.95rem; color:var(--color-text); opacity:.85;
+}
+
+/* Bouton danger “plein” */
+.btn-danger{
+  background: linear-gradient(180deg,#ff4d4f,#e04040);
+  color:#fff; border:0;
+}
+.btn-danger:hover{
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 10px 22px rgba(244,67,54,.25);
+}
+.btn-danger.full{ width:100%; justify-content:center; }
+
+/* Optionnel : petite alerte visuelle si 2FA désactivée (si texte présent) */
+.security-section :deep(.text-danger),
+.security-section :deep(.twofa-off),
+.security-section :deep(.badge-danger){
+  color:#ff4d4f !important;
+}
 .settings-form { display: flex; flex-direction: column; gap: 2rem; margin-bottom: 3rem }
 .setting-group { display: flex; align-items: center; gap: 1rem }
 .setting-label { font-weight: 600; color: var(--color-text); min-width: 120px }
@@ -991,7 +1066,7 @@ const editAvatar = () => triggerAvatarPicker()
 @keyframes popIn { from { transform: scale(.98); opacity: .9 } to { transform: scale(1); opacity: 1 } }
 .af-header { display:flex; align-items:center; justify-content:space-between; padding: 1rem 1.2rem; background: var(--color-background-soft); border-bottom: 1px solid var(--color-border) }
 .af-header h3 { margin:0; font-size:1.1rem; font-weight:700; color:var(--color-text) }
-.af-close { border:0; background:transparent; cursor:pointer; font-size:1.1rem; opacity:.7 }
+.af-close { color: white; border:0; background:transparent; cursor:pointer; font-size:1.1rem; opacity:.7 }
 .af-close:hover { opacity:1 }
 .af-body { padding: 1.2rem }
 .af-label { display:block; font-weight:600; margin-bottom:.5rem }

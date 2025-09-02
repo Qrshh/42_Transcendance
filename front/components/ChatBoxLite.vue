@@ -42,7 +42,7 @@
         >👤</button>
 
         <button class="mc__btn" title="Réduire/Étendre" @click="toggleMinimize">
-          {{ minimized ? '▢' : '▁' }}
+          {{ minimized ? '▢' : '━' }}
         </button>
         <button class="mc__btn" title="Fermer" @click="emit('close')">✕</button>
       </div>
@@ -132,7 +132,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, nextTick, watch } from 'vue'
 import type { Socket } from 'socket.io-client'
-import { io as makeSocket } from 'socket.io-client'
+import { useSocket as useAppSocket } from '../views/plugins/socket'
 
 /** ===== Props / Emits ===== **/
 const props = defineProps<{
@@ -149,7 +149,7 @@ const emit = defineEmits<{
 }>()
 
 /** ===== Config ===== **/
-const API = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:3000'
+import { API_BASE as API } from '../config'
 
 /** ===== Derived ===== **/
 const meName   = computed(() => (props.me ?? localStorage.getItem('username') ?? '').trim())
@@ -186,7 +186,6 @@ async function fetchAvatar(username: string) {
 
 /** ===== Socket ===== **/
 const sock = ref<Socket|null>(null)
-function useSocket(): Socket { if (props.socket) return props.socket; return makeSocket(API, { transports: ['websocket'] }) }
 
 /** ===== Utils ===== **/
 function getUserColor(username?: string) {
@@ -220,6 +219,11 @@ function showToast(msg: string, type: 'success'|'error'|'info' = 'info') {
   toast.value.icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'
   toast.value.show = true
   setTimeout(() => (toast.value.show = false), 2500)
+}
+function addEmoji(e: string) {
+  draft.value += e
+  // garder le picker ouvert pour enchaîner les emojis, mais redonner le focus au champ
+  nextTick(() => inputRef.value?.focus())
 }
 function scrollBottom() {
   nextTick(() => { const el = listRef.value; if (el) el.scrollTop = el.scrollHeight })
@@ -321,7 +325,8 @@ function handleChallengeStart({ roomId }: any = {}) {
 
 /** ===== Lifecycle ===== **/
 onMounted(async () => {
-  sock.value = useSocket()
+  // Utilise le socket fourni par le parent sinon le socket global (plugin)
+  sock.value = props.socket || useAppSocket()
   if (!sock.value) return
   if (meName.value) sock.value.emit('identify', meName.value)
 

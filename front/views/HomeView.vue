@@ -1,25 +1,19 @@
 <template>
 <main class="flex">
   <div class="computer-3d-section">
-    <Computer3D 
+     <Computer3D
       :model-path="'/models/commodore.stl'"
-      :rotation-x="-1.1"
-      :rotation-y="-1.545"
-      :rotation-z="-1.175"
+      :rotation-x="1.5708" 
+      :rotation-y="3.1416"  
+      :rotation-z="1.5708"
       :position-y="0"
-      :scale="3.5"
+      :scale="3.8"
     />
-  </div>
-  <div class="content-section">
-    <Bvn />
-    <UserList />
   </div>
 </main>
 </template>
 
 <script setup lang="ts">
-import Bvn from '../components/Bvn.vue'
-import UserList from '../components/UserList.vue'
 import Computer3D from '../components/3d/Computer3D.vue'
 
 </script>
@@ -36,11 +30,6 @@ main {
   padding: 2rem;
 }
 
-.content-section {
-  flex: 1;
-  padding: 2rem;
-}
-
 @media (max-width: 768px) {
   main {
     flex-direction: column;
@@ -51,9 +40,5 @@ main {
     padding: 1rem;
   }
   
-  .content-section {
-    order: 2;
-    padding: 1rem;
-  }
 }
 </style>

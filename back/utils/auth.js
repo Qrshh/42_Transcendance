@@ -73,38 +73,38 @@ function generateBackupCodes(count = 10) {
 
 
 // Middleware d'authentification JWT
-function authenticateToken(request, reply, done) {
-  const authHeader = request.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
-
-  if (!token) {
-    return reply.code(401).send({ error: 'Token d\'accès requis' });
-  }
-
-  try {
-    const decoded = verifyAccessToken(token);
-    request.user = decoded;
-    done();
-  } catch (error) {
-    reply.code(403).send({ error: 'Token invalide ou expiré' });
-  }
-}
+//function authenticateToken(request, reply, done) {
+//  const authHeader = request.headers['authorization'];
+//  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+//
+//  if (!token) {
+//    return reply.code(401).send({ error: 'Token d\'accès requis' });
+//  }
+//
+//  try {
+//    const decoded = verifyAccessToken(token);
+//    request.user = decoded;
+//    done();
+//  } catch (error) {
+//    reply.code(403).send({ error: 'Token invalide ou expiré' });
+//  }
+//}
 
 
 // Middleware optionnel pour les routes publiques
-function optionalAuth(request, reply, done) {
-  const authHeader = request.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (token) {
-    try {
-      const decoded = verifyAccessToken(token);
-      request.user = decoded;
-    } catch (error) {
-    }
-  }
-  done();
-}
+//function optionalAuth(request, reply, done) {
+//  const authHeader = request.headers['authorization'];
+//  const token = authHeader && authHeader.split(' ')[1];
+//
+//  if (token) {
+//    try {
+//      const decoded = verifyAccessToken(token);
+//      request.user = decoded;
+//    } catch (error) {
+//    }
+//  }
+//  done();
+//}
 
 
 function authenticateHybrid(request, reply, done) {
@@ -140,8 +140,6 @@ module.exports = {
   generate2FASecret,
   verify2FAToken,
   generateBackupCodes,
-  authenticateToken,
-  optionalAuth,
   authenticateHybrid,
   JWT_SECRET,
   JWT_REFRESH_SECRET

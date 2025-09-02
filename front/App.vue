@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, RouterLink, RouterView } from 'vue-router'
 import { io } from 'socket.io-client'
+import { API_BASE } from './config'
 
 /* ==== i18n & auth (comme ton code existant) ==== */
 import { useI18n } from './composables/useI18n'
@@ -11,7 +12,7 @@ const { t, onLangChange } = useI18n()
 /* ==== Router & Socket ==== */
 const router = useRouter()
 const socket = ref<ReturnType<typeof io> | null>(null)
-const API_BASE = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:3000'
+// URL backend centralisée
 
 /* ==== Session (réactif !) ==== */
 const userName = ref((localStorage.getItem('username') || '').trim())
@@ -34,6 +35,7 @@ const selectedLang = ref(localStorage.getItem('lang') || 'en')
 /* ==== Avatar & user menu ==== */
 const showUserMenu = ref(false)
 const avatarUrl = ref<string | null>(null)
+const isConnected = ref(false)
 const userGradient = computed(() => {
   const u = (userName.value || 'a').charCodeAt(0)
   const colors = [
@@ -68,7 +70,7 @@ async function loadAvatar(name?: string | null) {
 
 /* ==== Actions ==== */
 async function doLogout() {
-  try { await fetch(`${API_BASE}/logout`, { method: 'POST' }) } catch {}
+  try { await fetch(`${API_BASE}/auth/logout`, { method: 'POST' }) } catch {}
   try { localStorage.clear(); sessionStorage.clear() } catch {}
   // >>> important : synchro immédiate du header
   refreshAuthFromStorage()
@@ -104,6 +106,11 @@ onMounted(async () => {
     router.replace({ name: 'login' })
   })
 
+  // présence socket (header dot)
+  isConnected.value = !!socket.value?.connected
+  socket.value.on('connect', () => { isConnected.value = true })
+  socket.value.on('disconnect', () => { isConnected.value = false })
+
   document.addEventListener('click', closeMenuOnOutside)
 
   // Récupère l'avatar s'il existe
@@ -112,6 +119,8 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   socket.value?.off('forceLogout')
+  socket.value?.off('connect')
+  socket.value?.off('disconnect')
   socket.value?.disconnect()
   document.removeEventListener('click', closeMenuOnOutside)
   window.removeEventListener('storage', refreshAuthFromStorage)
@@ -172,6 +181,7 @@ watch(userName, (n, o) => {
           >
             <img v-if="avatarUrl" :src="avatarUrl" alt="" @error="avatarUrl = null" />
             <span v-else>{{ userInitial }}</span>
+            <span class="presence" :class="{ online: isConnected, offline: !isConnected }"></span>
           </button>
 
           <div v-if="showUserMenu" class="user-menu" role="menu">
@@ -179,10 +189,11 @@ watch(userName, (n, o) => {
               <div class="avatar-sm" :style="{ background: userGradient }">
                 <img v-if="avatarUrl" :src="avatarUrl" alt="" @error="avatarUrl = null" />
                 <span v-else>{{ userInitial }}</span>
+                <span class="presence presence-sm" :class="{ online: isConnected, offline: !isConnected }"></span>
               </div>
               <div class="user-meta">
                 <div class="user-name">{{ userName }}</div>
-                <div class="user-status">Connecté</div>
+                <div class="user-status">{{ isConnected ? 'Connecté' : 'Déconnecté' }}</div>
               </div>
             </div>
 
@@ -280,11 +291,18 @@ a.router-link-active.nav-link::after,
 .avatar{
   width: 38px; height: 38px; border-radius: 50%;
   display: grid; place-items: center; color:#fff; font-weight:800; font-size:.95rem;
-  border: 2px solid rgba(0,0,0,.35);
-  box-shadow: 0 6px 18px rgba(0,0,0,.35);
+  border: 2px solid rgba(255,255,255,.18);
+  box-shadow: 0 8px 22px rgba(0,0,0,.45);
   overflow: hidden; cursor:pointer;
 }
-.avatar img{ width:100%; height:100%; object-fit: cover; display:block }
+.avatar img{ width:170%; height:120%; object-fit: cover; display:block }
+.avatar:hover{ transform: translateY(-1px); box-shadow: 0 10px 26px rgba(0,0,0,.5) }
+
+/* présence */
+.presence{ position:absolute; right:-2px; bottom:-2px; width: 12px; height: 12px; border-radius:50%; border:2px solid rgba(23,26,43,1); box-shadow: 0 0 0 2px rgba(0,0,0,.15) inset }
+.presence.online{ background:#10b981 }
+.presence.offline{ background:#ef4444 }
+.presence-sm{ width: 10px; height: 10px; right:-2px; bottom:-2px }
 
 /* Dropdown */
 .user-menu{
@@ -313,7 +331,7 @@ a.router-link-active.nav-link::after,
 .avatar-sm{
   width: 34px; height: 34px; border-radius:50%;
   display:grid; place-items:center; color:#fff; font-weight:800;
-  overflow:hidden; border:2px solid rgba(0,0,0,.35);
+  overflow:hidden; border:2px solid rgba(255,255,255,.18);
   background: linear-gradient(135deg,#4facfe 0%,#00f2fe 100%);
 }
 .avatar-sm img{ width:100%; height:100%; object-fit:cover; display:block }

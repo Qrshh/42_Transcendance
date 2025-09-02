@@ -47,7 +47,7 @@ export default {
 	memberSince: "Miembro desde",
 	statis: "Estadística",
 	socialMsg: "Encuentra a tus amigos, chatea y recibe tus notificaciones.",
-	remove: "Remove",
+	remove: "Retirar",
 	block: "Bloquear",
 	noFrdMsg: "Aún no hay amigos",
 	recentConv: "Conversaciones recientes",
@@ -64,5 +64,5 @@ export default {
 	lookForFrnd: "Buscando un amigo…",
 	online: "Conectado",
 	offline: "Desconectado",
-	friends: "Amigos",
+	
 }

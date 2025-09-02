@@ -183,7 +183,7 @@ export default defineComponent({
         };
 
         console.log("🎮 Création de partie:", tournamentData);
-        props.socket.emit('createGame', tournamentData);
+        props.socket.emit('createTournament', tournamentData);
         
         // Timeout de sécurité
         setTimeout(() => {

@@ -29,8 +29,6 @@
             referrerpolicy="no-referrer"
           />
           <div v-else class="avatar-fallback">{{ initials(f.friend) }}</div>
-
-          <span class="presence" :class="{ online: isOnline(f.friend), offline: !isOnline(f.friend) }"></span>
         </button>
 
         <!-- Infos -->
@@ -68,6 +66,7 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from '../../composables/useI18n'
+import { API_BASE } from '../../config'
 const { t, onLangChange } = useI18n()
 
 type FriendRow = { friend: string; avatar?: string | null }
@@ -84,7 +83,7 @@ const props = defineProps<{
 const router = useRouter()
 
 /** ===== Config API ===== **/
-const API_BASE = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:3000'
+// API_BASE import centralisé
 
 /** ===== State ===== **/
 const friends = ref<FriendRow[]>([])
@@ -256,14 +255,15 @@ function initials(username?: string) {
   cursor: pointer;
 }
 .avatar-img {
-  width: 100%; height: 100%; object-fit: cover; display: block;
+  width: 120%; height: 100%; object-fit: cover; display: block; border-radius: 50%;
 }
 .avatar-fallback {
   font-weight: 800; font-size: 1.1rem; letter-spacing: .5px; user-select: none;
 }
 .presence {
   position: absolute; right: -2px; bottom: -2px; width: 14px; height: 14px;
-  border-radius: 50%; border: 2px solid #0b1020; background: #ef4444;
+  border-radius: 50%; border: 2px solid var(--color-background); background: #ef4444;
+  box-shadow: 0 0 0 2px rgba(0,0,0,.12) inset;
 }
 .presence.online { background: #10b981 }
 

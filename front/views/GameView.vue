@@ -87,6 +87,24 @@
               @leaveGame="handleLeaveGame"
               @gameEnded="onRemoteGameEnded"
             />
+            <div v-if="postMatchCountdown > 0" class="postmatch-overlay">
+              <div class="box">
+                <h3>🎉 Match terminé</h3>
+                <p>Retour à l’écran du tournoi dans <strong>{{ postMatchCountdown }}</strong>s…</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Écran d’attente du tournoi -->
+        <div v-else-if="mode === 'tournament'" key="tournament" class="game-section play-section">
+          <div class="game-wrapper">
+            <TournamentWaitingScreen
+              :socket="socket"
+              :tournament-id="tournamentId"
+              @back="returnToLobby"
+              @startRemote="onRemoteStart"
+            />
           </div>
         </div>
       </Transition>
@@ -124,34 +142,42 @@
 <script lang="ts">
 import { defineComponent, ref, onMounted, onUnmounted } from 'vue';
 import { io, Socket } from 'socket.io-client';
+import { API_BASE } from '../config'
 import Lobby from '../components/game/lobby/Lobby.vue';
 import LocalGame from '../components/game/lobby/LocalGame.vue';
 import AIGame from '../components/game/lobby/AIGame.vue';
 import RemoteGame from '../components/game/lobby/RemoteGame.vue';
+import TournamentWaitingScreen from '../components/game/tournament/TournamentWaitingScreen.vue';
 
 export default defineComponent({
-  components: { Lobby, LocalGame, AIGame, RemoteGame },
+  components: { Lobby, LocalGame, AIGame, RemoteGame, TournamentWaitingScreen },
   setup() {
-    const mode   = ref<'lobby'|'local'|'ai'|'remote'>('lobby');
+    const mode   = ref<'lobby'|'local'|'ai'|'remote'|'tournament'>('lobby');
     const roomId = ref<string>('');
     const isSocketConnected = ref(false);
 
-    // ⚙️ URL backend
-    const API_BASE = 'http://localhost:3000';
+    // 👉 tournoi courant (sert pour revenir à l’attente après un match)
+    const tournamentId = ref<string>('');
 
-    // 🔌 Socket client (websocket direct, reconnexion auto)
+    // 👉 overlay/cooldown post-match
+    const postMatchCountdown = ref<number>(0);
+    let postMatchTimer: number | null = null;
+
+    // ⚙️ URL backend
+
+    // 🔌 Socket client
     const socket: Socket = io(API_BASE, {
       transports: ['websocket'],
       autoConnect: true
     });
 
-    // 🔑 fonction utilitaire pour (ré)identifier
+    // 🔑 identification
     const identify = () => {
       const me = localStorage.getItem('username') || 'anon';
       socket.emit('identify', me);
     };
     
-    /** 👉 évite les doubles join + (re)join partout où il faut */
+    /** évite les doubles join + (re)join partout où il faut */
     const joinedOnce = ref(false);
     function ensureJoined() {
       if (!roomId.value || joinedOnce.value) return;
@@ -166,15 +192,15 @@ export default defineComponent({
       if (!rid) return;
       roomId.value = rid;
       mode.value = 'remote';
-      joinedOnce.value = false;   // reset la garde
-      ensureJoined();             // 👈 REJOINS LA ROOM ICI AUSSI
+      joinedOnce.value = false;
+      ensureJoined();
     }
 
     onMounted(() => {
       socket.on('connect', () => {
         isSocketConnected.value = true;
         console.log('✅ Socket connecté');
-        identify();                       // 👈 identifie tout de suite
+        identify();
       });
       // Associe le pseudo à ce socket côté serveur
       const me = localStorage.getItem('username') || 'anon';
@@ -185,7 +211,7 @@ export default defineComponent({
         roomId.value = rid;
         mode.value = 'remote';
         joinedOnce.value = false;
-        ensureJoined(); // 👈
+        ensureJoined();
       });
 
       // Au montage si pendingRoomId existe
@@ -195,32 +221,25 @@ export default defineComponent({
         roomId.value = pending;
         mode.value = 'remote';
         joinedOnce.value = false;
-        ensureJoined(); // 👈
+        ensureJoined();
       }
 
-      // C) challengeStart relayé **par window** (venant d’un autre socket/vue)
+      // challengeStart relayé par window
       window.addEventListener('challengeStart', onWinChallengeStart);
 
       socket.io.on('reconnect', () => {
         identify();
         joinedOnce.value = false;
-        ensureJoined(); // 👈 rejoin auto si on est en remote
+        ensureJoined();
       });
 
       socket.on('disconnect', () => { isSocketConnected.value = false; });
-      socket.on('playerStatsUpdated', (p: { username: string }) => {
-        const me = localStorage.getItem('username') || 'anon';
-        if (p?.username === me) {
-          window.dispatchEvent(new CustomEvent('playerStatsUpdated'));
-        }
-      });
 
-      // 📈 quand le serveur dit que tes stats ont changé: notifie l’app
+      // 📈 stats MAJ
       socket.on('playerStatsUpdated', (p: { username: string }) => {
         const me = localStorage.getItem('username') || 'anon';
         if (p?.username === me) {
           console.log('📈 Stats MAJ pour', me);
-          // permet à ProfileView (ou autre) d’actualiser ses données
           window.dispatchEvent(new CustomEvent('playerStatsUpdated'));
         }
       });
@@ -231,7 +250,7 @@ export default defineComponent({
       socket.off('connect');
       socket.off('disconnect');
       socket.off('playerStatsUpdated');
-      // @ts-ignore - manager du client socket.io
+      // @ts-ignore
       socket.io?.off?.('reconnect');
       socket.disconnect();
     });
@@ -242,14 +261,30 @@ export default defineComponent({
       console.log(`🎮 Mode changé vers: ${m}`);
     }
 
-    function onRemoteStart({ mode: m, roomId: rid }: {mode:string, roomId:string}) {
+    // démarrage d’un match online (depuis l’écran tournoi)
+    const endedOnce = ref(false);
+    function onRemoteStart({ mode: m, roomId: rid, tournamentId: tid }: {mode:string, roomId:string, tournamentId?: string}) {
       roomId.value = rid;
       mode.value = 'remote';
+      // mémorise le tournoi
+      if (tid) {
+        tournamentId.value = tid;
+      } else if (rid?.startsWith('tourn-')) {
+        // fallback: extraire depuis le roomId: tourn-<TID>-rX-mY-...
+        const m = rid.match(/^tourn-(.*?)-r\d+-m\d+-/);
+        if (m && m[1]) tournamentId.value = m[1];
+      }
       console.log(`🌐 Jeu en ligne démarré - Room: ${rid}`);
       const me = localStorage.getItem('username') || 'anon';
       socket.emit('joinChallengeRoom', { roomId: rid, username: me });
       joinedOnce.value = false;
-      ensureJoined(); 
+      ensureJoined();
+      endedOnce.value = false; // prêt pour une nouvelle fin de partie
+    }
+
+    function onTournamentStart({ mode: m, tournamentId: tid }: { mode: string, tournamentId: string }) {
+      tournamentId.value = tid;
+      mode.value = 'tournament';
     }
 
     function handleLeaveGame() {
@@ -257,14 +292,34 @@ export default defineComponent({
       returnToLobby();
     }
 
-    const endedOnce = ref(false);
+    // cooldown 5s puis retour à l’écran d’attente du tournoi
+    function onGameEnded(payload:any){
+      console.log('🏁 Fin de partie (GameView):', payload);
+      if (postMatchTimer) { clearInterval(postMatchTimer); postMatchTimer = null; }
+
+      if (tournamentId.value) {
+        postMatchCountdown.value = 5;
+        postMatchTimer = window.setInterval(() => {
+          postMatchCountdown.value -= 1;
+          if (postMatchCountdown.value <= 0 && postMatchTimer) {
+            clearInterval(postMatchTimer); postMatchTimer = null;
+            mode.value = 'tournament'; // retour à l’attente
+          }
+        }, 1000) as unknown as number;
+      } else {
+        // hors tournoi : ton ancien flux éventuel (ex: retour lobby)
+        // returnToLobby();
+      }
+    }
+
+    // proxy depuis RemoteGame : met à jour les stats et applique le cooldown tournoi
     function onRemoteGameEnded(payload:any){
       if (endedOnce.value) return;
       endedOnce.value = true;
       console.log('🏁 Fin de partie (GameView):', payload);
       window.dispatchEvent(new CustomEvent('playerStatsUpdated'));
+      onGameEnded(payload); // applique le cooldown + retour tournoi si applicable
     }
-
 
     function returnToLobby() {
       mode.value = 'lobby';
@@ -274,24 +329,31 @@ export default defineComponent({
 
     // ————— helpers d’affichage —————
     function getModeEmoji() {
-      return ({ lobby:'🏛️', local:'🏠', ai:'🤖', remote:'🌐' } as const)[mode.value];
+      return ({ lobby:'🏛️', local:'🏠', ai:'🤖', remote:'🌐', tournament:'🏆' } as const)[mode.value];
     }
     function getModeText() {
-      return ({ lobby:'Lobby', local:'Mode Local', ai:'Mode IA', remote:'Mode En ligne' } as const)[mode.value];
+      return ({ lobby:'Lobby', local:'Mode Local', ai:'Mode IA', remote:'Mode En ligne', tournament:'Tournoi' } as const)[mode.value];
     }
     function getPlayerCountText() {
-      return ({ lobby:'En attente', local:'2 Joueurs', ai:'1 Joueur vs IA', remote:'Multijoueur' } as const)[mode.value];
+      return ({ lobby:'En attente', local:'2 Joueurs', ai:'1 Joueur vs IA', remote:'Multijoueur', tournament:'Tournoi' } as const)[mode.value];
     }
 
+    onUnmounted(() => {
+      if (postMatchTimer) { clearInterval(postMatchTimer); postMatchTimer = null; }
+    });
+
     return {
+      // state
       mode, roomId, socket, isSocketConnected,
+      tournamentId, postMatchCountdown,
+      // actions
       setMode, onRemoteStart, handleLeaveGame, onRemoteGameEnded, returnToLobby,
+      // display
       getModeEmoji, getModeText, getPlayerCountText
     };
   }
 });
 </script>
-
 
 <style scoped>
 .game-view {
@@ -482,6 +544,7 @@ export default defineComponent({
   align-items: center;
   gap: 2rem;
   width: 100%;
+  position: relative; /* pour l'overlay post-match */
 }
 
 .game-header-mini {
@@ -535,6 +598,20 @@ export default defineComponent({
 .game-container:hover {
   transform: translateY(-5px);
   box-shadow: var(--glow-primary-strong);
+}
+
+/* Overlay post-match */
+.postmatch-overlay{
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(0,0,0,.35); backdrop-filter: blur(2px);
+}
+.postmatch-overlay .box{
+  background: var(--color-background);
+  border:1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  text-align:center;
 }
 
 /* Footer */

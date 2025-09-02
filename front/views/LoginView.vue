@@ -1,33 +1,65 @@
 <template>
-  <div class="about flex flex-col items-center space-y-4">
-    <h1 class="text-2xl font-bold">
+  <div class="about login-screen flex flex-col items-center">
+    <!-- Titre -->
+    <h1 class="login-title">
       {{ requiresTwoFactor ? 'Authentification à 2 facteurs' : (isLogin ? t.login : t.register) }}
     </h1>
 
     <!-- Form login / register -->
-    <div v-if="!requiresTwoFactor" class="w-[300px] flex flex-col gap-2">
-      <input v-if="!isLogin" v-model.trim="username" type="text" :placeholder="t.usernamePlaceholder" class="border p-2 rounded w-full" />
-      <input v-model.trim="email" type="email" :placeholder="t.emailPlaceholder" class="border p-2 rounded w-full" />
-      <input v-model="password" type="password" :placeholder="t.passwordPlaceholder" class="border p-2 rounded w-full" />
+    <div
+      v-if="!requiresTwoFactor"
+      class="login-card w-full max-w-sm"
+    >
+      <div class="login-fields">
+        <input
+          v-if="!isLogin"
+          v-model.trim="username"
+          type="text"
+          :placeholder="t.usernamePlaceholder"
+          class="inp"
+          autocomplete="username"
+        />
+        <input
+          v-model.trim="email"
+          type="email"
+          :placeholder="t.emailPlaceholder"
+          class="inp"
+          autocomplete="email"
+        />
+        <input
+          v-model="password"
+          type="password"
+          :placeholder="t.passwordPlaceholder"
+          class="inp"
+          autocomplete="current-password"
+        />
+      </div>
 
       <button
         @click="isLogin ? handleLogin() : handleRegister()"
         :disabled="loading"
-        class="bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50 w-full mt-1"
+        class="btn btn-primary block w-full"
       >
         {{ loading ? 'Chargement...' : (isLogin ? t.loginBtn : t.registerBtn) }}
       </button>
 
-      <button @click="toggleMode" class="text-sm text-blue-700 hover:underline text-center">
+      <button
+        @click="toggleMode"
+        class="btn-link"
+        type="button"
+      >
         {{ isLogin ? t.switchToRegister : t.switchToLogin }}
       </button>
     </div>
 
     <!-- Étape 2FA -->
-    <div v-else class="flex flex-col space-y-4 w-full max-w-md">
-      <div class="text-center mb-2">
-        <div class="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mb-3">🔒</div>
-        <p class="text-sm text-gray-600">Entrez le code de votre app ou un code de récupération</p>
+    <div
+      v-else
+      class="login-card w-full max-w-sm"
+    >
+      <div class="twofa-head">
+        <div class="twofa-lock">🔒</div>
+        <p class="twofa-sub">Entrez le code de votre app ou un code de récupération</p>
       </div>
 
       <input
@@ -35,7 +67,7 @@
         type="text"
         placeholder="123456 ou AB12CD34"
         maxlength="8"
-        class="border p-3 rounded text-center text-lg font-mono w-full"
+        class="inp inp-otp text-center font-mono"
         @input="formatTwoFactorCodeFlexible"
         @keyup.enter="handleTwoFactorLogin"
       />
@@ -43,16 +75,21 @@
       <button
         @click="handleTwoFactorLogin"
         :disabled="loading || (twoFactorCode.length !== 6 && twoFactorCode.length !== 8)"
-        class="bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50 w-full"
+        class="btn btn-primary block w-full"
       >
         {{ loading ? 'Vérification...' : 'Vérifier' }}
       </button>
 
-      <button @click="goBack" class="text-sm text-gray-500 hover:text-gray-700">← Retour à la connexion</button>
+      <button @click="goBack" type="button" class="btn-link">← Retour à la connexion</button>
     </div>
 
-    <p v-if="message" class="text-green-600">{{ message }}</p>
-    <p v-if="error" class="text-red-600">{{ error }}</p>
+    <!-- Messages -->
+    <transition name="fade">
+      <p v-if="message" class="alert success">{{ message }}</p>
+    </transition>
+    <transition name="fade">
+      <p v-if="error" class="alert error">{{ error }}</p>
+    </transition>
   </div>
 </template>
 
@@ -61,12 +98,11 @@ import { ref } from 'vue'
 import { useI18n } from '../composables/useI18n'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import { API_BASE } from '../config'
 import { login as setSession } from '../stores/auth'
 
 const { t } = useI18n()
 const router = useRouter()
-
-const API_BASE = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:3000'
 const api = axios.create({ baseURL: API_BASE })
 
 const isLogin = ref(true)
@@ -97,16 +133,13 @@ const formatTwoFactorCodeFlexible = () => {
 function persistTokens(tokens: { accessToken: string; refreshToken: string }) {
   localStorage.setItem('accessToken', tokens.accessToken)
   localStorage.setItem('refreshToken', tokens.refreshToken)
-  // Optionnel: header par défaut axios
   api.defaults.headers.common['Authorization'] = `Bearer ${tokens.accessToken}`
 }
-
 function persistProfile(user: any) {
   localStorage.setItem('username', user.username)
   localStorage.setItem('email', user.email)
   localStorage.setItem('avatar', user.avatar || '/avatars/default.png')
   localStorage.setItem('twoFactorEnabled', String(!!user.twoFactorEnabled))
-  // garder compat avec ton store existant
   setSession(user.username, user.email, user.avatar, user.twoFactorEnabled)
 }
 
@@ -115,81 +148,189 @@ const handleLogin = async () => {
   error.value = null
   loading.value = true
   try {
-    const { data } = await api.post('/auth/login', {
-      email: email.value,
-      password: password.value,
-    })
-
-    if (data?.requiresTwoFactor) {
-      requiresTwoFactor.value = true
-      return
-    }
-
-    // connexion directe (2FA off)
-    persistTokens(data.tokens)
-    persistProfile(data.user)
-    window.dispatchEvent(new Event('auth-changed'))
-    router.push('/')
+    const { data } = await api.post('/auth/login', { email: email.value, password: password.value })
+    if (data?.requiresTwoFactor) { requiresTwoFactor.value = true; return }
+    persistTokens(data.tokens); persistProfile(data.user); window.dispatchEvent(new Event('auth-changed')); router.push('/')
   } catch (err: any) {
     error.value = err?.response?.data?.message || err?.response?.data?.error || 'Erreur de connexion'
-  } finally {
-    loading.value = false
-  }
+  } finally { loading.value = false }
 }
-
 const handleTwoFactorLogin = async () => {
   error.value = null
   loading.value = true
   try {
     const { data } = await api.post('/auth/login', {
-      email: email.value,
-      password: password.value,
-      twoFactorCode: twoFactorCode.value
+      email: email.value, password: password.value, twoFactorCode: twoFactorCode.value
     })
-
-    persistTokens(data.tokens)
-    persistProfile(data.user)
-    window.dispatchEvent(new Event('auth-changed'))
-    router.push('/')
+    persistTokens(data.tokens); persistProfile(data.user); window.dispatchEvent(new Event('auth-changed')); router.push('/')
   } catch (err: any) {
     error.value = err?.response?.data?.message || err?.response?.data?.error || 'Code invalide'
     twoFactorCode.value = ''
-  } finally {
-    loading.value = false
-  }
+  } finally { loading.value = false }
 }
-
 const handleRegister = async () => {
   error.value = null
   loading.value = true
   try {
-    await api.post('/register', {
-      username: username.value,
-      email: email.value,
-      password: password.value,
-    })
-    message.value = 'Compte créé avec succès. Connecte-toi maintenant.'
-    toggleMode()
+    await api.post('/register', { username: username.value, email: email.value, password: password.value })
+    message.value = 'Compte créé avec succès. Connecte-toi maintenant.'; toggleMode()
   } catch (err: any) {
     error.value = err?.response?.data?.error || 'Erreur lors de la création du compte'
-  } finally {
-    loading.value = false
-  }
+  } finally { loading.value = false }
 }
-
-const goBack = () => {
-  requiresTwoFactor.value = false
-  twoFactorCode.value = ''
-  error.value = null
-}
+const goBack = () => { requiresTwoFactor.value = false; twoFactorCode.value = ''; error.value = null }
 </script>
 
 <style scoped>
-.about {
+/* ===== Variables & base ===== */
+.login-screen{
+  --bg1: #0f1222;
+  --bg2: #1a1440;
+  --acc1: #7c4dff;
+  --acc2: #4ac9ff;
+  --text: #e8eaf0;
+  --muted: #a8b0c2;
+  --border: rgba(255,255,255,.12);
+  --glass: rgba(255,255,255,.06);
   min-height: 100vh;
+  padding: 5vh 1rem 4vh;
+  position: relative;
+  overflow: hidden;
+
+}
+
+.login-screen::before,
+.login-screen::after{
+  content: "";
+  position: absolute;
+  inset: -20%;
+
+  transform: rotate(12deg);
+  mask-image: radial-gradient(60% 60% at 50% 50%, #000 50%, transparent 80%);
+  opacity: .5;
+  pointer-events: none;
+}
+
+/* ===== Title ===== */
+.login-title{
+  color: var(--text);
+  font-size: clamp(1.6rem, 2vw + 1rem, 2.2rem);
+  font-weight: 800;
+  letter-spacing: .3px;
+  text-align: center;
+  margin-bottom: 1.2rem;
+  background: linear-gradient(90deg, #fff, #b8c6ff, #9fe7ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ===== Card ===== */
+.login-card{
+  width: 100%;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.05));
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  padding: 1.2rem;
   display: flex;
-  justify-content: center;
-  align-items: center;
   flex-direction: column;
+  gap: .9rem;
+  animation: cardIn .25s ease;
+}
+@keyframes cardIn {
+  from { transform: translateY(8px); opacity: 0 }
+  to   { transform: translateY(0);   opacity: 1 }
+}
+
+/* ===== Inputs ===== */
+.login-fields{ display: flex; flex-direction: column; gap: .6rem; }
+.inp{
+  width: 100%;
+  border: 2px solid var(--border);
+  background: rgba(10, 12, 28, .35);
+  color: var(--text);
+  border-radius: 12px;
+  padding: .75rem .9rem;
+  font-size: 1rem;
+  transition: .18s ease;
+  outline: none;
+}
+.inp::placeholder{ color: #c9cfe7aa; }
+.inp:hover{ border-color: #ffffff2a; background: rgba(10,12,28,.45); }
+.inp:focus{
+  border-color: #9fb5ff;
+  box-shadow: 0 0 0 3px rgba(112, 126, 255, .25);
+  background: rgba(10,12,28,.55);
+}
+.inp-otp{
+  letter-spacing: .12em;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+/* ===== Buttons ===== */
+.btn{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  border: 0;
+  border-radius: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  padding: .8rem 1rem;
+  transition: transform .15s ease, box-shadow .2s ease, opacity .2s ease;
+}
+.btn:disabled{ opacity: .6; cursor: not-allowed; }
+.btn-primary{
+  background: linear-gradient(180deg, var(--acc1), #5a3bff);
+  color: #fff;
+  box-shadow: 0 12px 26px rgba(95, 69, 255, .35);
+}
+.btn-primary:hover{ transform: translateY(-1px); box-shadow: 0 20px 34px rgba(95, 69, 255, .4); }
+.btn-link{
+  appearance: none;
+  background: transparent;
+  color: #9fc8ff;
+  font-weight: 700;
+  text-decoration: none;
+  margin-top: .3rem;
+  align-self: center;
+}
+.btn-link:hover{ text-decoration: underline; color: #cfe6ff; }
+
+/* ===== 2FA head ===== */
+.twofa-head{ text-align: center; margin-bottom: .2rem; }
+.twofa-lock{
+  width: 48px; height: 48px; margin: 0 auto .5rem;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #a6b9ff, #6dcfff);
+  color: #0c1530; font-size: 1.5rem; font-weight: 900;
+}
+.twofa-sub{ color: var(--muted); font-size: .95rem; }
+
+/* ===== Alerts ===== */
+.alert{
+  margin-top: 1rem;
+  padding: .8rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  font-weight: 700;
+  max-width: 640px;
+  text-align: center;
+}
+.alert.success{ color: #0f5132; background: #ecfdf5; border-color: #a7f3d0; }
+.alert.error{ color: #842029; background: #fef2f2; border-color: #fecaca; }
+
+/* ===== Transitions ===== */
+.fade-enter-active, .fade-leave-active{ transition: opacity .18s ease }
+.fade-enter-from, .fade-leave-to{ opacity: 0 }
+
+/* ===== Responsive spacing ===== */
+@media (min-width: 768px){
+  .login-screen{ padding-top: 9vh; }
 }
 </style>
