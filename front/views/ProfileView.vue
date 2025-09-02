@@ -421,9 +421,9 @@ const { t, onLangChange } = useI18n()
 import TwoFactorAuth from '../components/TwoFactorAuth.vue'
 import { io } from 'socket.io-client';
 import ChatBoxLite from '../components/ChatBoxLite.vue'
+import { useApi } from '@/composables/useAPI'
 
-/** ====== Config API ====== **/
-const API_BASE = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:3000'
+const { API_BASE } = useApi()
 const route = useRoute()
 const router = useRouter()
 

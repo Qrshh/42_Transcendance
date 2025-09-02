@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, defineEmits } from 'vue'
 import axios from 'axios'
+import { useApi } from '@/composables/useAPI'
 
+const { API_BASE } = useApi()
 const emits = defineEmits(['friend-added'])
 
 const username = localStorage.getItem('username') || ''
@@ -10,7 +12,7 @@ const newFriend = ref('')
 const sendRequest = async () => {
   if (!newFriend.value.trim()) return alert("Entrez un nom d'utilisateur")
   try {
-    await axios.post('http://localhost:3000/friends/request', {
+    await axios.post(`${API_BASE}/friends/request`, {
       from: username,
       to: newFriend.value.trim()
     })

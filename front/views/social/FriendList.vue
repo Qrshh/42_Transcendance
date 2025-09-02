@@ -68,8 +68,10 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from '../../composables/useI18n'
-const { t, onLangChange } = useI18n()
+import { useApi } from '@/composables/useAPI'
 
+const { t, onLangChange } = useI18n()
+const { API_BASE } = useApi()
 type FriendRow = { friend: string; avatar?: string | null }
 
 const emit = defineEmits<{
@@ -82,9 +84,6 @@ const props = defineProps<{
 }>()
 
 const router = useRouter()
-
-/** ===== Config API ===== **/
-const API_BASE = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:3000'
 
 /** ===== State ===== **/
 const friends = ref<FriendRow[]>([])

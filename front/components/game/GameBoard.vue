@@ -12,7 +12,9 @@
 <script>
   import { ref, onMounted, onBeforeUnmount } from 'vue'
   import { io } from 'socket.io-client'
-  
+  import { useApi } from '@/composables/useAPI'
+
+const { API_BASE } = useApi()
   /** Setter pour la game par défaut 
   * il initie la balle et les deux paddle et le score, ensuite, il draw les paddle,
   * set les key à emettre
@@ -22,7 +24,7 @@
     emits: ['scoreUpdate', 'statusUpdate'], 
     setup(props, { emit }) {
       const canvas = ref(null)
-      const socket = io('http://localhost:3000')
+      const socket = io(API_BASE)
       let ctx
       const initialState = {
         ball: { x: 300, y: 200, radius: 8 },

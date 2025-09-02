@@ -16,6 +16,8 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { io, type Socket } from 'socket.io-client'
 import ProfileView from './ProfileView.vue'
+import { useApi } from '@/composables/useAPI'
+const { API_BASE } = useApi()
 
 const router = useRouter()
 const currentUsername = localStorage.getItem('username') || ''
@@ -41,7 +43,7 @@ onMounted(() => {
   }
 
   // Connexion socket pour le statut en ligne
-  socket = io('http://localhost:3000')
+  socket = io(API_BASE)
   socket.emit('identify', currentUsername)
 
   socket.on('userConnected', (username: string) => {

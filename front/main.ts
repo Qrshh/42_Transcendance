@@ -9,8 +9,7 @@ const app = createApp(App)
 app.use(router)
 
 // 👇 monte le plugin socket (l’URL WS peut venir du .env)
-app.use(SocketPlugin, {
-  url: 'http://localhost:3000'
-})
+app.use(SocketPlugin,
+)
 
 app.mount('#app')

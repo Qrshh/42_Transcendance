@@ -62,11 +62,11 @@ import { useI18n } from '../composables/useI18n'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { login as setSession } from '../stores/auth'
+import { useApi } from '@/composables/useAPI'
 
+const { API_BASE } = useApi()
 const { t } = useI18n()
 const router = useRouter()
-
-const API_BASE = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:3000'
 const api = axios.create({ baseURL: API_BASE })
 
 const isLogin = ref(true)

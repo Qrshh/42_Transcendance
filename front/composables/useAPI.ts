@@ -1,4 +1,12 @@
-const API_BASE = 'http://localhost:3000'
+// Configuration dynamique de l'API basée sur l'hostname
+const currentHost = window.location.hostname
+
+// Utilise l'IP actuelle du navigateur si ce n'est pas localhost
+const API_BASE = currentHost !== 'localhost' && currentHost !== '127.0.0.1'
+  ? `http://${currentHost}:3000`
+  : 'http://localhost:3000'
+
+console.log('API_BASE détectée:', API_BASE) // Debug
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const r = await fetch(url, {

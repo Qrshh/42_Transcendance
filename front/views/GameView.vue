@@ -13,7 +13,7 @@
     <!-- Header de la page -->
     <div class="game-header">
       <div class="game-title">
-        <h1 class="title-text">🎮 MasterPong Arena</h1>
+        <h1 class="title-text"> Pong </h1>
         <p class="subtitle-text">Choisis ton mode de jeu et commence l'aventure !</p>
       </div>
       
@@ -128,16 +128,15 @@ import Lobby from '../components/game/lobby/Lobby.vue';
 import LocalGame from '../components/game/lobby/LocalGame.vue';
 import AIGame from '../components/game/lobby/AIGame.vue';
 import RemoteGame from '../components/game/lobby/RemoteGame.vue';
+import { useApi } from '@/composables/useAPI'
 
+const { API_BASE } = useApi()
 export default defineComponent({
   components: { Lobby, LocalGame, AIGame, RemoteGame },
   setup() {
     const mode   = ref<'lobby'|'local'|'ai'|'remote'>('lobby');
     const roomId = ref<string>('');
     const isSocketConnected = ref(false);
-
-    // ⚙️ URL backend
-    const API_BASE = 'http://localhost:3000';
 
     // 🔌 Socket client (websocket direct, reconnexion auto)
     const socket: Socket = io(API_BASE, {

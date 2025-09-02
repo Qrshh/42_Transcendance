@@ -256,10 +256,8 @@ const { t, onLangChange } = useI18n()
 
 import FriendList from '../social/FriendList.vue'
 import ChatBoxLite from '../../components/ChatBoxLite.vue'
-
-/* ================== Config ================== */
-const SOCKET_URL = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:3000'
-const API_BASE   = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:3000'
+import { useApi } from '@/composables/useAPI'
+const { API_BASE } = useApi()
 
 /* ================== Types ================== */
 interface Conversation {
@@ -283,7 +281,7 @@ interface Notification {
 /* ================== State ================== */
 const router = useRouter()
 const me = (localStorage.getItem('username') || '').trim()
-const socket: Socket = io(SOCKET_URL, { transports: ['websocket'] })
+const socket: Socket = io(API_BASE, { transports: ['websocket'] })
 if (me) socket.emit('identify', me);
 const activeTab = ref<'friends'|'messages'|'notifications'>('friends')
 

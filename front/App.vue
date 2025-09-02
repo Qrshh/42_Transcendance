@@ -6,12 +6,13 @@ import { io } from 'socket.io-client'
 /* ==== i18n & auth (comme ton code existant) ==== */
 import { useI18n } from './composables/useI18n'
 import { isLoggedIn } from './stores/auth'
-const { t, onLangChange } = useI18n()
+import { useApi } from '@/composables/useAPI'
 
+const { t, onLangChange } = useI18n()
+const { API_BASE } = useApi()
 /* ==== Router & Socket ==== */
 const router = useRouter()
 const socket = ref<ReturnType<typeof io> | null>(null)
-const API_BASE = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:3000'
 
 /* ==== Session (réactif !) ==== */
 const userName = ref((localStorage.getItem('username') || '').trim())
@@ -134,7 +135,7 @@ watch(userName, (n, o) => {
     <div class="header-content">
       <!-- Logo -->
       <div class="logo">
-        <h1 class="logo-text">🎮 MasterPong</h1>
+        <h1 class="logo-text"> Pong </h1>
       </div>
 
       <!-- Nav -->

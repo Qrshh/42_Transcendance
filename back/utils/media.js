@@ -13,7 +13,9 @@ function extFromMime(m) {
   }
 }
 function absoluteUrl(rel, req, origin, port) {
-  const base = origin || `http://localhost:${port || 3000}`;
+  const host = req.headers.host; // Ex: "10.12.8.3:3000" ou "localhost:3000"
+  const protocol = req.headers['x-forwarded-proto'] || 'http';
+  const base = origin || `${protocol}://${host}`;
   return rel.startsWith('http') ? rel : `${base}${rel}`;
 }
 

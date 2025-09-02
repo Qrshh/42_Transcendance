@@ -1,6 +1,8 @@
 // stores/auth.ts - Version fonctionnelle avec 2FA
 import { ref } from 'vue'
 import axios from 'axios'
+import { useApi } from '@/composables/useAPI'
+const { API_BASE } = useApi()
 
 // État de l'authentification
 export const isLoggedIn = ref(!!localStorage.getItem('username'))
@@ -20,7 +22,7 @@ export const tokens = ref<{
 } | null>(null)
 
 // Configuration axios
-axios.defaults.baseURL = 'http://localhost:3000'
+axios.defaults.baseURL = API_BASE
 
 // Fonction de connexion classique
 export function login(username: string, email: string, avatar: string, twoFactorEnabled?: boolean) {

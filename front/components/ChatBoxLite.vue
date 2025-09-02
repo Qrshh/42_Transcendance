@@ -133,7 +133,9 @@
 import { computed, onBeforeUnmount, onMounted, ref, nextTick, watch } from 'vue'
 import type { Socket } from 'socket.io-client'
 import { io as makeSocket } from 'socket.io-client'
+import { useApi } from '@/composables/useAPI'
 
+const { API_BASE } = useApi()
 /** ===== Props / Emits ===== **/
 const props = defineProps<{
   me?: string
@@ -147,9 +149,6 @@ const emit = defineEmits<{
   (e: 'challengeUser', username: string): void
   (e: 'viewProfile', username: string): void
 }>()
-
-/** ===== Config ===== **/
-const API = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:3000'
 
 /** ===== Derived ===== **/
 const meName   = computed(() => (props.me ?? localStorage.getItem('username') ?? '').trim())
@@ -178,15 +177,15 @@ const toast = ref<{show:boolean; msg:string; type:'success'|'error'|'info'; icon
 const peerAvatar = ref<string | null>(null)
 const meAvatar   = ref<string | null>(null)
 
-function toAbs(u?: string | null) { if (!u) return null; return u.startsWith('http') ? u : `${API}${u}` }
+function toAbs(u?: string | null) { if (!u) return null; return u.startsWith('http') ? u : `${API_BASE}${u}` }
 async function fetchAvatar(username: string) {
-  try { const r = await fetch(`${API}/user/${encodeURIComponent(username)}`); if (!r.ok) return null; const j = await r.json(); return toAbs(j?.avatar ?? null) }
+  try { const r = await fetch(`${API_BASE}/user/${encodeURIComponent(username)}`); if (!r.ok) return null; const j = await r.json(); return toAbs(j?.avatar ?? null) }
   catch { return null }
 }
 
 /** ===== Socket ===== **/
 const sock = ref<Socket|null>(null)
-function useSocket(): Socket { if (props.socket) return props.socket; return makeSocket(API, { transports: ['websocket'] }) }
+function useSocket(): Socket { if (props.socket) return props.socket; return makeSocket(API_BASE, { transports: ['websocket'] }) }
 
 /** ===== Utils ===== **/
 function getUserColor(username?: string) {
@@ -261,7 +260,7 @@ function send() {
 async function loadMessages() {
   if (!meName.value || !peerName.value) return
   try {
-    const r = await fetch(`${API}/chat/message/${encodeURIComponent(meName.value)}/${encodeURIComponent(peerName.value)}`)
+    const r = await fetch(`${API_BASE}/chat/message/${encodeURIComponent(meName.value)}/${encodeURIComponent(peerName.value)}`)
     const arr = r.ok ? await r.json() : []
     messages.value = (arr || []).map((m: any, i: number) => ({
       id: m.id || `srv-${i}-${m.timestamp || Date.now()}`,

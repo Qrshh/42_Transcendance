@@ -24,18 +24,20 @@
   import { useI18n } from '../composables/useI18n'
 const { t, setLang, onLangChange } = useI18n()
   import axios from 'axios'
-  
+  import { useApi } from '@/composables/useAPI'
+const { API_BASE } = useApi()
+
   const users = ref([])
   const newUsername = ref('')
   
   const fetchUsers = async () => {
-    const res = await axios.get('http://localhost:3000/users')
+    const res = await axios.get(`${API_BASE}/users`)
     users.value = res.data
   }
   
   const addUser = async () => {
     if (!newUsername.value) return
-    await axios.post('http://localhost:3000/users', {
+    await axios.post(`${API_BASE}/users`, {
       username: newUsername.value
     })
     newUsername.value = ''
