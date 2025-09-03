@@ -7,7 +7,7 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const BACK_TARGET = env.VITE_BACK_TARGET || 'http://localhost:3000'
+  const BACK_TARGET = env.VITE_BACK_TARGET || env.VITE_API_BASE || 'http://localhost:3000'
   const allowed = (env.VITE_ALLOWED_HOSTS || 'http://localhost:3000').split(',').map(s=>s.trim()).filter(Boolean)
 
   return {

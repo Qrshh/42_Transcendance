@@ -49,7 +49,7 @@ export default {
 	socialMsg: "Find your friends, chat and receive your notifications.",
 	remove: "Remove",
 	block: "Block",
-	infoaccount: "Informations du compte",
+	infoaccount: "Account information",
 	noFrdMsg: "No friends yet",
 	recentConv: "Recent conversations",
 	new: "New",

@@ -64,5 +64,5 @@ export default {
 	lookForFrnd: "Buscando un amigo…",
 	online: "Conectado",
 	offline: "Desconectado",
-	
+	infoaccount: "Información de la cuenta",
 }

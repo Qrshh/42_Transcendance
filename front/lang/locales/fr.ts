@@ -64,4 +64,5 @@ export default {
 	lookForFrnd: "Rechercher un ami…",
 	online: "En ligne",
 	offline: "Hors ligne",
+	infoaccount: "Informations du compte",
 }
