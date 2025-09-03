@@ -7,7 +7,8 @@ WORKDIR /app
 COPY package*.json ./
 
 # Installer les dependances backend
-RUN npm install fastify @fastify/cors sqlite3 axios @fastify/static @fastify/multipart prom-client qrcode jsonwebtoken speakeasy
+# Installer les dependances backend (explicites)
+RUN npm install fastify fastify-plugin @fastify/cors sqlite3 axios @fastify/static @fastify/multipart prom-client qrcode jsonwebtoken speakeasy dotenv socket.io
 
 # Copier le code source
 COPY . .

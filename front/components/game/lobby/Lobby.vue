@@ -47,7 +47,13 @@
               <span class="chip">🔍 Multijoueur</span>
               <span class="arrow">→</span>
             </button>
-
+            <button class="mode-card tone-indigo" @click="currentScreen = 'join-tourn-list'">
+              <div class="ic">🏆</div>
+              <h3 class="card-title">Rejoindre un tournoi</h3>
+              <p class="card-desc">Voir les tournois en attente.</p>
+              <span class="chip">🔎 Tournois</span>
+              <span class="arrow">→</span>
+            </button>
             <!-- Créer une partie -->
             <button class="mode-card tone-orange" @click="currentScreen = 'create-form'">
               <div class="ic">✨</div>
@@ -66,7 +72,6 @@
               <span class="arrow">→</span>
             </button>
           </div>
-
           <!-- Stats -->
           <div class="stats-grid">
             <div class="stat-card">
@@ -139,6 +144,33 @@
             @gameStarted="onGameStarted"
           />
         </section>
+         <!-- Rejoindre un tournoi (liste) -->
+        <section v-else-if="currentScreen === 'join-tourn-list'" key="join-tourn" class="section">
+          <div class="sub-header">
+            <button class="btn ghost" @click="currentScreen = 'main'">← Retour</button>
+            <h2 class="sub-title">🔎 Tournois ouverts</h2>
+          </div>
+          <JoinTournamentList
+            :socket="socket"
+            @back="currentScreen = 'main'"
+            @joined="onTournamentJoined"
+          />
+        </section>
+
+        <!-- Attente Tournoi -->
+        <section v-else-if="currentScreen === 'tourn-waiting'" key="t-wait" class="section">
+          <div class="sub-header">
+            <button class="btn ghost" @click="currentScreen = 'main'">← Lobby</button>
+            <h2 class="sub-title">⏳ En attente — {{ waitingTournName || 'Tournoi' }}</h2>
+          </div>
+          <TournamentWaitingScreen
+            v-if="waitingTournId"
+            :socket="socket"
+            :tournament-id="waitingTournId!"
+            @back="currentScreen = 'main'"
+            @startRemote="({ roomId, tournamentId }) => $emit('startRemote', { mode: 'remote', roomId, tournamentId })"
+          />
+        </section>
       </Transition>
     </main>
 
@@ -160,22 +192,25 @@ import type { Socket } from 'socket.io-client'
 import JoinGameList from './JoinGameList.vue'
 import CreateGameForm from './CreateGameForm.vue'
 import WaitingQueueScreen from './WaitingQueueScreen.vue'
-import CreateTournamentForm from './CreateTournamentForm.vue'
+import CreateTournamentForm from '../tournament/CreateTournamentForm.vue'
+import JoinTournamentList from '../tournament/JoinTournamentList.vue'
+import TournamentWaitingScreen from '../tournament/TournamentWaitingScreen.vue'
 
-type LobbyScreen = 'main' | 'join-list' | 'create-form' | 'create-tourn' | 'waiting-queue'
+type LobbyScreen = 'main' | 'join-list' | 'create-form' | 'create-tourn' | 'waiting-queue' | 'join-tourn-list' | 'tourn-waiting'
 
 export default defineComponent({
   name: 'Lobby',
-  components: { JoinGameList, CreateGameForm, WaitingQueueScreen, CreateTournamentForm },
+  components: { JoinGameList, CreateGameForm, WaitingQueueScreen, CreateTournamentForm, JoinTournamentList, TournamentWaitingScreen },
   props: {
     socket: { type: Object as () => Socket, required: true }
   },
-  emits: ['startLocal', 'startAI', 'startRemote'],
+  emits: ['startLocal', 'startAI', 'startRemote', 'startTournament'],
   setup(props, { emit }) {
     const currentScreen = ref<LobbyScreen>('main')
     const waitingGameId = ref<string | null>(null)
     const waitingGameName = ref<string | null>(null)
-
+    const waitingTournId = ref<string | null>(null)
+    const waitingTournName = ref<string | null>(null)
     const onlinePlayersCount = ref(0)
     const activeGamesCount = ref(0)
     const isConnected = ref(props.socket.connected)
@@ -221,16 +256,22 @@ export default defineComponent({
     }
 
     function onTournamentCreated(t: { id?: string; roomId?: string; name?: string }) {
-      const rid = (t && (t.roomId || t.id)) ? (t.roomId || t.id)! : null
-      if (rid) {
-        waitingGameId.value = rid
-        waitingGameName.value = t?.name || 'Tournoi'
-        currentScreen.value = 'waiting-queue'
+      const tid = (t && (t.roomId || t.id)) ? (t.roomId || t.id)! : null;
+      if (tid) {
+        // Lance le mode tournoi côté GameView
+        waitingTournId.value = tid
+        waitingTournName.value = t?.name || 'Tournoi'
+        currentScreen.value = 'tourn-waiting'
       } else {
-        currentScreen.value = 'main'
+        currentScreen.value = 'main';
       }
     }
 
+    function onTournamentJoined(p:{ id:string, name:string }) {
+        waitingTournId.value = p.id
+        waitingTournName.value = p.name
+        currentScreen.value = 'tourn-waiting'
+      }
     function onLeftQueue() {
       waitingGameId.value = null
       waitingGameName.value = null
@@ -244,7 +285,11 @@ export default defineComponent({
     return {
       currentScreen, waitingGameId, waitingGameName,
       onlinePlayersCount, activeGamesCount, isConnected,
-      onGameJoined, onGameCreated, onTournamentCreated, onLeftQueue, onGameStarted
+      onGameJoined, onGameCreated,
+  waitingTournId,
+  waitingTournName,
+  onTournamentCreated,
+  onTournamentJoined, onLeftQueue, onGameStarted
     }
   }
 })

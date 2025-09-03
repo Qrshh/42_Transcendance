@@ -1,3 +1,5 @@
+// Charge les variables d'environnement depuis .env
+try { require('dotenv').config(); } catch {}
 const Fastify = require('fastify');
 const fs = require('fs').promises;
 const { PORT, HOST, SERVER_ORIGIN, FRONT_ORIGINS, DIRS } = require('./config');

@@ -1,8 +1,7 @@
 // stores/auth.ts - Version fonctionnelle avec 2FA
 import { ref } from 'vue'
 import axios from 'axios'
-import { useApi } from '@/composables/useAPI'
-const { API_BASE } = useApi()
+import { API_BASE } from '../config'
 
 // État de l'authentification
 export const isLoggedIn = ref(!!localStorage.getItem('username'))

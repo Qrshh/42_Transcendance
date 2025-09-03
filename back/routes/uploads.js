@@ -7,13 +7,7 @@ const { extFromMime, absoluteUrl, AVATAR_DIR, BANNER_DIR } = require('../utils/m
 module.exports = fp(async function uploadsRoutes(fastify) {
   const { SERVER_ORIGIN, PORT } = fastify.config;
 
-  // setter direct
-  fastify.put('/user/avatar', async (req, reply) => {
-    const { username, avatar } = req.body || {};
-    if (!username || !avatar) return reply.code(400).send({ error: 'Données manquantes' });
-    await dbRun('UPDATE users SET avatar = ? WHERE username = ?', [avatar, username]);
-    reply.send({ message: 'Avatar mis à jour', avatar: absoluteUrl(avatar, req, SERVER_ORIGIN, PORT) });
-  });
+  // endpoint JSON direct retiré (préférez l'upload multipart ci‑dessous)
 
   fastify.post('/user/:username/avatar', async (req, reply) => {
     try {

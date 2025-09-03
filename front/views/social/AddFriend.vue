@@ -12,6 +12,7 @@ const newFriend = ref('')
 const sendRequest = async () => {
   if (!newFriend.value.trim()) return alert("Entrez un nom d'utilisateur")
   try {
+    import { API_BASE } from '../../config'
     await axios.post(`${API_BASE}/friends/request`, {
       from: username,
       to: newFriend.value.trim()

@@ -1,36 +1,8 @@
-import type { GameState } from '../ts/types'
-import { PADDLE_SPEED } from '../ts/constants'
+import type { GameState } from './types'
+import { PADDLE_SPEED } from './constants'
 
 /** Type pour identifier les joueurs selon leur paddle */
-export type PaddleId = 'p1' | 'p2';
-
-/** Typage pour l'état du jeux */
-export interface Ball {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  radius: number;
-}
-
-export interface Paddle {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  vy: number;
-}
-
-export interface Score {
-  player1: number;
-  player2: number;
-}
-
-export interface GameState {
-  ball: Ball;
-  paddles: Record<PaddleId, Paddle>;
-  score: Score;
-}
+export type PaddleId = 'p1' | 'p2'
 
 /**
 * computeAIMove
@@ -40,23 +12,23 @@ export interface GameState {
 * @param paddleId - 'p1' ou 'p2' : quelle raquette l’IA contrôle
 * @returns 'up' | 'down' | 'stop'
 */
-export function computeAIMove(
-  state: GameState,
-  paddleId: PaddleId
-): 'up' | 'down' | 'stop' {
-  const paddle = state.paddles[paddleId];
-  const ballY = state.ball.y;
-  const centerY = paddle.y + paddle.height / 2;
-  const deadZone = paddle.height * 0.1;
-
-  if (ballY < centerY - deadZone) {
-    return 'up';
-  } else if (ballY > centerY + deadZone) {
-    return 'down';
-  } else {
-    return 'stop';
-  }
-}
+//export function computeAIMove(
+//  state: GameState,
+//  paddleId: PaddleId
+//): 'up' | 'down' | 'stop' {
+//  const paddle = state.paddles[paddleId];
+//  const ballY = state.ball.y;
+//  const centerY = paddle.y + paddle.height / 2;
+//  const deadZone = paddle.height * 0.1;
+//
+//  if (ballY < centerY - deadZone) {
+//    return 'up';
+//  } else if (ballY > centerY + deadZone) {
+//    return 'down';
+//  } else {
+//    return 'stop';
+//  }
+//}
 
 /*
 * updateAIPaddle

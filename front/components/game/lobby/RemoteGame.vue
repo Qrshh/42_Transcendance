@@ -10,6 +10,14 @@
     </div>
     
     <div class="game-status">{{ getStatusText() }}</div>
+
+    <!-- Overlay compte à rebours au démarrage -->
+    <div v-if="countdownToStart > 0" class="start-overlay">
+      <div class="start-box">
+        <div class="label">Début dans</div>
+        <div class="big">{{ countdownToStart }}</div>
+      </div>
+    </div>
     
     <div class="instructions">
       <p>Utilisez W/S ou ↑/↓ pour bouger votre paddle</p>
@@ -45,10 +53,13 @@ const gameState = ref<GameState>({
   status: 'starting' as any,
   gameOver: false,
   winner: undefined,
-  // facultatif si présent dans ton type:
   // players: { p1: null as any, p2: null as any },
   // usernames: { p1: undefined as any, p2: undefined as any }
 })
+
+// Compte à rebours: alimente via 'matchCountdown' (tournoi) ou fallback local si status==='starting'
+const countdownToStart = ref<number>(0)
+let localCdTimer: number | null = null
 
 // --- mouvement depuis PongCanvas
 const handleMove = (_player: 'p1' | 'p2', direction: 'up' | 'down' | 'stop') => {
@@ -137,6 +148,18 @@ onMounted(() => {
       gameOver: newState.status === 'finished' || !!newState.gameOver,
       winner: newState.winner ?? gameState.value.winner
     }
+
+    // Fallback local: si statut 'starting' et pas de compte à rebours serveur, affiche 2s
+    if (newState.status === 'starting' && countdownToStart.value === 0) {
+      if (localCdTimer) { clearInterval(localCdTimer); localCdTimer = null }
+      countdownToStart.value = 2
+      localCdTimer = window.setInterval(() => {
+        countdownToStart.value -= 1
+        if (countdownToStart.value <= 0 && localCdTimer) {
+          clearInterval(localCdTimer); localCdTimer = null
+        }
+      }, 1000) as unknown as number
+    }
   }
   props.socket.on('gameState', onGameStateStream)
 
@@ -157,12 +180,21 @@ onMounted(() => {
   // lance le join (avec retry)
   tryJoin(me)
 
+  // Tournoi: écoute le compte à rebours serveur
+  const onMatchCountdown = (c: any) => {
+    if (!c || c.roomId !== props.roomId) return
+    countdownToStart.value = Number(c.count) || 0
+  }
+  props.socket.on('matchCountdown', onMatchCountdown)
+
   // cleanup
   onBeforeUnmount(() => {
     if (retryTimer) clearTimeout(retryTimer)
     props.socket.off('gameState', onGameStateStream)
     props.socket.off('gameEnded', onGameEnded)
     props.socket.off('challengeError') // au cas où
+    props.socket.off('matchCountdown', onMatchCountdown)
+    if (localCdTimer) { clearInterval(localCdTimer); localCdTimer = null }
   })
 })
 </script>
@@ -172,6 +204,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  position: relative;
   border: 1px solid white;
   background-color: #1a1a1a;
   border-radius: 8px;
@@ -186,4 +219,18 @@ onMounted(() => {
   color: white; border: none; border-radius: 4px; cursor: pointer;
 }
 .leave-btn:hover { background-color: #dc2626; }
+
+/* Overlay de départ */
+.start-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.45);
+  border-radius: 8px;
+}
+.start-box { text-align:center; padding: 12px 18px; border:1px solid var(--color-border, #333); background: rgba(0,0,0,0.65); border-radius: 10px; }
+.start-box .label { color:#d1d5db; font-size: .9rem; margin-bottom:.25rem }
+.start-box .big { font-size: 2.5rem; font-weight: 800; background: var(--gradient-primary); -webkit-background-clip:text; -webkit-text-fill-color:transparent }
 </style>

@@ -8,6 +8,10 @@ export interface Paddle {
   x: number; y: number;
   width: number; height: number;
   vy: number;
+  isDashing?:boolean;
+  dashCooldown?: number;
+  dashProgress?: number;
+  startX?: number;
 }
 
 export interface Score {

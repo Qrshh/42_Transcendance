@@ -2,7 +2,8 @@
 const sqlite3 = require('sqlite3').verbose();
 const { promisify } = require('util');
 
-const db = new sqlite3.Database('./data.db', err => {
+const DB_PATH = process.env.DB_PATH || './data.db'
+const db = new sqlite3.Database(DB_PATH, err => {
   if (err) console.error('DB error:', err.message);
   else console.log('✅ SQLite connecté');
 });

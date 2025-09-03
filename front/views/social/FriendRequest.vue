@@ -10,6 +10,7 @@ const requests = ref<{ fromUser: string }[]>([])
 
 const fetchRequests = async () => {
   try {
+    import { API_BASE } from '../../config'
     const res = await axios.get(`${API_BASE}/friends/requests/${username}`)
     requests.value = res.data
   } catch (e) {

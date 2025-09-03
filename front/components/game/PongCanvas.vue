@@ -29,9 +29,9 @@ const props = defineProps<{
 const canvasEl = ref<HTMLCanvasElement | null>(null)
 
 // Effet visuel quand la balle est près des bords
-const ballNearEdge = computed(() => {
-  return props.state.ball.x < 50 || props.state.ball.x > CANVAS_WIDTH - 50
-})
+//const ballNearEdge = computed(() => {
+//  return props.state.ball.x < 50 || props.state.ball.x > CANVAS_WIDTH - 50
+//})
 
 // Observer les changements de l'état du jeu et redessiner
 watch(() => props.state, (newState) => {
@@ -48,6 +48,8 @@ const handleKeyDown = (e: KeyboardEvent) => {
   if (e.key === 's' || e.key === 'S') props.onMove('p1', 'down')
   if (e.key === 'ArrowUp') props.onMove('p2', 'up')
   if (e.key === 'ArrowDown') props.onMove('p2', 'down')
+  if(e.code == 'Space') props.onMove('p1', 'dash')
+  if(e.code == 'Enter') props.onMove('p2', 'dash')
 }
 
 const handleKeyUp = (e: KeyboardEvent) => {
