@@ -9,9 +9,13 @@ function computeDynamicBase(): string {
   return `${scheme}://${host}:${backPort}`
 }
 
+const useSameOrigin = envBase === 'same-origin' || envBase === 'proxy'
 const shouldAuto = !envBase || envBase === 'auto' || /\bbackend\b/i.test(String(envBase))
-export const API_BASE: string = shouldAuto ? computeDynamicBase() : envBase!
-export const SOCKET_URL: string = API_BASE.replace(/^http/i, API_BASE.startsWith('https') ? 'wss' : 'ws')
+export const API_BASE: string = useSameOrigin
+  ? (window?.location?.origin || computeDynamicBase())
+  : (shouldAuto ? computeDynamicBase() : envBase!)
+export const SOCKET_URL: string = (window?.location?.origin || API_BASE)
+  .replace(/^http/i, (window?.location?.protocol === 'https:' || API_BASE.startsWith('https')) ? 'wss' : 'ws')
 
 // Debug utile en dev
 // eslint-disable-next-line no-console
