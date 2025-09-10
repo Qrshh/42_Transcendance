@@ -1,5 +1,29 @@
 <template>
   <div class="ai-game">
+
+
+    <!-- Popup au lancement -->
+    <div v-if="showSettingsPopup" class="popup-overlay">
+      <div class="popup-content">
+        <h3>⚙️ Options de la partie</h3>
+        <p>Souhaitez-vous activer la balle qui accélère ?</p>
+
+        <div class="popup-options">
+          <label>
+            <input type="radio" :value="true" v-model="acceleratingBall" />
+            Oui (balle accélérante)
+          </label>
+          <label>
+            <input type="radio" :value="false" v-model="acceleratingBall" />
+            Non (balle vitesse constante)
+          </label>
+        </div>
+
+        <button class="btn-start" @click="startGame">🚀 Commencer</button>
+      </div>
+    </div>
+
+
     <!-- Header du jeu IA -->
     <div class="game-header">
       <div class="game-mode-info">
@@ -131,10 +155,15 @@ const aiAccuracy = ref(75)
 const playerHits = ref(0)
 const aiDecisions = ref(0)
 
+const acceleratingBall = ref(false)
+
 // La boucle de jeu met à jour l'IA et la physique
 useGameLoop(() => {
+
+  if(gameState.status !== 'playing') return 
+
   updateAIPaddle(gameState)
-  updateGame(gameState)
+  updateGame(gameState, acceleratingBall.value)
   
   // Mettre à jour les statistiques
   aiDecisions.value++
@@ -192,6 +221,15 @@ const getResultMessage = () => {
   }
 }
 
+const showSettingsPopup = ref(true)
+
+const startGame = () => {
+  showSettingsPopup.value = false
+  resetGame()
+  gameState.status = 'playing'
+}
+
+
 // Redémarrer le jeu
 const resetGame = () => {
   gameState.score.player1 = 0
@@ -202,6 +240,7 @@ const resetGame = () => {
   gameState.ball.vy = Math.random() * 4 - 2
   playerHits.value = 0
   aiDecisions.value = 0
+  gameState.status = 'waiting'
 }
 </script>
 

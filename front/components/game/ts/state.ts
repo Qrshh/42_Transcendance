@@ -13,6 +13,8 @@ export function createInitialState(): GameState {
       p1: { x: 10, y: CANVAS_HEIGHT / 2 - PADDLE_HEIGHT / 2, width: PADDLE_WIDTH, height: PADDLE_HEIGHT, vy: 0 },
       p2: { x: CANVAS_WIDTH - PADDLE_WIDTH - 10, y: CANVAS_HEIGHT / 2 - PADDLE_HEIGHT / 2, width: PADDLE_WIDTH, height: PADDLE_HEIGHT, vy: 0 },
     },
-    score: { player1: 0, player2: 0 }
+    score: { player1: 0, player2: 0 },
+
+    status: 'waiting'
   })
 }

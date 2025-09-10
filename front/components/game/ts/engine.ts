@@ -126,6 +126,7 @@ export function updateGame(state: GameState, accelerating: boolean = true): void
     if(score.player2 >= 5){
       state.gameOver = true
       state.winner = 'player 2'
+      state.status = 'finished'
     } else {
       resetBall(ball)
     }
@@ -134,6 +135,7 @@ export function updateGame(state: GameState, accelerating: boolean = true): void
     if(score.player1 >= 5){
       state.gameOver = true
       state.winner = 'player 1'
+      state.status = 'finished'
     } else {
       resetBall(ball)
     }

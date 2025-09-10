@@ -30,4 +30,6 @@ export interface GameState {
 
   gameOver: boolean;
   winner: 'player 1' | 'player 2' | null;
+
+  status: 'waiting' | 'playing' | 'finished';
 }
