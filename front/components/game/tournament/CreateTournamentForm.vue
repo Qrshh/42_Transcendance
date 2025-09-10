@@ -58,6 +58,16 @@
         </Transition>
       </div>
 
+
+      <!-- Option balle accélérée -->
+      <div class="form-group">
+        <label class="form-checkbox">
+          <input type="checkbox" v-model="form.ballAcceleration" />
+          <span class="checkbox-mark"></span>
+          <span class="checkbox-text">⚡ Balle qui accélère</span>
+        </label>
+      </div>
+
       <!-- Configuration de la partie -->
       <div class="form-row">
         <div class="form-group half">
@@ -169,6 +179,7 @@ export default defineComponent({
       password: '',
       maxPlayers: 2,
       maxPoints: 10,
+      ballAcceleration: false,
     });
 
     const errorMessage = ref<string | null>(null);
@@ -197,6 +208,7 @@ export default defineComponent({
           password: form.value.hasPassword ? form.value.password : undefined,
           maxPlayers: form.value.maxPlayers,
           maxPoints: form.value.maxPoints,
+          ballAcceleration: form.value.ballAcceleration,
         };
 
         console.log("🎮 Création de partie:", tournamentData);

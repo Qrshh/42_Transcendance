@@ -231,6 +231,7 @@ function tournamentToPublic(t){
     maxPlayers: t.maxPlayers,
     maxPoints: t.maxPoints,
     durationMinutes: t.durationMinutes,
+    ballAcceleration: t.ballAcceleration || false,
     createdAt: t.createdAt,
     currentRoundIndex: t.currentRoundIndex,
     ranking: t.ranking ?? null,
@@ -269,7 +270,9 @@ function launchMatch(t, match){
     ball:{x:W/2,y:H/2,vx:4,vy:4,radius:8},
     paddles:{p1:{x:10,y:H/2-50,width:10,height:100,vy:0},p2:{x:W-20,y:H/2-50,width:10,height:100,vy:0}},
     players:{p1:null,p2:null}, score:{player1:0,player2:0}, status:'starting',
-    usernames:{p1:p1U,p2:p2U}
+    usernames:{p1:p1U,p2:p2U},
+
+    accelBall: t.ballAcceleration || false
   };
   const p1Sid= p1U && !match.p1.isBot ? pickSocket(p1U) : null;
   const p2Sid= p2U && !match.p2.isBot ? pickSocket(p2U) : null;
@@ -280,12 +283,14 @@ function launchMatch(t, match){
   const room={ gameState:gs, intervalId:null, durationTimer:null,
     playerSockets:{p1:p1Sid,p2:p2Sid}, playerUsernames:{p1:p1U,p2:p2U},
     maxPoints:Number(t.maxPoints)||10, durationMinutes:Number(t.durationMinutes)||null,
-    tournamentContext:{ tournamentId:t.id, matchId:match.id }
+    tournamentContext:{ tournamentId:t.id, matchId:match.id },
+
+    accelBall: t.ballAcceleration || false
   };
   activeGameRooms.set(roomId, room);
   if(!t.runningRooms) t.runningRooms=new Set(); t.runningRooms.add(roomId);
 
-  const startPayload = { tournamentId: t.id, roomId, roundIndex: match.roundIndex, matchIndex: match.index, p1: p1U, p2: p2U };
+  const startPayload = { tournamentId: t.id, roomId, roundIndex: match.roundIndex, matchIndex: match.index, p1: p1U, p2: p2U, ballAcceleration: t.ballAcceleration || false };
   io.to(`tournament:${t.id}`).emit('tournamentMatchStart', startPayload);
   // Cible aussi directement les deux joueurs pour éviter toute perte due aux rooms
   if (p1U && p1U !== 'BYE') fastify.emitToUser(p1U, 'tournamentMatchStart', startPayload);
@@ -438,9 +443,10 @@ io.on('connection', (socket) => {
       const maxPlayers=Number(data?.maxPlayers)||4;
       const maxPoints=Number(data?.maxPoints)||10;
       const durationMinutes=data?.durationMinutes?Number(data.durationMinutes):null;
+      const ballAcceleration = Boolean(data?.ballAcceleration);
       if(!allowedSizes.has(maxPlayers)) return socket.emit('tournamentError',{message:'Taille invalide (2/4/6/8).'});
       const id=`t-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
-      const t={ id,name,hostId, hostAlias: alias, host: alias, createdAt:Date.now(),status:'waiting',maxPlayers,maxPoints,durationMinutes,
+      const t={ id,name,hostId, hostAlias: alias, host: alias, createdAt:Date.now(),status:'waiting',maxPlayers,maxPoints,durationMinutes, ballAcceleration,
         participants:[{ username: hostId, display: alias }], bracket:null, currentRoundIndex:0, fillDeadline:Date.now()+TOURN_FILL_TIMEOUT_MS, runningRooms:new Set()};
       tournaments.set(id,t); socket.join(`tournament:${id}`);
       t.fillTimer=setTimeout(()=>{ if(t.status!=='waiting') return; fillWithBotsIfNeeded(t); startTournamentInternal(t); }, TOURN_FILL_TIMEOUT_MS);
