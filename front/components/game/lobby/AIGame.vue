@@ -241,7 +241,6 @@ const resetGame = () => {
   border-radius: 7px;
   padding: 0.5rem 1rem;
   color: var(--color-text);
-  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
 }
@@ -355,7 +354,6 @@ const resetGame = () => {
 }
 
 .perf-value {
-  font-weight: 600;
   color: var(--color-success);
 }
 

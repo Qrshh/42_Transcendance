@@ -310,7 +310,6 @@ export default defineComponent({
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-weight: 600;
   color: var(--color-text);
   font-size: 0.9rem;
 }
@@ -439,7 +438,6 @@ export default defineComponent({
   border: none;
   border-radius: 7px;
   font-size: 1rem;
-  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   flex: 1;
@@ -499,7 +497,6 @@ export default defineComponent({
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-weight: 600;
   color: var(--color-text);
   margin-bottom: 1rem;
   font-size: 0.9rem;
@@ -530,7 +527,6 @@ export default defineComponent({
 
 .preview-value {
   color: var(--color-text);
-  font-weight: 600;
 }
 
 /* Transitions */

@@ -51,10 +51,7 @@
         <!-- Jeu Local -->
         <div v-else-if="mode === 'local'" key="local" class="game-section play-section">
           <div class="game-wrapper">
-            <div class="game-header-mini">
-              <h2>🏠 Mode Local</h2>
-              <p>Joue contre un ami sur le même appareil</p>
-            </div>
+
             <div ref="gameContainerRef" class="game-container">
               <button class="fs-btn" @click="toggleFullscreen" :title="isFullscreen ? 'Quitter le plein écran' : 'Plein écran'">
                 <span v-if="!isFullscreen">⤢</span>

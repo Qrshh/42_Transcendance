@@ -14,9 +14,8 @@ const shouldAuto = !envBase || envBase === 'auto' || /\bbackend\b/i.test(String(
 export const API_BASE: string = useSameOrigin
   ? (window?.location?.origin || computeDynamicBase())
   : (shouldAuto ? computeDynamicBase() : envBase!)
-// Utiliser l'API_BASE (backend) pour la socket, pas l'origin front
-// http -> ws et https -> wss automatiquement
-export const SOCKET_URL: string = API_BASE.replace(/^http/i, 'ws')
+export const SOCKET_URL: string = (window?.location?.origin || API_BASE)
+  .replace(/^http/i, (window?.location?.protocol === 'https:' || API_BASE.startsWith('https')) ? 'wss' : 'ws')
 
 // Debug utile en dev
 // eslint-disable-next-line no-console

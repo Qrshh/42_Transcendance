@@ -308,7 +308,6 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   gap: .75rem;
-  font-weight: 600;
   color: var(--color-text);
   background: rgba(0,0,0,.2);
   border: 1px solid var(--color-border);
@@ -450,7 +449,6 @@ onMounted(() => {
   gap: .5rem;
   color: var(--color-text);
   opacity: .85;
-  font-weight: 600;
   font-size: .95rem;
 }
 .player-icon { font-size: 1.1rem; }
@@ -530,7 +528,7 @@ onMounted(() => {
 }
 .start-box { text-align:center; padding: 12px 18px; border:1px solid var(--color-border, #333); background: var(--color-overlay-bg); border-radius: 7px; }
 .start-box .label { color:#d1d5db; font-size: .9rem; margin-bottom:.25rem }
-.start-box .big { font-size: 2.5rem; font-weight: 800; background: var(--gradient-primary); -webkit-background-clip:text; -webkit-text-fill-color:transparent }
+.start-box .big { font-size: 2.5rem; font-weight: 800; background: var(--gradient-primary); -webkit-text-fill-color:transparent }
 
 /* Overlay (pause/fin) */
 .game-overlay {
@@ -616,7 +614,7 @@ onMounted(() => {
 /* Canvas container + overlays (comme LocalGame) */
 .start-box{ text-align:center; padding:12px 18px; border:1px solid var(--color-border,#333); background: var(--color-overlay-bg); border-radius:7px }
 .start-box .label{ color:#d1d5db; font-size:.9rem; margin-bottom:.25rem }
-.start-box .big{ font-size:2.5rem; font-weight:800; background: var(--gradient-primary); -webkit-background-clip:text; -webkit-text-fill-color:transparent }
+.start-box .big{ font-size:2.5rem; font-weight:800; background: var(--gradient-primary);  -webkit-text-fill-color:transparent }
 
 
 @media (max-width: 820px){

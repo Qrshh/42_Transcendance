@@ -58,8 +58,14 @@ module.exports = async function twofaPlugin (fastify, opts = {}) {
     console.warn('[twofa] ⚠️ utils.verifyPassword manquant : /auth/2fa/disable échouera.')
   }
 
-  // Migrations (non bloquantes)
-  await ensureTwoFaColumns({ dbRun })
+  // Migrations (non bloquantes): exécuter après l'init des plugins
+  fastify.addHook('onReady', async () => {
+    try {
+      await ensureTwoFaColumns({ dbRun })
+    } catch (e) {
+      console.log('ℹ️ [twofa] migration (onReady):', e && e.message)
+    }
+  })
 
   /* =======================
      ROUTES 2FA

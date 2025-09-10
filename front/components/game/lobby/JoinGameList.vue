@@ -533,7 +533,6 @@ export default defineComponent({
   border: none;
   padding: 0.75rem 2rem;
   border-radius: 7px;
-  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
 }
@@ -717,7 +716,6 @@ export default defineComponent({
   border: none;
   border-radius: 7px;
   padding: 0.75rem 1.5rem;
-  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   flex: 1;
@@ -751,7 +749,6 @@ export default defineComponent({
   background: var(--gradient-primary);
   color: white;
   font-size: 0.7rem;
-  font-weight: 600;
   padding: 0.25rem 0.75rem;
   border-radius: 7px;
   box-shadow: var(--shadow-sm);
@@ -779,7 +776,6 @@ export default defineComponent({
   border-radius: 7px;
   padding: 0.875rem 2rem;
   color: var(--color-text);
-  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
 }
@@ -898,7 +894,6 @@ export default defineComponent({
   border: none;
   border-radius: 7px;
   padding: 0.75rem 1.5rem;
-  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
 }

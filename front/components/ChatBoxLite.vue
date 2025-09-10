@@ -470,7 +470,7 @@ watch(() => props.receiver, async () => {
 }
 .toggle:hover{ background: rgba(255,255,255,.2) }
 .field{
-  flex:1; min-height:2.5rem; max-height:6rem; padding:.6rem .75rem; :10px;
+  flex:1; min-height:2.5rem; max-height:6rem; padding:.6rem .75rem;
   background: rgba(255,255,255,.08); border:2px solid rgba(255,255,255,.12); color:#fff;
 }
 .field:focus{ outline:none; border-color:#64b5f6; box-shadow:0 0 0 3px rgba(100,181,246,.2) }

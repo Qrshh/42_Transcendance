@@ -16,9 +16,9 @@ async function ensureDirs() {
 (async () => {
   await ensureDirs();
   // resetDevDb(() => runMigrations()); 
-  runMigrations();
+  await runMigrations();
 
-  const fastify = Fastify({ logger: false });
+  const fastify = Fastify({ logger: false, pluginTimeout: 20000 });
 
   // Expose config & db
   fastify.decorate('config', { PORT, HOST, SERVER_ORIGIN, FRONT_ORIGINS });
