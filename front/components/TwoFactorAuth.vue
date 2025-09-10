@@ -1,5 +1,5 @@
 <template>
-  <div class="twofa-card max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+  <div class="panel twofa-card">
     <!-- Header + statut -->
     <div class="twofa-header">
       <h2 class="twofa-title">Authentification à 2 facteurs</h2>
@@ -347,40 +347,39 @@ Sauvegardez ces codes dans un endroit sûr !`
 }
 .twofa-title{ font-size:1.25rem; font-weight:800; margin:0; }
 .twofa-badge{
-  padding:.25rem .6rem; font-size:.8rem; border-radius:999px; border:1px solid #e5e7eb;
-  background:#f9fafb; font-weight:700;
+  padding:.25rem .6rem; font-size:.8rem; border-radius:999px; border:1px solid var(--color-border);
+  background: var(--color-background-soft); font-weight:700;
 }
-.twofa-badge.on{ color:#2e7d32; background:rgba(76,175,80,.12); border-color:rgba(76,175,80,.35); }
-.twofa-badge.off{ color:#c62828; background:rgba(244,67,54,.12); border-color:rgba(244,67,54,.35); }
+.twofa-badge.on{ color: var(--color-success); background: var(--color-success-soft); border-color: var(--color-success); }
+.twofa-badge.off{ color: var(--color-danger); background: var(--color-danger-soft); border-color: var(--color-danger); }
 
 .twofa-help{ font-size:.95rem; opacity:.85; }
 .twofa-qr{ display:flex; justify-content:center; align-items:center; padding:1rem;
-  background:#f7f7fb; border:1px dashed #e5e7eb; border-radius:12px; margin: .5rem 0 1rem;
+  background: var(--color-background-soft); border:1px dashed var(--color-border); border-radius:7px; margin: .5rem 0 1rem;
 }
 .twofa-secret{
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-weight:700; letter-spacing:.08em; background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:.5rem .65rem;
+  font-weight:700; letter-spacing:.08em; background: var(--color-background); border:1px solid var(--color-border); border-radius:7px; padding:.5rem .65rem;
 }
 
-.twofa-code{ border:2px solid #e5e7eb; background:#fff; color:#111827; }
-.twofa-code:focus{ border-color:#7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,.15); }
+.twofa-code{ border:2px solid var(--color-border); background: var(--color-background); color: var(--color-text); }
+.twofa-code:focus{ border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(var(--color-background-rgb), .15); }
 
 .twofa-actions{
-  display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:.6rem; margin-top:1rem;
+  grid-template-columns: repeat(2, minmax(0,1fr)); gap:.6rem; margin-top:1rem;
 }
 @media (max-width: 640px){ .twofa-actions{ grid-template-columns: 1fr; } }
 
 .btn{ display:flex; align-items:center; justify-content:center; gap:.5rem; padding:.75rem 1rem;
-  border-radius:12px; font-weight:800; cursor:pointer; transition:.18s ease; border:0;
+  border-radius:7px; font-weight:800; cursor:pointer; transition:.18s ease; border:0;
 }
-.btn-primary{ background: linear-gradient(180deg,#7c4dff,#6c3cff); color:#fff; }
-.btn-secondary{ background:#fff; border:2px solid #e5e7eb; color:#111827; }
-.btn-danger{ background: linear-gradient(180deg,#ff4d4f,#e04040); color:#fff; }
+.btn-secondary{ background: var(--color-background); border:2px solid var(--color-border); color: var(--color-text); }
+.btn-danger{ background: linear-gradient(180deg, var(--color-danger), var(--color-danger-contrast)); color:#fff; }
 .btn:hover{ transform: translateY(-1px); box-shadow: 0 8px 18px rgba(0,0,0,.08); }
 .btn[disabled]{ opacity:.6; cursor:not-allowed; }
 .btn.block{ width:100%; }
 
 /* messages */
-.twofa-alert.success{ background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; }
-.twofa-alert.error{ background:#fef2f2; color:#991b1b; border:1px solid #fecaca; }
+.twofa-alert.success{ background: var(--color-success-soft); color: var(--color-success-contrast); border:1px solid var(--color-success); }
+.twofa-alert.error{ background: var(--color-danger-soft); color: var(--color-danger-contrast); border:1px solid var(--color-danger); }
 </style>

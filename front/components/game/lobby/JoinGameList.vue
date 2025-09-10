@@ -426,7 +426,7 @@ export default defineComponent({
   gap: 0.5rem;
   background: var(--color-background);
   border: 2px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: 7px;
   padding: 0.75rem 1.25rem;
   color: var(--color-text);
   cursor: pointer;
@@ -472,7 +472,7 @@ export default defineComponent({
   gap: 0.5rem;
   background: var(--color-background-soft);
   border: 1px solid var(--color-border);
-  border-radius: 15px;
+  border-radius: 7px;
   padding: 0.75rem 1.25rem;
   font-size: 0.9rem;
 }
@@ -532,7 +532,7 @@ export default defineComponent({
   color: white;
   border: none;
   padding: 0.75rem 2rem;
-  border-radius: 12px;
+  border-radius: 7px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -554,7 +554,7 @@ export default defineComponent({
 .game-card {
   background: var(--color-background-soft);
   border: 2px solid var(--color-border);
-  border-radius: 20px;
+  border-radius: 7px;
   padding: 1.5rem;
   transition: all 0.3s ease;
   position: relative;
@@ -571,7 +571,7 @@ export default defineComponent({
 }
 
 .game-card.card-password {
-  background: linear-gradient(135deg, var(--color-background-soft), rgba(255, 193, 7, 0.05));
+  background: linear-gradient(135deg, var(--color-background-soft), var(--color-warning-soft));
 }
 
 .game-card.card-full {
@@ -603,33 +603,33 @@ export default defineComponent({
 
 .password-icon {
   font-size: 1rem;
-  color: #FFC107;
+  color: var(--color-warning);
 }
 
 .game-status {
   font-size: 0.85rem;
   padding: 0.25rem 0.75rem;
-  border-radius: 12px;
+  border-radius: 7px;
   font-weight: 500;
   display: inline-block;
 }
 
 .status-waiting {
-  background: rgba(255, 193, 7, 0.1);
-  color: #FFC107;
-  border: 1px solid #FFC107;
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning);
 }
 
 .status-playing {
-  background: rgba(76, 175, 80, 0.1);
-  color: #4CAF50;
-  border: 1px solid #4CAF50;
+  background: var(--color-success-soft);
+  color: var(--color-success);
+  border: 1px solid var(--color-success);
 }
 
 .status-full {
-  background: rgba(244, 67, 54, 0.1);
-  color: #F44336;
-  border: 1px solid #F44336;
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
 }
 
 /* Indicateur de ping */
@@ -654,11 +654,11 @@ export default defineComponent({
   background: currentColor;
 }
 
-.ping-excellent { color: #4CAF50; }
-.ping-good { color: #8BC34A; }
-.ping-average { color: #FF9800; }
-.ping-poor { color: #F44336; }
-.ping-unknown { color: #9E9E9E; }
+.ping-excellent { color: var(--color-success); }
+.ping-good { color: var(--color-success); opacity:.85 }
+.ping-average { color: var(--color-warning); }
+.ping-poor { color: var(--color-danger); }
+.ping-unknown { color: var(--color-offline); }
 
 /* Détails de la carte */
 .card-details {
@@ -687,8 +687,8 @@ export default defineComponent({
 .players-bar {
   flex: 1;
   height: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
+  background: rgba(var(--color-background-rgb), 0.12);
+  border-radius: 7px;
   margin-left: auto;
   margin-right: 1rem;
   overflow: hidden;
@@ -715,7 +715,7 @@ export default defineComponent({
   background: var(--gradient-primary);
   color: white;
   border: none;
-  border-radius: 12px;
+  border-radius: 7px;
   padding: 0.75rem 1.5rem;
   font-weight: 600;
   cursor: pointer;
@@ -729,12 +729,12 @@ export default defineComponent({
 }
 
 .btn-join.btn-join-full {
-  background: #9E9E9E;
+  background: var(--color-offline);
   cursor: not-allowed;
 }
 
 .btn-join.btn-join-password {
-  background: linear-gradient(135deg, #FF9800, #F57C00);
+  background: linear-gradient(135deg, var(--color-warning), var(--color-warning-contrast));
 }
 
 .btn-join:disabled {
@@ -753,7 +753,7 @@ export default defineComponent({
   font-size: 0.7rem;
   font-weight: 600;
   padding: 0.25rem 0.75rem;
-  border-radius: 15px;
+  border-radius: 7px;
   box-shadow: var(--shadow-sm);
   animation: bounce 2s infinite;
 }
@@ -776,7 +776,7 @@ export default defineComponent({
   gap: 0.5rem;
   background: var(--color-background);
   border: 2px solid var(--color-border);
-  border-radius: 15px;
+  border-radius: 7px;
   padding: 0.875rem 2rem;
   color: var(--color-text);
   font-weight: 600;
@@ -808,7 +808,7 @@ export default defineComponent({
 .modal-content {
   background: var(--color-background);
   border: 2px solid var(--color-border);
-  border-radius: 20px;
+  border-radius: 7px;
   padding: 2rem;
   max-width: 400px;
   width: 100%;
@@ -857,7 +857,7 @@ export default defineComponent({
   width: 100%;
   background: var(--color-background-soft);
   border: 2px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: 7px;
   padding: 0.75rem 1rem;
   color: var(--color-text);
   font-size: 1rem;
@@ -878,7 +878,7 @@ export default defineComponent({
 .btn-cancel {
   background: var(--color-background-soft);
   border: 2px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: 7px;
   padding: 0.75rem 1.5rem;
   color: var(--color-text);
   cursor: pointer;
@@ -896,7 +896,7 @@ export default defineComponent({
   background: var(--gradient-primary);
   color: white;
   border: none;
-  border-radius: 12px;
+  border-radius: 7px;
   padding: 0.75rem 1.5rem;
   font-weight: 600;
   cursor: pointer;
@@ -921,7 +921,7 @@ export default defineComponent({
   border: 1px solid #F44336;
   color: #F44336;
   padding: 1rem 1.5rem;
-  border-radius: 15px;
+  border-radius: 7px;
   box-shadow: var(--shadow-lg);
   z-index: 1001;
   max-width: 500px;

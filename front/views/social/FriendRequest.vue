@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
+import { API_BASE } from '../../config'
+import { useGlobalToasts } from '../../composables/useGlobalToasts'
 
 const username = localStorage.getItem('username') || ''
 
 const requests = ref<{ fromUser: string }[]>([])
+const { showToast } = useGlobalToasts()
 
 const fetchRequests = async () => {
   try {
-    import { API_BASE } from '../../config'
     const res = await axios.get(`${API_BASE}/friends/requests/${username}`)
     requests.value = res.data
   } catch (e) {
@@ -24,9 +26,10 @@ const respondToRequest = async (fromUser: string, accept: boolean) => {
       accept
     })
     await fetchRequests() // rafraîchir la liste après réponse
-    alert(`Demande ${accept ? 'acceptée' : 'refusée'}`)
-  } catch (e) {
-    alert('Erreur lors de la réponse : ' + (e.response?.data?.error || e.message))
+    showToast(`Demande ${accept ? 'acceptée' : 'refusée'}`, 'success')
+  } catch (e: any) {
+    const msg = e?.response?.data?.error || e?.message || 'Erreur lors de la réponse'
+    showToast(msg, 'error')
   }
 }
 

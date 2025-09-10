@@ -1,15 +1,6 @@
 <template>
 <main class="flex">
-  <div class="computer-3d-section">
-     <Computer3D
-      :model-path="'/models/commodore.stl'"
-      :rotation-x="1.5708" 
-      :rotation-y="3.1416"  
-      :rotation-z="1.5708"
-      :position-y="0"
-      :scale="3.8"
-    />
-  </div>
+  <div class="computer-3d-section"></div>
 </main>
 </template>
 

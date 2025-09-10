@@ -1,25 +1,33 @@
 /* Palette de couleurs gaming/neon moderne */
+/* Font face: custom TTF in assets */
+@font-face {
+  font-family: 'OriginTech';
+  src: url('./OriginTech.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 :root {
   /* Couleurs primaires */
   --vt-c-white: #ffffff;
-  --vt-c-white-soft: #f8fafc;
-  --vt-c-white-mute: #f1f5f9;
+  --vt-c-white-soft: #3012318c;
+  --vt-c-white-mute: #bbd1fa8c;
 
-  --vt-c-black: #0f0f23;
-  --vt-c-black-soft: #1a1a2e;
+  --vt-c-black: #262626;
+  --vt-c-black-soft: #1e1e20;
   --vt-c-black-mute: #16213e;
 
   /* Couleurs accent gaming */
-  --vt-c-primary: #00d4ff;        /* Cyan électrique */
+  --vt-c-primary: #404040;        /* Cyan électrique */
   --vt-c-primary-dark: #0099cc;
   --vt-c-secondary: #ff6b6b;      /* Rouge corail */
   --vt-c-accent: #4ecdc4;         /* Turquoise */
   --vt-c-success: #00ff88;        /* Vert néon */
   --vt-c-warning: #ffeb3b;        /* Jaune électrique */
-  --vt-c-purple: #9c27b0;         /* Violet gaming */
+  --vt-c-purple: #fcfcfc;         /* Violet gaming */
   
   /* Gradients */
-  --gradient-primary: linear-gradient(135deg, var(--vt-c-primary) 0%, var(--vt-c-purple) 100%);
+  --gradient-primary: linear-gradient(135deg, var(--vt-c-white) 0%, var(--vt-c-purple) 100%);
   --gradient-gaming: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   --gradient-neon: linear-gradient(45deg, #ff006e, #00d4ff, #ff006e);
 
@@ -30,10 +38,10 @@
   --vt-c-divider-dark-2: rgba(100, 255, 218, 0.1);
 
   /* Textes */
-  --vt-c-text-light-1: #1e293b;
-  --vt-c-text-light-2: #64748b;
+  --vt-c-text-light-1: #ffffff;
+  --vt-c-text-light-2: #ffffff;
   --vt-c-text-dark-1: #f8fafc;
-  --vt-c-text-dark-2: rgba(248, 250, 252, 0.8);
+  --vt-c-text-dark-2: rgba(255, 255, 255, 0.8);
   
   /* Shadows et glows */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -58,8 +66,56 @@
   --color-secondary: var(--vt-c-secondary);
 
   --section-gap: 120px;
+
+  /* Sémantique globale (défaut light, surchargée par data-theme) */
+  --color-success: #16a34a;
+  --color-success-contrast: #0b3d1f;
+  --color-success-soft: rgba(22,163,74,.12);
+
+  --color-danger: #ef4444;
+  --color-danger-contrast: #7f1d1d;
+  --color-danger-soft: rgba(239,68,68,.12);
+
+  --color-warning: #f59e0b;
+  --color-warning-contrast: #7c4a00;
+  --color-warning-soft: rgba(245,158,11,.12);
+
+  --color-info: #3b82f6;
+  --color-info-contrast: #0b3a82;
+  --color-info-soft: rgba(59,130,246,.12);
+
+  --color-online: #10b981;
+  --color-offline: #9e9e9e;
+  --color-playing: #ff9800;
+
+  --color-overlay-bg: rgba(0,0,0,.55);
+
+  --color-brand: #4facfe;
+  --gradient-brand: linear-gradient(135deg,#4facfe,#00f2fe);
+
+  /* RGB utilitaires */
+  --color-background-rgb: 255,255,255;
+  --color-background-soft-rgb: 248,250,252;
+
+  /* Pong (canvas) */
+  --pong-bg: #0a0a0a;
+  --pong-ball: #ccccff;
+  --pong-paddle: #ffffff;
+  --pong-overlay: rgba(0,0,0,.7);
+
+  /* Panel (défaut = style clair) */
+  --panel-bg: var(--color-background-soft);
+  --panel-border: var(--color-border);
+  --panel-shadow: var(--shadow-md);
 }
 
+.panel{
+  background: var(--panel-bg, var(--color-background-soft));
+  border: 1px solid var(--panel-border, var(--color-border));
+  border-radius: 7px;
+  padding: 1.2em;
+  box-shadow: var(--panel-shadow, var(--shadow-md));
+}
 /* Mode sombre (gaming style) */
 @media (prefers-color-scheme: dark) {
   :root {
@@ -73,6 +129,51 @@
     --color-heading: var(--vt-c-text-dark-1);
     --color-text: var(--vt-c-text-dark-2);
   }
+}
+
+/* === Overrides explicites via data-theme (prend le dessus sur prefers-color-scheme) === */
+:root[data-theme='light'], [data-theme='light'] {
+  --color-background: var(--vt-c-white);
+  --color-background-soft: var(--vt-c-white-soft);
+  --color-background-mute: var(--vt-c-white-mute);
+
+  --color-border: var(--vt-c-divider-light-2);
+  --color-border-hover: var(--vt-c-divider-light-1);
+
+  --color-heading: var(--vt-c-text-light-1);
+  --color-text: var(--vt-c-text-light-1);
+
+  /* pour les backgrounds rgba() */
+  --color-background-rgb: #000000;
+  --color-background-soft-rgb: #4facfe;;
+
+  --color-overlay-bg: rgba(0,0,0,.45);
+
+  --panel-bg: var(--color-background-soft);
+  --panel-border: var(--color-border);
+  --panel-shadow: var(--shadow-md);
+}
+
+:root[data-theme='dark'], [data-theme='dark'] {
+  --color-background: var(--vt-c-black);
+  --color-background-soft: var(--vt-c-black-soft);
+  --color-background-mute: var(--vt-c-black-mute);
+
+  --color-border: var(--vt-c-divider-dark-2);
+  --color-border-hover: var(--vt-c-divider-dark-1);
+
+  --color-heading: var(--vt-c-text-dark-1);
+  --color-text: var(--vt-c-text-dark-2);
+
+  --color-background-rgb: 23,26,43;
+  --color-background-soft-rgb: 30,30,32;
+
+  --color-overlay-bg: rgba(0,0,0,.6);
+
+  /* Panel sombre: look demandé */
+  --panel-bg: rgba(55, 55, 55, 0.71);
+  --panel-border: rgba(255,255,255,.06);
+  --panel-shadow: 0 6px 24px rgba(0,0,0,.25) inset, 0 6px 18px rgba(0,0,0,.22);
 }
 
 *,
@@ -95,6 +196,7 @@ body {
     background-color 0.3s ease;
   line-height: 1.6;
   font-family:
+    'OriginTech',
     'Inter',
     'SF Pro Display',
     -apple-system,
@@ -107,3 +209,40 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Empêche le scroll/zoom gestuel sur la zone de jeu en mobile */
+.pong-fullscreen {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  touch-action: none; /* essentiel pour pointer/touch multi-touch */
+  background: #000;   /* letterboxing propre */
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+}
+
+.pong-canvas {
+  display: block;
+  /* Lissé, net, évite flou sur scale fractionnaire */
+  image-rendering: optimizeQuality;
+}
+
+/* Bouton flottant */
+.fs-btn {
+  position: absolute;
+  z-index: 20;
+  right: 12px;
+  top: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  font-weight: 600;
+  -webkit-backdrop-filter: saturate(120%) blur(8px);
+  backdrop-filter: saturate(120%) blur(8px);
+  user-select: none;
+}
+

@@ -7,7 +7,7 @@ export function createInitialState(): GameState {
     ball: {
       x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2,
       vx: INITIAL_BALL_SPEED, vy: INITIAL_BALL_SPEED,
-      radius: BALL_RADIUS
+      radius: BALL_RADIUS, lastCollisionTime: 0
     },
     paddles: {
       p1: { x: 10, y: CANVAS_HEIGHT / 2 - PADDLE_HEIGHT / 2, width: PADDLE_WIDTH, height: PADDLE_HEIGHT, vy: 0 },

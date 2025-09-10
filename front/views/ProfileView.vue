@@ -24,7 +24,7 @@
       </div>
 
       <!-- ⚠️ profile-info DOIT rester dans profile-header -->
-      <div class="profile-info">
+      <div class="profile-info panel">
         <div class="avatar-section">
           <div class="avatar-container">
             <div class="user-avatar" :style="{ background: getUserColor(user.username) }">
@@ -75,7 +75,7 @@
             <span class="btn-icon">📤</span>
             <span class="btn-text">{{ t.shareBtn }}</span>
           </button>
-          <button v-if="isSelf" @click="handleLogout" class="btn btn-secondary" style="background-color: #850606;">
+          <button v-if="isSelf" @click="handleLogout" class="btn btn-danger " style="background-color: var(--color-danger);">
               <span class="btn-icon">🚪</span>
               <span class="btn-text">{{ t.logoutBtn }}</span>
             </button>
@@ -84,7 +84,7 @@
     </div> <!-- /profile-header -->
 
     <!-- Navigation des onglets (masquée si profil privé et que ce n’est pas moi) -->
-    <div v-if="!user.isPrivate || isSelf" class="profile-tabs">
+    <div v-if="!user.isPrivate || isSelf" class="profile-tabs panel">
       <button
         v-for="tab in tabs"
         :key="tab.id"
@@ -99,11 +99,11 @@
     </div>
 
     <!-- Contenu des onglets (masqué si profil privé et que ce n’est pas moi) -->
-    <div v-if="!user.isPrivate || isSelf" class="profile-content">
+    <div v-if="!user.isPrivate || isSelf" class="panel">
       <!-- Onglet Statistiques -->
       <div v-if="activeTab === 'stats'" class="tab-content">
         <div class="stats-grid">
-          <div class="stat-card">
+          <div class="stat-card panel">
             <div class="stat-icon">🏆</div>
             <div class="stat-info">
               <h3 class="stat-number">{{ stats.gamesWon }}</h3>
@@ -111,7 +111,7 @@
             </div>
           </div>
 
-          <div class="stat-card">
+          <div class="stat-card panel">
             <div class="stat-icon">🎮</div>
             <div class="stat-info">
               <h3 class="stat-number">{{ stats.totalGames }}</h3>
@@ -119,7 +119,7 @@
             </div>
           </div>
 
-          <div class="stat-card">
+          <div class="stat-card panel">
             <div class="stat-icon">📊</div>
             <div class="stat-info">
               <h3 class="stat-number">{{ winRate }}%</h3>
@@ -127,7 +127,7 @@
             </div>
           </div>
 
-          <div class="stat-card">
+          <div class="stat-card panel">
             <div class="stat-icon">⭐</div>
             <div class="stat-info">
               <h3 class="stat-number">{{ stats.ranking }}</h3>
@@ -136,7 +136,7 @@
           </div>
         </div>
 
-        <div class="charts-section">
+        <div class="charts-section panel">
           <div class="chart-card">
             <h3 class="chart-title">{{ t.perfHistory }}</h3>
             <div class="performance-chart">
@@ -149,7 +149,7 @@
       <!-- Onglet Historique -->
       <div v-if="activeTab === 'history'" class="tab-content">
         <div class="game-history">
-          <div v-for="game in gameHistory" :key="game.id" class="history-item">
+          <div v-for="game in gameHistory" :key="game.id" class="history-item panel">
             <div class="game-result" :class="game.result">
               <span class="result-icon">{{ game.result === 'win' ? '🏆' : '💔' }}</span>
               <span class="result-text">{{ game.result === 'win' ? 'Victoire' : 'Défaite' }}</span>
@@ -172,7 +172,7 @@
       <div v-if="activeTab === 'friends'" class="tab-content">
         <div class="friends-section">
           <div class="friends-header">
-            <h3 class="section-title"> {{ t.myFriends }} ({{ friends.length }})</h3>
+            <h3 class="category-title"> {{ t.myFriends  }}  ({{ friends.length }})</h3>
             <button
               v-if="isSelf"
               class="btn btn-primary"
@@ -188,7 +188,7 @@
             <div
               v-for="friend in friends"
               :key="friend.id"
-              class="friend-card"
+              class="friend-card panel"
               @click="viewFriend(friend)"
             >
               <div class="friend-avatar" :style="{ background: getUserColor(friend.username) }">
@@ -303,7 +303,7 @@
                 <span class="btn-text"> {{ t.save }}</span>
               </button>
 
-              <button type="button" @click="resetSettings" class="btn btn-secondary">
+              <button type="button" @click="resetSettings" class="btn btn-danger ">
                 <span class="btn-icon">🔄</span>
                 <span class="btn-text"> {{ t.reset }}</span>
               </button>
@@ -311,12 +311,12 @@
           </form>
              <!-- NOUVELLE SECTION 2FA -->
               <!-- Titre de catégorie existant -->
-          <h3 class="category-title">🔒 {{ t.accountSecurity }}</h3>
-                  
-          <!-- ⚠️ NOUVEL agencement : 2 colonnes -->
-          <div class="security-section">
+              
+              <!-- ⚠️ NOUVEL agencement : 2 colonnes -->
+            <div class="">
+              <h3 class="category-title">🔒 {{ t.accountSecurity }}</h3>
             <!-- Carte 2FA -->
-            <div class="twofa-card">
+            <div class="">
               <TwoFactorAuth />
             </div>
           
@@ -338,7 +338,7 @@
     </div> <!-- /profile-content -->
 
     <!-- Vue restreinte (si profil privé et que ce n'est PAS moi) -->
-    <div v-else class="profile-content">
+    <div v-else class="panel">
       <div class="no-access text-center" style="padding:2rem">
         <div style="font-size:3rem; line-height:1">🔒</div>
         <h3 class="no-content-title" style="margin:.5rem 0">Profil privé</h3>
@@ -367,7 +367,7 @@
     <!-- ===== Modal Ajouter un ami ===== -->
     <transition name="fade">
       <div v-if="showAddFriend" class="af-overlay" @click.self="closeAddFriend">
-        <div class="af-modal" role="dialog" aria-modal="true" aria-labelledby="af-title">
+        <div class="af-modal panel" role="dialog" aria-modal="true" aria-labelledby="af-title">
           <div class="af-header">
             <h3 id="af-title"> {{ t.addFriend }}</h3>
             <button class="af-close" @click="closeAddFriend" aria-label="Fermer">✕</button>
@@ -419,6 +419,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { logout as authLogout } from '../stores/auth'
 import { useI18n } from '../composables/useI18n'
 const { t, onLangChange } = useI18n()
+import { useGlobalToasts } from '../composables/useGlobalToasts'
 // NOUVEAU IMPORT POUR LA 2FA
 import TwoFactorAuth from '../components/TwoFactorAuth.vue'
 import { useSocket } from './plugins/socket'
@@ -430,6 +431,7 @@ const route = useRoute()
 const router = useRouter()
 
 const socket = useSocket()
+const { showToast } = useGlobalToasts()
 
 /** ====== Types ====== **/
 interface User {
@@ -545,7 +547,7 @@ const deleteAccount = async () => {
     localStorage.clear()
      router.push('/')
   } catch (e: any) {
-    alert(e.message || 'Erreur lors de la suppression du compte')
+    showToast(e?.message || 'Erreur lors de la suppression du compte', 'error')
   }
 }
 
@@ -563,7 +565,7 @@ const winRate = computed(() => stats.value.totalGames === 0 ? 0 : Math.round((st
 
 /** ====== Utils ====== **/
 const getUserColor = (username: string) => {
-  if (!username || !username.length) return 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
+  if (!username || !username.length) return 'var(--gradient-brand)'
   const colors = [
     'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
@@ -589,7 +591,7 @@ const shareProfile = async () => {
   const url = window.location.href
   try {
     if (navigator.share) await navigator.share({ title, text: title, url })
-    else { await navigator.clipboard.writeText(url); alert('Lien copié !') }
+    else { await navigator.clipboard.writeText(url); showToast('Lien copié ✔', 'success') }
   } catch { /* noop */ }
 }
 
@@ -671,7 +673,8 @@ const removeFriend = async (friend: Friend) => {
     })
     if (!res.ok) { const txt = await res.text().catch(() => ''); throw new Error(txt || 'Erreur suppression ami') }
     friends.value = friends.value.filter(f => f.username !== friend.username)
-  } catch (e: any) { alert(e.message || 'Suppression impossible') }
+    showToast(`${friend.username} retiré`, 'success')
+  } catch (e: any) { showToast(e?.message || 'Suppression impossible', 'error') }
 }
 
 /** ====== Settings & Password ====== **/
@@ -718,8 +721,8 @@ const saveSettings = async (e?: Event) => {
       if (payload.email) user.value.email = payload.email
     }
     editMode.value.username = false; editMode.value.email = false
-    alert('Paramètres enregistrés ✔')
-  } catch (e: any) { alert(e?.message || 'Impossible d’enregistrer les paramètres') }
+    showToast('Paramètres enregistrés ✔', 'success')
+  } catch (e: any) { showToast(e?.message || 'Impossible d’enregistrer les paramètres', 'error') }
 }
 
 const resetSettings = () => {
@@ -765,8 +768,8 @@ const uploadBanner = async (evt: Event) => {
   if (!file) return
   const MAX_MB = 5
   const ALLOWED = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
-  if (!ALLOWED.includes(file.type)) { alert('Formats autorisés: PNG, JPEG, WEBP, GIF'); input.value = ''; return }
-  if (file.size > MAX_MB * 1024 * 1024) { alert(`Fichier trop lourd (max ${MAX_MB} Mo)`); input.value = ''; return }
+  if (!ALLOWED.includes(file.type)) { showToast('Formats autorisés: PNG, JPEG, WEBP, GIF', 'warning'); input.value = ''; return }
+  if (file.size > MAX_MB * 1024 * 1024) { showToast(`Fichier trop lourd (max ${MAX_MB} Mo)`, 'warning'); input.value = ''; return }
   try {
     isUploadingBanner.value = true
     const form = new FormData(); form.append('file', file)
@@ -774,7 +777,7 @@ const uploadBanner = async (evt: Event) => {
     const data = await res.json().catch(() => ({}))
     if (!res.ok || !data?.bannerUrl) throw new Error(data?.error || 'Upload bannière échoué')
     user.value.banner = data.bannerUrl
-  } catch (err: any) { alert(`Erreur upload bannière: ${err.message || err}`) }
+  } catch (err: any) { showToast(`Erreur upload bannière: ${err?.message || err}`, 'error') }
   finally { isUploadingBanner.value = false; input.value = '' }
 }
 
@@ -785,8 +788,8 @@ const uploadAvatar = async (evt: Event) => {
   if (!file) return
   const MAX_MB = 5
   const ALLOWED = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
-  if (!ALLOWED.includes(file.type)) { alert('Formats autorisés: PNG, JPEG, WEBP, GIF'); input.value = ''; return }
-  if (file.size > MAX_MB * 1024 * 1024) { alert(`Fichier trop lourd (max ${MAX_MB} Mo)`); input.value = ''; return }
+  if (!ALLOWED.includes(file.type)) { showToast('Formats autorisés: PNG, JPEG, WEBP, GIF', 'warning'); input.value = ''; return }
+  if (file.size > MAX_MB * 1024 * 1024) { showToast(`Fichier trop lourd (max ${MAX_MB} Mo)`, 'warning'); input.value = ''; return }
   try {
     isUploadingAvatar.value = true
     const form = new FormData(); form.append('file', file)
@@ -794,7 +797,7 @@ const uploadAvatar = async (evt: Event) => {
     const data = await res.json().catch(() => ({}))
     if (!res.ok || !data?.avatarUrl) throw new Error(data?.error || 'Upload avatar échoué')
     user.value.avatar = data.avatarUrl || null
-  } catch (err: any) { alert(`Erreur upload avatar: ${err.message || err}`) }
+  } catch (err: any) { showToast(`Erreur upload avatar: ${err?.message || err}`, 'error') }
   finally { isUploadingAvatar.value = false; input.value = '' }
 }
 
@@ -888,6 +891,8 @@ const editAvatar = () => triggerAvatarPicker()
 
 
 <style scoped>
+/* Corps/panel : surface plus sombre (contraste avec cartes) */
+
 .username { font-size: 2rem; font-weight: 700; color: var(--color-text); margin-top: 25px; line-height: 1.2; position: relative; display: inline-block; transition: color .3s }
 .username::after { content: ""; display: block; width: 0; height: 3px; background: var(--gradient-primary); transition: width .3s; position: absolute; bottom: -4px; left: 0; border-radius: 2px }
 .username:hover { color: var(--color-primary) }
@@ -895,10 +900,10 @@ const editAvatar = () => triggerAvatarPicker()
 @media (max-width: 768px){ .username{ font-size:1.5rem } }
 
 .profile-page { max-width: 1000px; margin: 0 auto; padding: 2rem }
-.profile-header { background: var(--color-background-soft); border-radius: 20px; overflow: hidden; margin-bottom: 2rem; box-shadow: var(--shadow-lg) }
+.profile-header {  overflow: hidden; margin-bottom: 2rem; box-shadow: var(--shadow-lg) }
 .profile-banner { height: 200px; position: relative; display: flex; align-items: center; justify-content: center }
 .banner-gradient { position: absolute; inset: 0; background: linear-gradient(45deg, rgba(255,255,255,.1) 0%, rgba(255,255,255,.05) 50%, rgba(0,0,0,.1) 100%) }
-.edit-banner-btn { position: absolute; top: 1rem; right: 1rem; display: flex; align-items: center; gap: .5rem; background: rgba(0,0,0,.3); color: #fff; border: 0; padding: .5rem 1rem; border-radius: 8px; cursor: pointer; transition: .3s }
+.edit-banner-btn { position: absolute; top: 1rem; right: 1rem; display: flex; align-items: center; gap: .5rem; background: rgba(0,0,0,.3); color: #fff; border: 0; padding: .5rem 1rem; border-radius: 7px; cursor: pointer; transition: .3s }
 .edit-banner-btn:hover { background: rgba(0,0,0,.5) }
 
 .profile-info { padding: 2rem; display: flex; justify-content: space-between; align-items: flex-start; margin-top: -50px }
@@ -912,31 +917,31 @@ const editAvatar = () => triggerAvatarPicker()
 .user-details h1 { font-size: 2rem; font-weight: 700; color: var(--color-text); margin-bottom: .5rem }
 .user-status { display: flex; align-items: center; gap: .5rem; font-weight: 500; margin-bottom: .5rem }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor }
-.status-online { color: #4CAF50 } .status-offline { color: #9E9E9E } .status-playing { color: #FF9800 }
+.status-online { color: var(--color-online) } .status-offline { color: var(--color-offline) } .status-playing { color: var(--color-playing) }
 .join-date { color: var(--color-text); opacity: .7; font-size: .9rem }
 .profile-actions { display: flex; gap: 1rem }
 
-.profile-tabs { display: flex; background: var(--color-background-soft); border-radius: 15px; padding: .5rem; margin-bottom: 2rem; gap: .5rem }
-.tab-btn { display: flex; align-items: center; gap: .5rem; background: none; border: none; padding: .75rem 1.5rem; border-radius: 10px; cursor: pointer; color: var(--color-text); opacity: .7; transition: .3s; font-weight: 500; flex: 1; justify-content: center }
+.profile-tabs { display: flex; border-radius: 7px; padding: .5rem; margin-bottom: 2rem; gap: .5rem }
+.tab-btn { display: flex; align-items: center; gap: .5rem; background: none; border: none; padding: .75rem 1.5rem; border-radius: 7px; cursor: pointer; color: var(--color-text); opacity: .7; transition: .3s; font-weight: 500; flex: 1; justify-content: center }
 .tab-btn:hover { opacity: 1 }
-.tab-btn.active { background: var(--gradient-primary); color: #fff; opacity: 1 }
-.tab-count { background: rgba(255,255,255,.3); color: #fff; font-size: .75rem; font-weight: 600; padding: .25rem .5rem; border-radius: 12px; min-width: 1.5rem; text-align: center }
+.tab-btn.active { background: white; color: #111; opacity: 1 }
+.tab-count { background: rgba(255,255,255,.3); color: #fff; font-size: .75rem; font-weight: 600; padding: .25rem .5rem; border-radius: 7px; min-width: 1.5rem; text-align: center }
 
-.profile-content { background: var(--color-background-soft); border-radius: 20px; padding: 2rem; box-shadow: var(--shadow-md) }
+.profile-content { background: var(--color-background-soft); border-radius: 7px; padding: 2rem; box-shadow: var(--shadow-md) }
 .tab-content { animation: fadeIn .3s ease }
 @keyframes fadeIn { from{ opacity:0; transform: translateY(10px) } to{ opacity:1; transform: translateY(0) } }
 
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem }
-.stat-card { background: var(--color-background); border: 2px solid var(--color-border); border-radius: 15px; padding: 1.5rem; display: flex; align-items: center; gap: 1rem; transition: .3s }
+.stat-card { border-radius: 7px; padding: 1.5rem; display: flex; align-items: center; gap: 1rem; transition: .3s }
 .stat-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-lg) }
 .stat-icon { font-size: 2.5rem }
-.stat-number { font-size: 2rem; font-weight: 700; color: var(--color-primary); margin-bottom: .25rem }
+.stat-number { font-size: 2rem; font-weight: 700; color: #4facfe; margin-bottom: .25rem }
 .stat-label { color: var(--color-text); opacity: .8; margin: 0; font-size: .9rem }
 
 .game-history { display: flex; flex-direction: column; gap: 1rem }
-.history-item { background: var(--color-background); border: 2px solid var(--color-border); border-radius: 15px; padding: 1.5rem; display: flex; align-items: center; gap: 1.5rem }
+.history-item {   border-radius: 7px; padding: 1.5rem; display: flex; align-items: center; gap: 1.5rem }
 .game-result { display: flex; align-items: center; gap: .5rem; font-weight: 600; min-width: 120px }
-.game-result.win { color: #4CAF50 } .game-result.loss { color: #f44336 }
+.game-result.win { color: var(--color-success) } .game-result.loss { color: var(--color-danger) }
 .game-details { flex: 1 }
 .opponent { font-size: 1.1rem; font-weight: 600; margin-bottom: .25rem }
 .game-score { color: var(--color-text); opacity: .8; margin-bottom: .25rem }
@@ -945,7 +950,7 @@ const editAvatar = () => triggerAvatarPicker()
 .friends-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem }
 .section-title { font-size: 1.5rem; font-weight: 700; color: var(--color-text) }
 .friends-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem }
-.friend-card { background: var(--color-background); border: 2px solid var(--color-border); border-radius: 15px; padding: 1.5rem; display: flex; align-items: center; gap: 1rem; transition: .2s; cursor: pointer }
+.friend-card {   border-radius: 7px; padding: 1.5rem; display: flex; align-items: center; gap: 1rem; transition: .2s; cursor: pointer }
 .friend-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md) }
 .friend-avatar { width: 3rem; height: 3rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #fff; overflow: hidden }
 .friend-avatar-img { width: 100%; height: 100%; object-fit: cover; display: block }
@@ -954,9 +959,9 @@ const editAvatar = () => triggerAvatarPicker()
 .friend-info { flex: 1 }
 .friend-name { font-weight: 600; margin-bottom: .25rem }
 .friend-actions { display: flex; gap: .5rem }
-.btn-icon-only { width: 2.5rem; height: 2.5rem; border: none; border-radius: 8px; background: var(--color-background-soft); color: var(--color-text); cursor: pointer; transition: .2s; font-size: 1rem }
+.btn-icon-only { width: 2.5rem; height: 2.5rem; border: none; border-radius: 7px; background: var(--color-background-soft); color: var(--color-text); cursor: pointer; transition: .2s; font-size: 1rem }
 .btn-icon-only:hover { background: var(--color-primary); color: #fff }
-.btn-icon-only.danger:hover { background: #f44336 }
+.btn-icon-only.danger:hover { background: var(--color-danger) }
 
 /* NOUVELLES CLASSES POUR LES CATÉGORIES DE PARAMÈTRES */
 .settings-category { margin-bottom: 3rem; padding-bottom: 2rem; border-bottom: 1px solid var(--color-border); }
@@ -974,7 +979,7 @@ const editAvatar = () => triggerAvatarPicker()
 .security-section{
   display:grid; grid-template-columns: 1.2fr .8fr;
   gap:1.25rem; padding:1.25rem;
-  border-radius:16px; border:1px solid var(--color-border);
+  border-radius:7px; border:1px solid var(--color-border);
   background: linear-gradient(180deg,
     rgba(var(--color-background-soft-rgb), .9) 0%,
     rgba(var(--color-background-rgb), .9) 100%);
@@ -986,9 +991,8 @@ const editAvatar = () => triggerAvatarPicker()
 /* Carte 2FA */
 .twofa-card{
   position:relative;
-  background: var(--color-background);
-  border:1px solid var(--color-border);
-  border-radius:14px; padding:1rem 1.25rem;
+  margin-bottom: 1.3rem;
+  border-radius:7px; padding:1rem 1.25rem;
   box-shadow: var(--shadow-sm);
   overflow:hidden;
 }
@@ -1008,7 +1012,7 @@ const editAvatar = () => triggerAvatarPicker()
 .danger-card{
   background: linear-gradient(180deg, rgba(244,67,54,.08), rgba(244,67,54,.04));
   border:1px solid rgba(244,67,54,.35);
-  border-radius:14px; padding:1rem 1.25rem;
+  border-radius:7px; padding:1rem 1.25rem;
   box-shadow: 0 8px 24px rgba(244,67,54,.12);
 }
 .danger-title{
@@ -1039,22 +1043,22 @@ const editAvatar = () => triggerAvatarPicker()
 .settings-form { display: flex; flex-direction: column; gap: 2rem; margin-bottom: 3rem }
 .setting-group { display: flex; align-items: center; gap: 1rem }
 .setting-label { font-weight: 600; color: var(--color-text); min-width: 120px }
-.setting-input, .setting-select { flex: 1; background: var(--color-background); border: 2px solid var(--color-border); border-radius: 10px; padding: .75rem 1rem; color: var(--color-text); font-size: 1rem }
+.setting-input, .setting-select { flex: 1;   border-radius: 7px; padding: .75rem 1rem; color: var(--color-text); font-size: 1rem }
 .setting-input:focus, .setting-select:focus { outline: none; border-color: var(--color-primary) }
 .setting-input:read-only { background: var(--color-background-soft); opacity: .7 }
-.edit-btn { background: var(--color-primary); color: #fff; border: none; padding: .5rem; border-radius: 8px; cursor: pointer; font-size: 1rem }
+.edit-btn { background: var(--color-primary); color: #fff; border: none; padding: .5rem; border-radius: 7px; cursor: pointer; font-size: 1rem }
 .setting-checkbox { display: flex; align-items: center; gap: 1rem; cursor: pointer; font-weight: 600 }
 .setting-checkbox input { display: none }
-.checkbox-custom { width: 1.5rem; height: 1.5rem; border: 2px solid var(--color-border); border-radius: 4px; position: relative; transition: .3s }
+.checkbox-custom { width: 1.5rem; height: 1.5rem; border: 2px solid var(--color-border); border-radius: 7px; position: relative; transition: .3s }
 .setting-checkbox input:checked + .checkbox-custom { background: var(--gradient-primary); border-color: var(--color-primary) }
 .setting-checkbox input:checked + .checkbox-custom::after { content: '✓'; position: absolute; color: #fff; font-weight: bold; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: .9rem }
 .settings-actions { display: flex; gap: 1rem }
 .danger-zone { border-top: 1px solid var(--color-border); padding-top: 2rem }
 .danger-title { color: #f44336; font-weight: 600; margin-bottom: 1rem }
 
-.btn { display: flex; align-items: center; gap: .5rem; padding: .75rem 1.5rem; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; transition: .2s }
-.btn-primary { background: var(--gradient-primary); color: #fff }
-.btn-secondary { background: var(--color-background); border: 2px solid var(--color-border); color: var(--color-text) }
+.btn { display: flex; align-items: center; gap: .5rem; padding: .75rem 1.5rem; border: none; border-radius: 7px; font-weight: 600; cursor: pointer; transition: .2s }
+.btn-primary { background: var(--gradient-primary); color: #000 }
+.btn-secondary {   color: var(--color-text) }
 .btn-danger { background: #f44336; color: #fff }
 .btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-md) }
 
@@ -1062,15 +1066,15 @@ const editAvatar = () => triggerAvatarPicker()
 .fade-enter-active, .fade-leave-active { transition: opacity .2s ease }
 .fade-enter-from, .fade-leave-to { opacity: 0 }
 .af-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: grid; place-items: center; z-index: 1000; border-radius: 3%}
-.af-modal { width: min(520px, calc(100% - 2rem)); background: var(--color-background); border: 1px solid var(--color-border); border-radius: 16px; box-shadow: var(--shadow-lg); overflow: hidden; animation: popIn .12s ease }
+.af-modal { width: min(520px, calc(100% - 2rem)); padding: 0; border-radius: 7px; box-shadow: var(--shadow-lg); overflow: hidden; animation: popIn .12s ease }
 @keyframes popIn { from { transform: scale(.98); opacity: .9 } to { transform: scale(1); opacity: 1 } }
-.af-header { display:flex; align-items:center; justify-content:space-between; padding: 1rem 1.2rem; background: var(--color-background-soft); border-bottom: 1px solid var(--color-border) }
+.af-header { opacity: 75%; display:flex; align-items:center; justify-content:space-between; padding: 1rem 1.2rem; background: var(--color-background-soft); border-bottom: 1px solid var(--color-border) }
 .af-header h3 { margin:0; font-size:1.1rem; font-weight:700; color:var(--color-text) }
 .af-close { color: white; border:0; background:transparent; cursor:pointer; font-size:1.1rem; opacity:.7 }
 .af-close:hover { opacity:1 }
 .af-body { padding: 1.2rem }
 .af-label { display:block; font-weight:600; margin-bottom:.5rem }
-.af-input { width:100%; padding:.8rem 1rem; border-radius:10px; border:2px solid var(--color-border); background: var(--color-background); color: var(--color-text); font-size:1rem }
+.af-input { width:100%; padding:.8rem 1rem; border-radius:7px; border:2px solid var(--color-border); background: var(--color-background); color: var(--color-text); font-size:1rem }
 .af-input:focus { outline:none; border-color: var(--color-primary) }
 .af-error { margin:.6rem 0 0; color:#ff4d4f; font-weight:600 }
 .af-actions { display:flex; gap:.6rem; justify-content:flex-end; margin-top:1rem }
@@ -1083,7 +1087,7 @@ const editAvatar = () => triggerAvatarPicker()
   .profile-tabs { flex-wrap: wrap }
   .stats-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) }
   .friends-grid { grid-template-columns: 1fr }
-  .setting-group { flex-direction: column; align-items: flex-start; gap: .5rem }
+  .setting-group { flex-direction: column; align-items: inherit; gap: .5rem }
   .setting-label { min-width: auto }
 }
 </style>

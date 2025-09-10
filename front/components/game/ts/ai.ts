@@ -1,5 +1,6 @@
 import type { GameState } from './types'
 import { PADDLE_SPEED } from './constants'
+import { timeStamp } from 'console';
 
 /** Type pour identifier les joueurs selon leur paddle */
 export type PaddleId = 'p1' | 'p2'

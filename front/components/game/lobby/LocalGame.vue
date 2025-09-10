@@ -37,7 +37,7 @@
           </div>
         </div>
       </div>
-
+      
       <!-- Score moderne -->
       <div class="score-board">
         <div class="player-score">
@@ -64,6 +64,14 @@
       <!-- Canvas de jeu -->
       <div class="game-canvas-container">
         <PongCanvas :state="gameState" :onMove="handlePlayerMove" />
+
+        <!-- Overlay compte à rebours (style Remote) -->
+        <div v-if="countdownToStart > 0" class="start-overlay">
+          <div class="start-box">
+            <div class="label">Début dans</div>
+            <div class="big">{{ countdownToStart }}</div>
+          </div>
+        </div>
         
         <!-- Overlay pour les messages de jeu -->
         <div v-if="gameState.status !== 'playing'" class="game-overlay">
@@ -104,7 +112,7 @@
 
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, computed, ref } from 'vue'
+import { onMounted, onBeforeUnmount, computed, ref, watch } from 'vue'
 import PongCanvas from '../PongCanvas.vue'
 import { createInitialState } from '../ts/state'
 import { updateGame } from '../ts/engine'
@@ -120,8 +128,10 @@ const dashPaddle = ref(false)
 
 // La boucle de jeu met à jour la physique
 useGameLoop(() => {
-  if(gameStarted.value)
-    updateGame(gameState, acceleratingBall.value)})
+  if (!gameStarted.value) return
+  if (countdownToStart.value > 0) return
+  updateGame(gameState, acceleratingBall.value)
+})
 
 // La fonction de mouvement utilise notre logique centralisée
 function handlePlayerMove(player: 'p1' | 'p2', direction: 'up' | 'down' | 'stop' | 'dash'): void {
@@ -147,7 +157,31 @@ const resetGame = () => {
   gameState.ball.y = 200
   gameState.ball.vx = Math.random() > 0.5 ? 5 : -5
   gameState.ball.vy = Math.random() * 4 - 2
+  startLocalCountdown(3)
 }
+
+// --- Countdown local (copie du principe Remote) ---
+const countdownToStart = ref<number>(0)
+let cdTimer: number | null = null
+function startLocalCountdown(sec = 3) {
+  if (cdTimer) { clearInterval(cdTimer); cdTimer = null }
+  countdownToStart.value = sec
+  cdTimer = window.setInterval(() => {
+    countdownToStart.value -= 1
+    if (countdownToStart.value <= 0 && cdTimer) { clearInterval(cdTimer); cdTimer = null }
+  }, 1000) as unknown as number
+}
+
+// Quand on lance la partie depuis le menu -> petit décompte
+onMounted(() => {
+  // en attente du clic "Lancer la partie" (gameStarted -> true)
+})
+onBeforeUnmount(() => { if (cdTimer) { clearInterval(cdTimer); cdTimer = null } })
+
+// Réagit uniquement à la transition false -> true
+watch(gameStarted, (to, from) => {
+  if (to && !from) startLocalCountdown(3)
+})
 </script>
 <style scoped>
 /* ====== Conteneur global ====== */
@@ -157,10 +191,10 @@ const resetGame = () => {
   gap: 1.6rem;
   background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
   border: 1px solid var(--color-border);
-  border-radius: 22px;
+  border-radius: 7px;
   padding: 1.6rem;
   box-shadow: 0 18px 50px rgba(0,0,0,.25);
-  max-width: 900px;
+  max-width: 1800px;
   margin: 0 auto;
 }
 
@@ -169,7 +203,7 @@ const resetGame = () => {
   color: var(--color-text);
   background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
   border: 1px solid var(--color-border);
-  border-radius: 18px;
+  border-radius: 7px;
   padding: 1.4rem;
   box-shadow: 0 12px 36px rgba(0,0,0,.25);
   max-width: 640px;
@@ -197,7 +231,7 @@ const resetGame = () => {
   color: var(--color-text);
   background: rgba(0,0,0,.2);
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: 7px;
   padding: .7rem 1rem;
 }
 
@@ -240,7 +274,7 @@ const resetGame = () => {
   width: 100%;
   margin-top: .25rem;
   border: 0;
-  border-radius: 12px;
+  border-radius: 7px;
   background: linear-gradient(180deg, #7c4dff, #5a3bff);
   color: #fff;
   font-weight: 800;
@@ -259,7 +293,7 @@ const resetGame = () => {
   padding: .9rem 1rem;
   background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
   border: 1px solid var(--color-border);
-  border-radius: 16px;
+  border-radius: 7px;
   box-shadow: 0 8px 24px rgba(0,0,0,.18);
 }
 
@@ -310,7 +344,7 @@ const resetGame = () => {
   gap: .75rem;
   background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
   border: 1px solid var(--color-border);
-  border-radius: 18px;
+  border-radius: 7px;
   padding: 1.2rem 1.4rem;
   box-shadow: 0 10px 30px rgba(0,0,0,.2);
 }
@@ -318,7 +352,7 @@ const resetGame = () => {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 18px;
+  border-radius: 7px;
   pointer-events: none;
   background: radial-gradient(400px 120px at 50% 50%, rgba(255,255,255,.06), transparent 60%);
 }
@@ -386,7 +420,7 @@ const resetGame = () => {
     radial-gradient(500px 160px at 50% 0%, rgba(255,255,255,.06), transparent 70%),
     linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
   border: 1px solid var(--color-border);
-  border-radius: 18px;
+  border-radius: 7px;
   padding: 1rem;
   box-shadow: inset 0 2px 10px rgba(0,0,0,.12);
   overflow: hidden;
@@ -402,15 +436,30 @@ const resetGame = () => {
   pointer-events: none;
 }
 
+/* Overlay de départ (countdown) */
+.start-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-overlay-bg);
+  border-radius: 7px;
+  z-index: 12;
+}
+.start-box { text-align:center; padding: 12px 18px; border:1px solid var(--color-border, #333); background: var(--color-overlay-bg); border-radius: 7px; }
+.start-box .label { color:#d1d5db; font-size: .9rem; margin-bottom:.25rem }
+.start-box .big { font-size: 2.5rem; font-weight: 800; background: var(--gradient-primary); -webkit-background-clip:text; -webkit-text-fill-color:transparent }
+
 /* Overlay (pause/fin) */
 .game-overlay {
   position: absolute;
   inset: 0;
   background: rgba(4, 6, 14, 0.66);
-  backdrop-filter: blur(2.5px);
+
   display: grid;
   place-items: center;
-  border-radius: 16px;
+  border-radius: 7px;
   z-index: 10;
 }
 .overlay-title {
@@ -431,7 +480,7 @@ const resetGame = () => {
   background: linear-gradient(180deg, #19c37d, #0ea86b);
   color: #0a1326;
   border: none;
-  border-radius: 12px;
+  border-radius: 7px;
   font-weight: 900;
   cursor: pointer;
   transition: transform .15s ease, box-shadow .2s ease;
@@ -449,7 +498,7 @@ const resetGame = () => {
   padding: .65rem .9rem;
   background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: 7px;
   font-size: .95rem;
 }
 .instruction-icon { font-size: 1.05rem; }

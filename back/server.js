@@ -38,6 +38,7 @@ async function ensureDirs() {
   await fastify.register(require('./routes/friends'));
   await fastify.register(require('./routes/stats'));
   await fastify.register(require('./routes/games'));
+  await fastify.register(require('./routes/authGoogle'))
 
   // 2FA
   const { authenticateHybrid, generate2FASecret, verify2FAToken, generateBackupCodes } = require('./utils/auth')

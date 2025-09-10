@@ -1,10 +1,13 @@
 @import './base.css';
 
 #app {
-  max-width: 1400px;
+  max-width: 1800px;
   margin: 0 auto;
-  padding: 2rem;
+
   font-weight: normal;
+  position: relative; /* pour que le background 3D (z-index:0) reste derrière */
+  z-index: 1;
+  isolation: isolate; /* empêche les effets de mix-blend en arrière-plan d'affecter l'UI */
 }
 
 /* Liens et éléments interactifs */
@@ -13,10 +16,11 @@ a {
   color: var(--color-primary);
   transition: all 0.3s ease;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: 7px;
   position: relative;
   font-weight: 500;
 }
+
 
 a::after {
   content: '';
@@ -34,8 +38,8 @@ a::after {
 @media (hover: hover) {
   a:hover {
     color: var(--vt-c-white);
-    background: var(--gradient-primary);
-    box-shadow: var(--glow-primary);
+    /*background: var(--gradient-primary);
+    box-shadow: var(--glow-primary);*/
     transform: translateY(-2px);
   }
   
@@ -54,7 +58,7 @@ a::after {
 .btn {
   padding: 12px 24px;
   border: none;
-  border-radius: 12px;
+  border-radius: 7px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -63,8 +67,8 @@ a::after {
 }
 
 .btn-primary {
-  background: var(--gradient-primary);
-  color: white;
+  background: white;
+  color: #000;
   box-shadow: var(--shadow-md);
 }
 
@@ -88,7 +92,7 @@ a::after {
 .card {
   background: var(--color-background-soft);
   border: 1px solid var(--color-border);
-  border-radius: 16px;
+  
   padding: 24px;
   box-shadow: var(--shadow-md);
   transition: all 0.3s ease;
@@ -104,7 +108,7 @@ a::after {
 .input {
   padding: 12px 16px;
   border: 2px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: 7px;
   background: var(--color-background-soft);
   color: var(--color-text);
   font-size: 16px;
@@ -129,7 +133,7 @@ header {
 
 @media (prefers-color-scheme: dark) {
   header {
-    background: rgba(15, 15, 35, 0.9);
+    background: #3131318f;
     border-bottom-color: var(--color-border);
   }
 }
@@ -150,7 +154,7 @@ header {
 
   #app {
     width: 100%;
-    max-width: 1400px;
+    max-width: 1800px;
   }
 }
 
@@ -185,3 +189,40 @@ header {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--vt-c-primary-dark);
 }
+
+/* Cacher l'UI de jeu en plein écran (mobile FS natif/fallback) */
+.game-fs-on .game-overlay,
+.game-fs-on .start-overlay,
+.game-fs-on .ai-performance,
+.game-fs-on .game-footer,
+.game-fs-on .game-header,
+.game-fs-on .score-board,
+.game-fs-on .game-instructions,
+.game-fs-on .instructions{
+  display: none !important;
+}
+.game-fs-on .game-header-mini{ display:none !important }
+.game-fs-on .game-container{ background: transparent !important; border: none !important; padding: 0 !important; box-shadow: none !important; }
+.game-fs-on .ai-game,
+.game-fs-on .local-game,
+.game-fs-on .remote-game-container{ background: transparent !important; border: none !important; padding: 0 !important; box-shadow: none !important; }
+.game-fs-on .game-canvas-container{ background: transparent !important; border: none !important; padding: 0 !important; box-shadow: none !important; }
+.game-fs-on .game-canvas-container::before{ display:none !important }
+.game-fs-on .pong-canvas{ border: none !important }
+.game-fs-on .mobile-ctrls{ display:none !important }
+/* Masquer le fond animé de GameView en plein écran */
+.game-fs-on .game-background,
+.game-fs-on .floating-shapes,
+.game-fs-on .shape{ display:none !important }
+/* Masquer la scène 3D (Computer3D en arrière-plan) en plein écran */
+.game-fs-on .three-bg{ display:none !important }
+
+/* Cacher header global en plein écran */
+.game-fs-on header{ display:none !important }
+
+/* RemoteGame éléments supplémentaires */
+.game-fs-on .remote-game-container .score,
+.game-fs-on .remote-game-container .game-status,
+.game-fs-on .remote-game-container .instructions,
+.game-fs-on .remote-game-container .leave-btn{ display:none !important }
+

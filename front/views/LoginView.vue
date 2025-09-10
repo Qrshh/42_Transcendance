@@ -43,6 +43,9 @@
         {{ loading ? 'Chargement...' : (isLogin ? t.loginBtn : t.registerBtn) }}
       </button>
 
+      <!-- ⚡️ Google Login -->
+      <div ref="googleBtn" class="mt-3 flex justify-center"></div>
+
       <button
         @click="toggleMode"
         class="btn-link"
@@ -94,7 +97,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useI18n } from '../composables/useI18n'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
@@ -115,6 +118,76 @@ const message = ref<string | null>(null)
 const loading = ref(false)
 const requiresTwoFactor = ref(false)
 
+// ⚡️ Ref pour bouton Google
+const googleBtn = ref<HTMLDivElement | null>(null)
+const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string
+
+// ⚡️ Charger le SDK Google et initialiser le bouton
+onMounted(() => {
+  if (!document.getElementById('google-oauth')) {
+    const script = document.createElement('script')
+    script.src = 'https://accounts.google.com/gsi/client'
+    script.async = true
+    script.defer = true
+    script.id = 'google-oauth'
+    document.head.appendChild(script)
+
+    script.onload = () => initGoogle()
+  } else {
+    initGoogle()
+  }
+})
+
+function initGoogle() {
+  if (!window.google || !googleBtn.value) return
+
+  console.log('=== DEBUG COMPLET ===');
+  console.log('Google object:', window.google);
+  console.log('Client ID utilisé:', clientId);
+  console.log('URL actuelle:', window.location.href);
+  console.log('Origin:', window.location.origin);
+
+  // Test avec le client ID public de Google
+  const TEST_CLIENT_ID = "764086051850-6qr4p6gpi6hn506pt8ejuq83di341hur.apps.googleusercontent.com";
+  console.log('Test avec client ID public...');
+
+  // AJOUTEZ CECI - L'initialisation manquait !
+  window.google.accounts.id.initialize({
+    client_id: clientId, // Votre vrai client ID
+    callback: handleGoogleResponse,
+  });
+
+  // Test avec le client ID public (commentez votre vrai client ID au-dessus et décommentez ci-dessous pour tester)
+  /*
+  window.google.accounts.id.initialize({
+    client_id: TEST_CLIENT_ID,
+    callback: (response) => {
+      console.log('✅ Le client ID de test fonctionne !');
+      alert('Le SDK Google fonctionne. Problème = votre configuration.');
+    },
+  });
+  */
+
+  window.google.accounts.id.renderButton(googleBtn.value, {
+    theme: 'outline',
+    size: 'large',
+    width: 250,
+  })
+}
+
+async function handleGoogleResponse(response: any) {
+  try {
+    // Envoi du token Google au backend
+    const { data } = await api.post('/auth/google', { token: response.credential })
+    persistTokens(data.tokens)
+    persistProfile(data.user)
+    window.dispatchEvent(new Event('auth-changed'))
+    router.push('/')
+  } catch (err: any) {
+    error.value = err?.response?.data?.message || 'Erreur OAuth Google'
+  }
+}
+
 // Toggle form
 const toggleMode = () => {
   isLogin.value = !isLogin.value
@@ -124,7 +197,7 @@ const toggleMode = () => {
   twoFactorCode.value = ''
 }
 
-// Format 2FA (6 chiffres) ou code de récup (8 hexa)
+// Format 2FA
 const formatTwoFactorCodeFlexible = () => {
   twoFactorCode.value = twoFactorCode.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8)
 }
@@ -143,7 +216,7 @@ function persistProfile(user: any) {
   setSession(user.username, user.email, user.avatar, user.twoFactorEnabled)
 }
 
-// Actions
+// Actions login/register classiques
 const handleLogin = async () => {
   error.value = null
   loading.value = true
@@ -180,6 +253,7 @@ const handleRegister = async () => {
 }
 const goBack = () => { requiresTwoFactor.value = false; twoFactorCode.value = ''; error.value = null }
 </script>
+
 
 <style scoped>
 /* ===== Variables & base ===== */
@@ -231,7 +305,7 @@ const goBack = () => { requiresTwoFactor.value = false; twoFactorCode.value = ''
   background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.05));
   backdrop-filter: blur(10px);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 7px;
   box-shadow: 0 20px 60px rgba(0,0,0,.35);
   padding: 1.2rem;
   display: flex;
@@ -251,7 +325,7 @@ const goBack = () => { requiresTwoFactor.value = false; twoFactorCode.value = ''
   border: 2px solid var(--border);
   background: rgba(10, 12, 28, .35);
   color: var(--text);
-  border-radius: 12px;
+  border-radius: 7px;
   padding: .75rem .9rem;
   font-size: 1rem;
   transition: .18s ease;
@@ -277,7 +351,7 @@ const goBack = () => { requiresTwoFactor.value = false; twoFactorCode.value = ''
   justify-content: center;
   gap: .5rem;
   border: 0;
-  border-radius: 12px;
+  border-radius: 7px;
   font-weight: 800;
   cursor: pointer;
   padding: .8rem 1rem;
@@ -286,7 +360,7 @@ const goBack = () => { requiresTwoFactor.value = false; twoFactorCode.value = ''
 .btn:disabled{ opacity: .6; cursor: not-allowed; }
 .btn-primary{
   background: linear-gradient(180deg, var(--acc1), #5a3bff);
-  color: #fff;
+  color: #000;
   box-shadow: 0 12px 26px rgba(95, 69, 255, .35);
 }
 .btn-primary:hover{ transform: translateY(-1px); box-shadow: 0 20px 34px rgba(95, 69, 255, .4); }
@@ -316,7 +390,7 @@ const goBack = () => { requiresTwoFactor.value = false; twoFactorCode.value = ''
 .alert{
   margin-top: 1rem;
   padding: .8rem 1rem;
-  border-radius: 12px;
+  border-radius: 7px;
   border: 1px solid var(--border);
   font-weight: 700;
   max-width: 640px;

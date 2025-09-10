@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { useRouter, RouterLink, RouterView } from 'vue-router'
+import { useRouter, useRoute, RouterLink, RouterView } from 'vue-router'
 import { io } from 'socket.io-client'
 import { API_BASE } from './config'
+import Computer3D from './components/3d/Computer3D.vue'
 
 /* ==== i18n & auth (comme ton code existant) ==== */
 import { useI18n } from './composables/useI18n'
 import { isLoggedIn } from './stores/auth'
 const { t, onLangChange } = useI18n()
+import { useGlobalToasts } from './composables/useGlobalToasts'
 
 /* ==== Router & Socket ==== */
 const router = useRouter()
+const route = useRoute()
 const socket = ref<ReturnType<typeof io> | null>(null)
 // URL backend centralisée
 
@@ -19,6 +22,9 @@ const userName = ref((localStorage.getItem('username') || '').trim())
 // Si ton store `isLoggedIn` est bien réactif, garde-le.
 // Sinon, tu peux simplifier en: const logged = computed(() => !!userName.value)
 const logged = computed(() => !!isLoggedIn && !!userName.value)
+
+/* ==== Global toasts ==== */
+const { toasts, removeToast, addToast } = useGlobalToasts()
 
 /* Garder le header synchro avec localStorage (login/logout depuis n'importe où) */
 function refreshAuthFromStorage() {
@@ -50,15 +56,100 @@ const userGradient = computed(() => {
 const userInitial = computed(() => (userName.value?.[0] || 'U').toUpperCase())
 
 function toggleMenu() { showUserMenu.value = !showUserMenu.value }
-function closeMenuOnOutside(e: MouseEvent) {
-  if (!(e.target as Element)?.closest('.userbox')) showUserMenu.value = false
+// --- Fullscreen flags (natif OU simulé .fs-root.fs-sim) ---
+function isFullscreenActive() {
+  const d: any = document
+  return !!(
+    d.fullscreenElement || d.webkitFullscreenElement ||
+    document.querySelector('.fs-root.fs-sim') ||
+    document.querySelector('.game-container.fs-sim')
+  )
 }
+function onFsFlagChange() {
+  document.documentElement.classList.toggle('fs-active', isFullscreenActive())
+}
+
+// --- remplace TA version de closeMenuOnOutside par celle-ci ---
+function closeMenuOnOutside(e: MouseEvent) {
+  // Ne ferme pas le menu / ne fait rien quand le jeu est en plein écran
+  if (isFullscreenActive()) return
+  const target = e.target as Element | null
+  if (!target?.closest('.userbox')) showUserMenu.value = false
+}
+
 function onAvatarKeydown(e: KeyboardEvent) {
   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleMenu() }
   if (e.key === 'Escape') showUserMenu.value = false
 }
 
+/* ==== Thème clair/sombre ==== */
+const theme = ref<'light' | 'dark'>(
+  (localStorage.getItem('theme') as 'light'|'dark'|null) ||
+  (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+)
+function applyTheme(t: 'light'|'dark') {
+  theme.value = t
+  document.documentElement.setAttribute('data-theme', t)
+  try { localStorage.setItem('theme', t) } catch {}
+}
+function toggleTheme(){ applyTheme(theme.value === 'dark' ? 'light' : 'dark') }
+
+// Teinte de l’overlay 3D selon le thème
+const overlayTintColor = computed(() => theme.value === 'dark' ? '#111111' : '#ffffff')
+
+// Afficher/désactiver la 3D de fond selon la route
+const showBg3D = computed(() => route.name !== 'game')
+
 /* ==== Helpers ==== */
+function truncate(text: string, max = 90) {
+  const s = String(text || '')
+  return s.length > max ? s.slice(0, max - 1) + '…' : s
+}
+function openChatFromToast(username: string) {
+  if (!username) return
+  try { localStorage.setItem('social_open_chat_with', username) } catch {}
+  router.push('/social').then(() => {
+    // Déclenche un événement pour SocialView (au cas où elle est déjà montée)
+    setTimeout(() => {
+      try { window.dispatchEvent(new CustomEvent('openChat', { detail: { username } })) } catch {}
+    }, 50)
+  })
+}
+
+/* ==== Actions notifs ==== */
+async function acceptFriendRequest(fromUser: string) {
+  try {
+    const me = (userName.value || localStorage.getItem('username') || '').trim()
+    if (!me || !fromUser) return
+    await fetch(`${API_BASE}/friends/respond`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: fromUser, to: me, accept: true })
+    })
+    addToast({ title: 'Ami ajouté', message: `${fromUser} est maintenant dans vos amis ✔`, type: 'success', icon: '✅' })
+  } catch (e: any) {
+    addToast({ title: 'Erreur', message: e?.message || 'Impossible d’accepter la demande', type: 'error', icon: '❌' })
+  }
+}
+function acceptChallenge(challengeId: string) {
+  if (!challengeId) return
+  try { socket.value?.emit('challengeRespond', { challengeId, accept: true }) }
+  catch {}
+}
+
+/* ==== Challenge start global ==== */
+let handledStart = false
+function handleChallengeStartGlobal({ roomId }: any = {}) {
+  if (!roomId) return
+  if (handledStart) return
+  handledStart = true
+  try { localStorage.setItem('pendingRoomId', String(roomId)) } catch {}
+  try { window.dispatchEvent(new CustomEvent('challengeStart', { detail: { roomId: String(roomId) } })) } catch {}
+  if (router.currentRoute.value.path !== '/game') {
+    router.push('/game').finally(() => setTimeout(() => { handledStart = false }, 1500))
+  } else {
+    setTimeout(() => { handledStart = false }, 1500)
+  }
+}
 async function loadAvatar(name?: string | null) {
   if (!name) { avatarUrl.value = null; return }
   try {
@@ -67,6 +158,8 @@ async function loadAvatar(name?: string | null) {
     avatarUrl.value = j?.avatar || null
   } catch { avatarUrl.value = null }
 }
+
+
 
 /* ==== Actions ==== */
 async function doLogout() {
@@ -82,12 +175,11 @@ function goProfileSettings() {
   router.push({ path: '/profile', query: { tab: 'settings' } })
   showUserMenu.value = false
 }
-function canAccessProfile() {
-  return !!userName.value
-}
 
 /* ==== Lifecycle ==== */
 onMounted(async () => {
+  // applique le thème sauvegardé
+  applyTheme(theme.value)
   // écouter les changements d'auth globaux
   window.addEventListener('storage', refreshAuthFromStorage)
   window.addEventListener('auth-changed', refreshAuthFromStorage)
@@ -96,6 +188,7 @@ onMounted(async () => {
   })
 
   // socket + identify
+  // Utilise le même endpoint socket que SocialView / plugin (backend)
   socket.value = io(API_BASE, { withCredentials: true, transports: ['websocket'] })
   if (userName.value) socket.value.emit('identify', userName.value)
 
@@ -108,10 +201,79 @@ onMounted(async () => {
 
   // présence socket (header dot)
   isConnected.value = !!socket.value?.connected
-  socket.value.on('connect', () => { isConnected.value = true })
+  socket.value.on('connect', () => { 
+    isConnected.value = true 
+    if (userName.value) socket.value?.emit('identify', userName.value)
+  })
   socket.value.on('disconnect', () => { isConnected.value = false })
 
-  document.addEventListener('click', closeMenuOnOutside)
+  // Notifications -> toasts globaux
+  socket.value.on('newNotification', (n: any) => {
+    try {
+      const t = (n?.type || '').toLowerCase()
+      const map = t.includes('success') ? 'success'
+               : t.includes('error') ? 'error'
+               : t.includes('warn') ? 'warning'
+               : 'info'
+      let action: { label: string; onClick?: () => void } | undefined
+      if (t === 'friendrequest' && (n?.actionData?.fromUser || n?.fromUser)) {
+        const fromUser = (n?.actionData?.fromUser || n?.fromUser || '').trim()
+        action = { label: 'Accepter', onClick: () => acceptFriendRequest(fromUser) }
+      } else if (t === 'challenge' && (n?.id || n?.actionData?.id)) {
+        const chId = String(n?.id || n?.actionData?.id)
+        action = { label: 'Accepter', onClick: () => acceptChallenge(chId) }
+      }
+      // Affiche le toast global
+      // Note: la persistance et l'historique restent gérés par SocialView
+      // (ici on se contente d'afficher le popup partout)
+      addToast({
+        title: n?.title || 'Notification',
+        message: n?.message || '',
+        type: map as any,
+        icon: n?.icon || undefined,
+        action
+      })
+    } catch {}
+  })
+
+  // Messages -> toast global à la réception
+  socket.value.on('newMessage', (p: any) => {
+    try {
+      const me = (userName.value || '').trim()
+      if (!me) return
+      if ((p?.receiver || '').trim() !== me) return
+      const sender = (p?.sender || '').trim()
+      if (!sender) return
+      addToast({
+        title: 'Nouveau message',
+        message: `${sender}: ${truncate(p?.content || '', 100)}`,
+        type: 'info',
+        icon: '💬',
+        action: { label: 'Ouvrir', onClick: () => openChatFromToast(sender) }
+      })
+    } catch {}
+  })
+
+  // Challenge -> navigation globale
+  socket.value.on('challengeStart', handleChallengeStartGlobal)
+document.addEventListener('click', closeMenuOnOutside, { passive: true })
+function isFullscreenActive() {
+  const d: any = document
+  return !!(
+    d.fullscreenElement || d.webkitFullscreenElement ||
+    document.querySelector('.fs-root.fs-sim') ||
+    document.querySelector('.game-container.fs-sim')
+  )
+}
+function onFsFlagChange() {
+  document.documentElement.classList.toggle('fs-active', isFullscreenActive())
+}
+
+// écoute l'état FS pour poser le flag sur <html>
+document.addEventListener('fullscreenchange', onFsFlagChange)
+document.addEventListener('webkitfullscreenchange', onFsFlagChange as any)
+onFsFlagChange() // init au chargement
+
 
   // Récupère l'avatar s'il existe
   await loadAvatar(userName.value)
@@ -121,7 +283,10 @@ onBeforeUnmount(() => {
   socket.value?.off('forceLogout')
   socket.value?.off('connect')
   socket.value?.off('disconnect')
+  socket.value?.off('challengeStart', handleChallengeStartGlobal)
   socket.value?.disconnect()
+  document.removeEventListener('fullscreenchange', onFsFlagChange)
+document.removeEventListener('webkitfullscreenchange', onFsFlagChange as any)
   document.removeEventListener('click', closeMenuOnOutside)
   window.removeEventListener('storage', refreshAuthFromStorage)
   window.removeEventListener('auth-changed', refreshAuthFromStorage)
@@ -139,7 +304,30 @@ watch(userName, (n, o) => {
 
 
 <template>
-  <header class="header-modern">
+  <!-- Fond 3D global, derrière toute l'UI -->
+     <!-- Fond 3D global, derrière toute l'UI -->
+<div class="bg3d" v-if="showBg3D">
+  <Computer3D
+    :model-path="'/models/scene.gltf'"
+    :rotation-x="0" 
+    :rotation-y="0"  
+    :rotation-z="1.578"
+    as-background
+    :cover="true"
+    :screen-coverage="1.2"
+    :min-distance-factor="0.9"
+    :max-fps="24"
+    tint-overlay
+    :tint-color="overlayTintColor"
+    :tint-opacity="0.9"
+    tint-blend="burn"
+    fisheye
+    :fisheye-strength="0.05"
+    :light-orbit-speed="0.3"
+  />
+</div>
+
+  <header class="panel">
     <div class="header-content">
       <!-- Logo -->
       <div class="logo">
@@ -161,6 +349,10 @@ watch(userName, (n, o) => {
 
       <!-- Droite : langue + avatar -->
       <div class="header-right">
+        <button class="theme-toggle" @click="toggleTheme" :title="theme === 'dark' ? 'Mode clair' : 'Mode sombre'">
+          <span v-if="theme === 'dark'">☀️</span>
+          <span v-else>🌙</span>
+        </button>
         <select v-model="selectedLang" @change="onLangChange" class="lang-selector" aria-label="Language">
           <option value="en">🇬🇧 EN</option>
           <option value="fr">🇫🇷 FR</option>
@@ -184,7 +376,7 @@ watch(userName, (n, o) => {
             <span class="presence" :class="{ online: isConnected, offline: !isConnected }"></span>
           </button>
 
-          <div v-if="showUserMenu" class="user-menu" role="menu">
+          <div v-if="showUserMenu" class="user-menu panel" role="menu">
             <div class="user-menu-header">
               <div class="avatar-sm" :style="{ background: userGradient }">
                 <img v-if="avatarUrl" :src="avatarUrl" alt="" @error="avatarUrl = null" />
@@ -209,20 +401,47 @@ watch(userName, (n, o) => {
   <main class="main-content">
     <RouterView />
   </main>
+
+  <!-- Global toasts (disponible partout) -->
+  <Teleport to="body">
+    <div class="gtoast-container" aria-live="polite" aria-atomic="true">
+      <transition-group name="gtoast" tag="div">
+        <div
+          v-for="t in toasts"
+          :key="t.id"
+          class="gtoast panel"
+          :class="t.type"
+          role="status"
+        >
+          <div class="icon">{{ t.icon }}</div>
+          <div class="content">
+            <div v-if="t.title" class="title">{{ t.title }}</div>
+            <div class="message">{{ t.message }}</div>
+          </div>
+          <button v-if="t.action" class="action" @click="t.action.onClick?.(); removeToast(t.id)" :aria-label="t.action.label">{{ t.action.label }}</button>
+          <button class="close" @click="removeToast(t.id)" aria-label="Fermer">✕</button>
+        </div>
+      </transition-group>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
+/* le fond 3D ne capte jamais d'événements */
+.bg3d, .bg3d * { pointer-events: none !important; }
+
 /* ===== Header (look & feel ProfileView) ===== */
 .header-modern{
   position: sticky;
   top: 0;
   z-index: 1000;
-  backdrop-filter: blur(14px) saturate(120%);
-  -webkit-backdrop-filter: blur(14px) saturate(120%);
-  background: rgba(var(--color-background-soft-rgb, 22, 26, 43), .85);
-  border-bottom: 1px solid rgba(255,255,255,.08);
-  padding: .9rem 1.25rem;
-  border-radius: 23px;
+  box-shadow: 0 60px 20px rgba(255, 255, 255, 0) inset, 0 16px 14px rgb(74, 74, 74);
+  backdrop-filter: blur(4px) saturate(20%);
+  -webkit-backdrop-filter: blur(4px) saturate(20%);
+  background: linear-gradient(transparent, #504f4fde);
+  padding: .9rem 11.25rem;
+  border-radius: 25px;
+  border: 0px ;
 }
 .header-content{
   max-width: 1100px;
@@ -240,7 +459,7 @@ watch(userName, (n, o) => {
   font-size: 1.4rem;
   font-weight: 900;
   letter-spacing: .2px;
-  background: var(--gradient-primary);
+  background: white;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -270,8 +489,15 @@ watch(userName, (n, o) => {
 }
 a.router-link-active.nav-link::after,
 
+
 /* Droite : langue + avatar */
 .header-right{ display: flex; align-items: center; gap: .6rem }
+
+.theme-toggle{
+  padding:.45rem .6rem; border-radius:10px; border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.08); color:#fff; cursor:pointer;
+}
+.theme-toggle:hover{ background: rgba(255,255,255,.14) }
 
 .lang-selector{
   padding:.5rem .7rem; border-radius:12px;
@@ -307,8 +533,7 @@ a.router-link-active.nav-link::after,
 /* Dropdown */
 .user-menu{
   position: absolute; top: calc(100% + 10px); right: 0; width: 260px;
-  border-radius: 14px; padding: .65rem;
-  background: rgba(23,26,43,.96);
+  border-radius: 7px; padding: .65rem;
   border: 1px solid rgba(255,255,255,.12);
   box-shadow: 0 22px 48px rgba(0,0,0,.45);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
@@ -342,7 +567,7 @@ a.router-link-active.nav-link::after,
 /* Items */
 .menu-item{
   width:100%; background:transparent; border:0; color:#fff; font-weight:700;
-  text-align:left; padding:.55rem .6rem; border-radius:10px; cursor:pointer;
+  text-align:left; padding:.55rem .6rem; border-radius:7px; cursor:pointer;
   display:flex; align-items:center; gap:.55rem;
   transition: background .15s ease, transform .15s ease;
 }
@@ -351,7 +576,7 @@ a.router-link-active.nav-link::after,
 .menu-sep{ height:1px; margin:.35rem 0; background: rgba(255,255,255,.12) }
 
 /* ===== Main ===== */
-.main-content{ min-height: calc(100vh - 72px); padding: 2rem }
+.main-content{ min-height: calc(100vh - 72px);  }
 
 /* ===== Responsive ===== */
 @media (max-width: 900px){
@@ -364,4 +589,32 @@ a.router-link-active.nav-link::after,
   .nav-link{ padding:.5rem .6rem }
   .lang-selector{ display:none }
 }
+
+/* ===== Global toasts ===== */
+.gtoast-container{
+  position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+  display:flex; flex-direction:column; gap:.5rem; z-index: 12000;
+  pointer-events: none; /* laisse passer les clics sauf sur les toasts */
+}
+.gtoast{
+  display:flex; align-items:flex-start; gap:.6rem; min-width: 260px; max-width: 94vw;
+  background: rgba(0,0,0,.9); color:#fff; padding:.65rem .8rem; border-radius:7px;
+  border: 1px solid rgba(255,255,255,.12); box-shadow: 0 10px 26px rgba(0,0,0,.35);
+  pointer-events: auto;
+}
+.gtoast .icon{ font-size:1.1rem; line-height:1; margin-top:.1rem }
+.gtoast .content{ display:flex; flex-direction:column; gap:.1rem; flex:1; min-width:0 }
+.gtoast .title{ font-weight:800; font-size:.95rem }
+.gtoast .message{ opacity:.95 }
+.gtoast .action{ background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.22); color:#fff; padding:.3rem .55rem; border-radius:6px; cursor:pointer; margin-right:.35rem }
+.gtoast .action:hover{ background:rgba(255,255,255,.22) }
+.gtoast .close{ background:transparent; border:0; color:#fff; opacity:.85; cursor:pointer; font-weight:800 }
+.gtoast.success{ background: rgba(16,185,129,.92) }
+.gtoast.error{ background: rgba(239,68,68,.92) }
+.gtoast.info{ background: rgba(100,181,246,.92) }
+.gtoast.warning{ background: rgba(245,158,11,.92) }
+
+.gtoast-enter-active,.gtoast-leave-active{ transition: all .2s ease }
+.gtoast-enter-from,.gtoast-leave-to{ opacity:0; transform: translateY(-8px) }
+html.fs-active .gtoast-container { pointer-events: none !important; }
 </style>

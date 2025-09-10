@@ -69,6 +69,27 @@
           </select>
         </div>
       </div>
+       <!-- Modes de jeu -->
+      <div class="form-group">
+        <label class="form-label">
+          <span class="label-icon">⚡</span>
+          <span class="label-text">Modes de jeu</span>
+        </label>
+        <div class="toggles">
+          <!-- Toggle balle accélérante -->
+          <label class="toggle">
+            <input type="checkbox" v-model="form.accelBall" />
+            <span class="slider"></span>
+            <span class="toggle-text">🚀 Balle accélérante</span>
+          </label>
+          <!-- Toggle paddle dash -->
+          <label class="toggle">
+            <input type="checkbox" v-model="form.paddleDash" />
+            <span class="slider"></span>
+            <span class="toggle-text">⚡ Paddle dash</span>
+          </label>
+        </div>
+      </div>
 
       <!-- Message d'erreur -->
       <Transition name="fade">
@@ -148,6 +169,8 @@ export default defineComponent({
       password: '',
       maxPlayers: 2,
       maxPoints: 10,
+      accelBall: false,
+      paddleDash: false
     });
 
     const errorMessage = ref<string | null>(null);
@@ -175,6 +198,8 @@ export default defineComponent({
           password: form.value.hasPassword ? form.value.password : undefined,
           maxPlayers: form.value.maxPlayers,
           maxPoints: form.value.maxPoints,
+          accelBall: form.value.accelBall,
+          paddleDash: form.value.paddleDash
         };
 
         props.socket.emit('createGame', gameData);
@@ -231,7 +256,7 @@ export default defineComponent({
   margin: 0 auto;
   background: var(--color-background-soft);
   border: 2px solid var(--color-border);
-  border-radius: 20px;
+  border-radius: 7px;
   padding: 2rem;
   box-shadow: var(--shadow-lg);
 }
@@ -298,7 +323,7 @@ export default defineComponent({
 .form-input {
   background: var(--color-background);
   border: 2px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: 7px;
   padding: 0.75rem 1rem;
   color: var(--color-text);
   font-size: 1rem;
@@ -324,7 +349,7 @@ export default defineComponent({
 .form-select {
   background: var(--color-background);
   border: 2px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: 7px;
   padding: 0.75rem 1rem;
   color: var(--color-text);
   font-size: 1rem;
@@ -354,7 +379,7 @@ export default defineComponent({
   width: 20px;
   height: 20px;
   border: 2px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: 7px;
   background: var(--color-background);
   position: relative;
   transition: all 0.3s ease;
@@ -389,7 +414,7 @@ export default defineComponent({
   padding: 0.75rem 1rem;
   background: rgba(244, 67, 54, 0.1);
   border: 1px solid #f44336;
-  border-radius: 12px;
+  border-radius: 7px;
   color: #f44336;
   font-size: 0.9rem;
 }
@@ -412,7 +437,7 @@ export default defineComponent({
   gap: 0.5rem;
   padding: 0.875rem 1.5rem;
   border: none;
-  border-radius: 12px;
+  border-radius: 7px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
@@ -422,7 +447,7 @@ export default defineComponent({
 
 .btn-primary {
   background: var(--gradient-primary);
-  color: white;
+  color: black;
   box-shadow: var(--shadow-md);
 }
 
@@ -466,7 +491,7 @@ export default defineComponent({
   margin-top: 2rem;
   background: var(--color-background);
   border: 1px solid var(--color-border);
-  border-radius: 15px;
+  border-radius: 7px;
   padding: 1rem;
 }
 

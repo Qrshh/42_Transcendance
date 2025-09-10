@@ -26,4 +26,22 @@ module.exports = fp(async function chatRoutes(fastify) {
     await dbRun('INSERT OR IGNORE INTO blocked_users (blocker, blocked) VALUES (?, ?)', [blocker, blocked]);
     reply.send({ success: true });
   });
+
+  // Débloquer un utilisateur
+  fastify.post('/chat/unblock', async (req, reply) => {
+    const { blocker, blocked } = req.body || {};
+    try {
+      await dbRun('DELETE FROM blocked_users WHERE blocker = ? AND blocked = ?', [blocker, blocked]);
+      reply.send({ success: true });
+    } catch (e) { reply.code(500).send({ error: e.message }); }
+  });
+
+  // Liste des utilisateurs bloqués par :username
+  fastify.get('/chat/blocked/:username', async (req, reply) => {
+    const { username } = req.params;
+    try {
+      const rows = await dbAll('SELECT blocked FROM blocked_users WHERE blocker = ?', [username]);
+      reply.send(rows.map(r => ({ blocked: r.blocked })));
+    } catch (e) { reply.code(500).send({ error: e.message }); }
+  });
 });

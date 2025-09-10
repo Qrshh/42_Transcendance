@@ -232,15 +232,15 @@ export default defineComponent({
 .tw-meta{ display:flex; gap:1rem; color:#6B7280 }
 .tw-actions .btn{ margin-left:.5rem }
 .tw-content{ display:grid; grid-template-columns:2fr 1fr; gap:1rem }
-.panel{ border:1px solid var(--color-border); background:var(--color-background); border-radius:8px; padding:.75rem 1rem }
+.panel{ border:1px solid var(--color-border); background:var(--color-background); border-radius:7px; padding:.75rem 1rem }
 .panel.tip{ color:#6B7280 }
 .panel.warn{ border-color:#F59E0B; background:rgba(245,158,11,.08) }
 .plist{ list-style:none; padding:0; margin:0 } .plist li{ display:flex; align-items:center; gap:.5rem; padding:.25rem 0 }
-.pill{ font-size:.75rem; padding:.1rem .4rem; border-radius:999px; border:1px solid var(--color-border) }
+.pill{ font-size:.75rem; padding:.1rem .4rem; :999px; border:1px solid var(--color-border) }
 .pill.out{ border-color:#EF4444; color:#EF4444 } .pill.bot{ border-color:#6B7280; color:#6B7280 } .pill.host{ border-color:#10B981; color:#10B981 }
 .bot{ opacity:.9 }
 .tw-right .stack{ display:flex; flex-direction:column; gap:.5rem }
-.btn{ color:white; padding:.4rem .7rem; border:1px solid var(--color-border); background:var(--color-background); border-radius:6px; cursor:pointer }
+.btn{ color:#000; padding:.4rem .7rem; border:1px solid var(--color-border); background:var(--color-background); border-radius:7px; cursor:pointer }
 .btn.primary{ border-color:var(--color-primary) }
 .btn.ghost{ opacity:.9 } .btn.danger{ border-color:#EF4444; color:#EF4444 }
 .tw-play{ border-top:1px dashed var(--color-border); padding-top:1rem }

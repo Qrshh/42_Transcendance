@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import type { GameState } from './ts/types'
 import { drawGameState } from './ts/drawing'
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from './ts/constants'
@@ -33,13 +33,15 @@ const canvasEl = ref<HTMLCanvasElement | null>(null)
 //  return props.state.ball.x < 50 || props.state.ball.x > CANVAS_WIDTH - 50
 //})
 
-// Observer les changements de l'état du jeu et redessiner
-watch(() => props.state, (newState) => {
+// Boucle de rendu dédiée (évite un watch deep coûteux)
+let rafId: number | null = null
+function renderLoop() {
   const ctx = canvasEl.value?.getContext('2d')
   if (ctx) {
-    drawGameState(ctx, newState)
+    drawGameState(ctx, props.state)
   }
-}, { deep: true })
+  rafId = requestAnimationFrame(renderLoop)
+}
 
 // Gestion des entrées utilisateur
 const handleKeyDown = (e: KeyboardEvent) => {
@@ -74,11 +76,15 @@ onMounted(() => {
   if (ctx) {
     drawGameState(ctx, props.state)
   }
+
+  // Démarrer la boucle de rendu
+  rafId = requestAnimationFrame(renderLoop)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown)
   window.removeEventListener('keyup', handleKeyUp)
+  if (rafId) cancelAnimationFrame(rafId)
 })
 </script>
 
@@ -87,7 +93,7 @@ onUnmounted(() => {
   position: relative;
   display: inline-block;
   background: #000;
-  border-radius: 15px;
+  border-radius: 7px;
   /*overflow: hidden;*/
   box-shadow: 
     0 0 20px rgba(0, 0, 0, 0.5),
@@ -121,7 +127,7 @@ onUnmounted(() => {
   right: 0;
   bottom: 0;
   pointer-events: none;
-  border-radius: 12px;
+  border-radius: 7px;
 }
 
 .center-line {
@@ -152,7 +158,7 @@ onUnmounted(() => {
   );
   opacity: 0;
   transition: opacity 0.3s ease;
-  border-radius: 25px;
+  border-radius: 7px;
 }
 
 .glow-effect.active {

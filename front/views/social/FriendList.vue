@@ -54,7 +54,8 @@
           class="actions-menu"
           @click.stop
         >
-          <button class="action-item danger" @click="blockUser(f.friend)">🚫 {{ t.block }}</button>
+          <button v-if="!isBlocked(f.friend)" class="action-item danger" @click="blockUser(f.friend)">🚫 {{ t.block }}</button>
+          <button v-else class="action-item" @click="unblockUser(f.friend)">🔓 Débloquer</button>
           <button class="action-item danger" @click="removeFriend(f.friend)">❌ {{ t.remove }}</button>
         </div>
       </div>
@@ -67,6 +68,7 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from '../../composables/useI18n'
 import { API_BASE } from '../../config'
+import { useGlobalToasts } from '../../composables/useGlobalToasts'
 const { t, onLangChange } = useI18n()
 
 type FriendRow = { friend: string; avatar?: string | null }
@@ -88,7 +90,9 @@ const router = useRouter()
 /** ===== State ===== **/
 const friends = ref<FriendRow[]>([])
 const onlineUsers = ref<Set<string>>(new Set())
+const blockedSet = ref<Set<string>>(new Set())
 const activeActionMenu = ref<string | null>(null)
+const { showToast } = useGlobalToasts()
 
 /** ===== Load friends (avec avatars) ===== **/
 async function loadFriends() {
@@ -127,6 +131,17 @@ async function loadFriends() {
   }
 }
 
+async function loadBlocked() {
+  try {
+    const me = (localStorage.getItem('username') || '').trim()
+    if (!me) { blockedSet.value = new Set(); return }
+    const res = await fetch(`${API_BASE}/chat/blocked/${encodeURIComponent(me)}`)
+    if (!res.ok) { blockedSet.value = new Set(); return }
+    const rows: Array<{ blocked: string }> = await res.json()
+    blockedSet.value = new Set(rows.map(r => (r.blocked || '').trim()).filter(Boolean))
+  } catch { blockedSet.value = new Set() }
+}
+
 /** ===== Presence ===== **/
 const isOnline = (username: string) => onlineUsers.value.has((username || '').trim())
 
@@ -140,6 +155,8 @@ function closeMenus(e: MouseEvent) {
   }
 }
 
+const isBlocked = (u: string) => blockedSet.value.has((u || '').trim())
+
 /** ===== Navigation profil (même logique que ProfileView) ===== **/
 function goProfile(username: string) {
   router.push('/profile/' + encodeURIComponent(username)) // navigation route
@@ -150,18 +167,36 @@ function goProfile(username: string) {
 async function blockUser(friendName: string) {
   if (!confirm(`Bloquer ${friendName} ?`)) return
   try {
-    const me = localStorage.getItem('username')
+    const me = (localStorage.getItem('username') || '').trim()
+    if (!me) { showToast('Vous devez être connecté', 'error'); return }
     await fetch(`${API_BASE}/chat/block`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ blocker: me, blocked: friendName })
     })
-    alert(`${friendName} a été bloqué`)
+    showToast(`${friendName} a été bloqué`, 'success')
+    try { await loadBlocked() } catch {}
   } catch (e) {
-    console.error('block error', e); alert('Erreur lors du blocage')
+    console.error('block error', e); showToast('Erreur lors du blocage', 'error')
   } finally {
     activeActionMenu.value = null
   }
+}
+async function unblockUser(friendName: string) {
+  if (!confirm(`Débloquer ${friendName} ?`)) return
+  try {
+    const me = (localStorage.getItem('username') || '').trim()
+    if (!me) { showToast('Vous devez être connecté', 'error'); return }
+    const r = await fetch(`${API_BASE}/chat/unblock`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ blocker: me, blocked: friendName })
+    })
+    if (!r.ok) throw new Error('Erreur serveur')
+    showToast(`${friendName} débloqué`, 'success')
+    try { await loadBlocked() } catch {}
+  } catch (e) {
+    console.error('unblock error', e); showToast('Erreur lors du déblocage', 'error')
+  } finally { activeActionMenu.value = null }
 }
 async function removeFriend(friendName: string) {
   if (!confirm(`Retirer ${friendName} de vos amis ?`)) return
@@ -173,9 +208,9 @@ async function removeFriend(friendName: string) {
       body: JSON.stringify({ from: me, to: friendName })
     })
     await loadFriends()
-    alert(`${friendName} retiré`)
+    showToast(`${friendName} retiré`, 'success')
   } catch (e) {
-    console.error('remove error', e); alert('Erreur lors de la suppression')
+    console.error('remove error', e); showToast('Erreur lors de la suppression', 'error')
   } finally {
     activeActionMenu.value = null
   }
@@ -184,6 +219,7 @@ async function removeFriend(friendName: string) {
 /** ===== Lifecycle ===== **/
 onMounted(() => {
   loadFriends()
+  loadBlocked()
   document.addEventListener('click', closeMenus)
 })
 onUnmounted(() => {
@@ -219,7 +255,7 @@ function initials(username?: string) {
 
 .no-friends {
   text-align: center; padding: 2rem 1rem; color: rgba(255,255,255,.7);
-  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 14px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 7px;
 }
 
 /* ===== Grid ===== */
@@ -238,7 +274,7 @@ function initials(username?: string) {
   align-items: center;
   background: rgba(255,255,255,.08);
   border: 1px solid rgba(255,255,255,.12);
-  border-radius: 14px;
+  border-radius: 7px;
   padding: .9rem;
   transition: .18s ease;
   cursor: pointer;
@@ -285,7 +321,7 @@ function initials(username?: string) {
 .friend-actions-inline { display: flex; gap: .35rem }
 .action-btn {
   background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2);
-  color: #fff; width: 34px; height: 34px; border-radius: 10px; cursor: pointer;
+  color: #fff; width: 34px; height: 34px; border-radius: 7px; cursor: pointer;
   transition: .16s ease;
 }
 .action-btn:hover { background: rgba(255,255,255,.18) }
@@ -295,14 +331,14 @@ function initials(username?: string) {
 .actions-menu {
   position: absolute; right: .6rem; top: calc(100% - .6rem);
   min-width: 200px; padding: .4rem; z-index: 30;
-  border-radius: 12px; backdrop-filter: blur(8px);
-  background: rgba(23, 26, 43, .96);
+  border-radius: 7px; backdrop-filter: blur(8px);
+  background: rgba(23, 26, 43, 0.199);
   border: 1px solid rgba(255,255,255,.12);
   box-shadow: 0 18px 40px rgba(0,0,0,.4);
 }
 .action-item {
   width: 100%; text-align: left; border: 0; background: transparent; color: #fff;
-  padding: .6rem .75rem; border-radius: 10px; cursor: pointer; font-weight: 600;
+  padding: .6rem .75rem; border-radius: 7px; cursor: pointer; font-weight: 600;
 }
 .action-item:hover { background: rgba(255,255,255,.08) }
 .action-item.danger:hover { background: rgba(239, 68, 68, .18) }

@@ -2,10 +2,7 @@ import type { GameState, Ball, Paddle } from './types'
 import { CANVAS_WIDTH, CANVAS_HEIGHT, INITIAL_BALL_SPEED } from './constants'
 
 /**
-* collides
 * Détecter la collision du paddle et de la balle
-* (à améliorer la collision pour les faces)
-* @returns 'true' | 'false'
 */
 function collides(ball: Ball, paddle: Paddle): boolean {
   return (
@@ -17,18 +14,47 @@ function collides(ball: Ball, paddle: Paddle): boolean {
 }
 
 /**
-* resetBall
-* Sert à reset la balle à sa position initiale
+* Vérifie si la balle va vers le paddle (évite les collisions multiples)
+*/
+function isBallMovingTowardsPaddle(ball: Ball, paddle: Paddle): boolean {
+  // Pour le paddle de gauche (p1)
+  if (paddle.x < CANVAS_WIDTH / 2) {
+    return ball.vx < 0 // La balle va vers la gauche
+  } 
+  // Pour le paddle de droite (p2)
+  else {
+    return ball.vx > 0 // La balle va vers la droite
+  }
+}
+
+/**
+* Repositionne la balle hors du paddle après collision
+*/
+function repositionBallAfterCollision(ball: Ball, paddle: Paddle): void {
+  // Pour le paddle de gauche (p1)
+  if (paddle.x < CANVAS_WIDTH / 2) {
+    ball.x = paddle.x + paddle.width + ball.radius + 1
+  } 
+  // Pour le paddle de droite (p2)
+  else {
+    ball.x = paddle.x - ball.radius - 1
+  }
+}
+
+/**
+* reset la balle à sa position initiale
 */
 function resetBall(ball: Ball): void {
   ball.x = CANVAS_WIDTH / 2
   ball.y = CANVAS_HEIGHT / 2
   ball.vx = Math.random() > 0.5 ? INITIAL_BALL_SPEED : -INITIAL_BALL_SPEED
   ball.vy = Math.random() > 0.5 ? INITIAL_BALL_SPEED : -INITIAL_BALL_SPEED
+  
+  // Reset du cooldown
+  ball.lastCollisionTime = 0
 }
 
 /**
-* updateGame
 * Sert à updater les mouvevents de paddles et de balles,
 * de rebond sur les mur et paddles et enfin la gestion du score
 */
@@ -36,14 +62,19 @@ const SPEED_INCREMENT = 1.05
 const MAX_SPEED = 20
 const DASH_DISTANCE = 20
 const DASH_DURATION = 10
+const COLLISION_COOLDOWN = 10 // frames de cooldown entre collisions
 
-export function updateGame(state: GameState, accelerating: boolean = false): void {
+export function updateGame(state: GameState, accelerating: boolean = true): void {
   const { ball, paddles, score } = state
 
   if(state.gameOver) return ;
 
-  Object.values(paddles).forEach(p => {
+  // Incrémenter le timer de collisions
+  if (ball.lastCollisionTime !== undefined && ball.lastCollisionTime > 0) {
+    ball.lastCollisionTime--
+  }
 
+  Object.values(paddles).forEach(p => {
     if(p.dashCooldown && p.dashCooldown > 0){
       p.dashCooldown--
     }
@@ -71,41 +102,69 @@ export function updateGame(state: GameState, accelerating: boolean = false): voi
   ball.x += ball.vx
   ball.y += ball.vy
 
+  // Rebond sur les murs haut/bas
   if (ball.y - ball.radius < 0 || ball.y + ball.radius > CANVAS_HEIGHT) {
     ball.vy *= -1
   }
 
-  if (collides(ball, paddles.p1) || collides(ball, paddles.p2)) {
-    const paddleHit = collides(ball, paddles.p1) ? paddles.p1 : paddles.p2
-    ball.vx *= -1
+  const canCollide = !ball.lastCollisionTime || ball.lastCollisionTime <= 0
 
-    if(accelerating){
-      ball.vx = ball.vx * SPEED_INCREMENT
-      ball.vy = ball.vy * SPEED_INCREMENT
-
-      ball.vx = Math.max(Math.min(ball.vx, MAX_SPEED), -MAX_SPEED)
-      ball.vy = Math.max(Math.min(ball.vy, MAX_SPEED), -MAX_SPEED)
+  if (canCollide) {
+    // Vérifier collision avec paddle 1
+    if (collides(ball, paddles.p1) && isBallMovingTowardsPaddle(ball, paddles.p1)) {
+      handlePaddleCollision(ball, paddles.p1, accelerating)
     }
-
-    if(paddleHit.isDashing){
-      ball.vx *= 1.2
-      ball.vy *= 1.2
+    // Vérifier collision avec paddle 2  
+    else if (collides(ball, paddles.p2) && isBallMovingTowardsPaddle(ball, paddles.p2)) {
+      handlePaddleCollision(ball, paddles.p2, accelerating)
     }
   }
 
+  // Gestion des buts
   if (ball.x - ball.radius < 0) {
     score.player2++
-	if(score.player2 >= 5){
-		state.gameOver = true
-		state.winner = 'player 2'
-	} else 
-    	resetBall(ball)
+    if(score.player2 >= 5){
+      state.gameOver = true
+      state.winner = 'player 2'
+    } else {
+      resetBall(ball)
+    }
   } else if (ball.x + ball.radius > CANVAS_WIDTH) {
     score.player1++
-	if(score.player1 >= 5){
-		state.gameOver = true
-		state.winner = 'player 1'
-	} else 
-    	resetBall(ball)
+    if(score.player1 >= 5){
+      state.gameOver = true
+      state.winner = 'player 1'
+    } else {
+      resetBall(ball)
+    }
   }
+}
+
+/**
+* Gère la collision avec un paddle
+*/
+function handlePaddleCollision(ball: Ball, paddle: Paddle, accelerating: boolean): void {
+  // Inverser la direction horizontale
+  ball.vx *= -1
+
+  // Repositionner la balle hors du paddle
+  repositionBallAfterCollision(ball, paddle)
+
+  // Accélération si activée
+  if(accelerating){
+    ball.vx = ball.vx * SPEED_INCREMENT
+    ball.vy = ball.vy * SPEED_INCREMENT
+
+    ball.vx = Math.max(Math.min(ball.vx, MAX_SPEED), -MAX_SPEED)
+    ball.vy = Math.max(Math.min(ball.vy, MAX_SPEED), -MAX_SPEED)
+  }
+
+  // Bonus de vitesse si le paddle fait un dash
+  if(paddle.isDashing){
+    ball.vx *= 1.2
+    ball.vy *= 1.2
+  }
+
+  // Activer le cooldown de collision
+  ball.lastCollisionTime = COLLISION_COOLDOWN
 }

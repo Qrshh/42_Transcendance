@@ -1,5 +1,5 @@
 <template>
-  <div class="lobby-page">
+  <div class="panel">
     <!-- Header -->
     <header class="lobby-header">
       <div class="header-left">
@@ -16,15 +16,14 @@
     </header>
 
     <!-- Corps -->
-    <main class="panel">
+    <main class="">
       <Transition name="slidefade" mode="out-in">
         <!-- Écran principal -->
         <section v-if="currentScreen === 'main'" key="main" class="section">
           <div class="modes-grid">
             <!-- Local -->
             <button class="mode-card tone-blue" @click="$emit('startLocal')">
-              <div class="ic">🏠</div>
-              <h3 class="card-title">Partie locale</h3>
+              <div class="ic card-title">🏠 Partie locale</div>
               <p class="card-desc">Joue à deux sur le même écran.</p>
               <span class="chip">👥 2 joueurs</span>
               <span class="arrow">→</span>
@@ -32,8 +31,7 @@
 
             <!-- IA -->
             <button class="mode-card tone-green" @click="$emit('startAI')">
-              <div class="ic">🤖</div>
-              <h3 class="card-title">Contre l’IA</h3>
+              <div class="ic card-title">🤖 Contre l’IA</div>
               <p class="card-desc">Défie l’IA et progresse.</p>
               <span class="chip">🎯 Solo vs IA</span>
               <span class="arrow">→</span>
@@ -41,32 +39,28 @@
 
             <!-- Rejoindre -->
             <button class="mode-card tone-purple" @click="currentScreen = 'join-list'">
-              <div class="ic">🌐</div>
-              <h3 class="card-title">Rejoindre</h3>
+              <div class="ic card-title">🌐 Rejoindre 1vs1</div>
               <p class="card-desc">Trouve une partie en cours.</p>
               <span class="chip">🔍 Multijoueur</span>
               <span class="arrow">→</span>
             </button>
-            <button class="mode-card tone-indigo" @click="currentScreen = 'join-tourn-list'">
-              <div class="ic">🏆</div>
-              <h3 class="card-title">Rejoindre un tournoi</h3>
+            <button class="mode-card tone-orange" @click="currentScreen = 'join-tourn-list'">
+              <div class="ic card-title">🏆 Rejoindre un tournoi</div>
               <p class="card-desc">Voir les tournois en attente.</p>
               <span class="chip">🔎 Tournois</span>
               <span class="arrow">→</span>
             </button>
             <!-- Créer une partie -->
-            <button class="mode-card tone-orange" @click="currentScreen = 'create-form'">
-              <div class="ic">✨</div>
-              <h3 class="card-title">Créer</h3>
-              <p class="card-desc">Lance ta propre salle.</p>
+            <button class="mode-card tone-purple" @click="currentScreen = 'create-form'">
+              <div class="ic card-title">✨ Créer une salle</div>
+              <p class="card-desc">Lance ta propre salle 1vs1.</p>
               <span class="chip">🚀 Host</span>
               <span class="arrow">→</span>
             </button>
 
             <!-- Créer un tournoi -->
             <button class="mode-card tone-orange" @click="currentScreen = 'create-tourn'">
-              <div class="ic">🏆</div>
-              <h3 class="card-title">Tournoi</h3>
+              <div class="ic card-title">🏆 Tournoi</div>
               <p class="card-desc">Crée un tournoi à élimination.</p>
               <span class="chip">🚀 Host</span>
               <span class="arrow">→</span>
@@ -301,17 +295,18 @@ export default defineComponent({
 .lobby-page { max-width: 1000px; margin: 0 auto; padding: 1.6rem }
 .lobby-header {
   display:flex; align-items:center; justify-content:space-between;
-  background: rgba(var(--color-background-soft-rgb, 20,26,46), .75);
+  background: #3131318f;
   border: 1px solid rgba(255,255,255,.08);
-  border-radius: 20px;
+  border-radius: 7px;
   padding: 1rem 1.25rem;
   backdrop-filter: blur(10px);
   box-shadow: 0 10px 30px rgba(0,0,0,.25);
   margin-bottom: 1rem;
+  z-index:10;
 }
 .title-main {
   margin:0; font-weight: 800; font-size: 1.9rem;
-  background: var(--gradient-primary); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color: transparent;
+  background: white; -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color: transparent;
 }
 .subtitle { margin:.25rem 0 0; color: rgba(255,255,255,.8) }
 
@@ -323,32 +318,25 @@ export default defineComponent({
 .conn-pill.connected { color:#43c169; border-color:#43c169; background: rgba(67,193,105,.14) }
 .conn-pill .dot { width:8px; height:8px; border-radius:50%; background: currentColor; animation:pulse 2s infinite }
 
-/* Corps/panel : surface plus sombre (contraste avec cartes) */
-.panel{
-  background: rgba(var(--color-background-rgb, 10,14,28), .55);
-  border: 1px solid rgba(255,255,255,.06);
-  border-radius: 20px;
-  padding: 1.2rem;
-  box-shadow: 0 6px 24px rgba(0,0,0,.25) inset, 0 6px 18px rgba(0,0,0,.22);
-}
+
 
 /* Cartes modes : surface plus claire que panel (meilleur contraste) */
-.modes-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: .9rem; margin-bottom: 1rem }
+.modes-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: .9rem; margin-bottom: 1rem }
 .mode-card{
   position:relative; text-align:left; overflow:hidden; cursor:pointer;
   background: rgba(255,255,255,.04);
   border: 1px solid rgba(255,255,255,.08);
-  border-radius: 16px;
+  border-radius: 7px;
   padding: 1rem;
   transition: transform .18s ease, box-shadow .25s ease, border-color .25s ease, background .25s ease;
   will-change: transform, box-shadow;
 }
-.mode-card .ic{ font-size:1.6rem; margin-bottom:.4rem }
-.card-title{ margin:0 0 .2rem 0; font-weight:800; font-size:1.05rem; color:#fff }
+.mode-card .ic{ font-size:1.2rem; margin-bottom:.4rem }
+.card-title{ margin:0 0 .5rem 0.6rem; font-weight:800; font-size:1.05rem; color:#fff }
 .card-desc{ margin:0 0 .6rem 0; color: rgba(255,255,255,.78) }
 .chip{
-  display:inline-block; padding:.25rem .55rem; border-radius:12px;
-  font-size:.8rem; font-weight:700; color:#fff;
+  display:inline-block; padding:.25rem .55rem; border-radius:7px;
+  font-size:.8rem; font-weight:700; color:#000;
   background: var(--gradient-primary);
   box-shadow: 0 4px 16px rgba(0,0,0,.25);
 }
@@ -389,7 +377,7 @@ export default defineComponent({
   display:flex; align-items:center; gap:.8rem;
   background: rgba(255,255,255,.04);
   border: 1px solid rgba(255,255,255,.08);
-  border-radius: 16px; padding:.9rem;
+  border-radius: 7px; padding:.9rem;
   transition: transform .18s ease, box-shadow .25s ease;
 }
 .stat-card:hover{ transform: translateY(-3px); box-shadow: 0 10px 24px rgba(0,0,0,.28) }
@@ -408,7 +396,7 @@ export default defineComponent({
 .sub-title{ margin:0; font-weight:800; color:#fff }
 
 /* Boutons */
-.btn{ display:inline-flex; align-items:center; gap:.5rem; padding:.72rem 1.1rem; border-radius:12px; border:none; cursor:pointer; font-weight:700; transition: transform .16s ease, box-shadow .2s ease }
+.btn{ display:inline-flex; align-items:center; gap:.5rem; padding:.72rem 1.1rem; border-radius:7px; border:none; cursor:pointer; font-weight:700; transition: transform .16s ease, box-shadow .2s ease }
 .btn.ghost{
   background: rgba(255,255,255,.04);
   border: 1px solid rgba(255,255,255,.08);
