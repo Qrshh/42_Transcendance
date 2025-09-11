@@ -41,6 +41,12 @@
           @click="emit('viewProfile', peerName)"
         >👤</button>
 
+        <button
+          class="mc__btn"
+          :title="isPeerBlocked ? 'Débloquer l\'utilisateur' : 'Bloquer l\'utilisateur'"
+          @click="toggleBlockPeer"
+        >{{ isPeerBlocked ? '🔓' : '🚫' }}</button>
+
         <button class="mc__btn" title="Réduire/Étendre" @click="toggleMinimize">
           {{ minimized ? '▢' : '━' }}
         </button>
@@ -177,6 +183,7 @@ const toast = ref<{show:boolean; msg:string; type:'success'|'error'|'info'; icon
 /** ===== Avatars ===== **/
 const peerAvatar = ref<string | null>(null)
 const meAvatar   = ref<string | null>(null)
+const isPeerBlocked = ref(false)
 
 function toAbs(u?: string | null) { if (!u) return null; return u.startsWith('http') ? u : `${API}${u}` }
 async function fetchAvatar(username: string) {
@@ -323,6 +330,40 @@ function handleChallengeStart({ roomId }: any = {}) {
   setTimeout(() => { handledStart = false }, 2000)
 }
 
+/** ===== Block peer ===== **/
+async function refreshBlockedState() {
+  const me = (meName.value || '').trim()
+  const peer = (peerName.value || '').trim()
+  if (!me || !peer) { isPeerBlocked.value = false; return }
+  try {
+    const r = await fetch(`${API}/chat/blocked/${encodeURIComponent(me)}`)
+    const rows = r.ok ? await r.json() : []
+    isPeerBlocked.value = Array.isArray(rows) && rows.some((x: any) => (x?.blocked || '').trim() === peer)
+  } catch { isPeerBlocked.value = false }
+}
+
+async function toggleBlockPeer() {
+  const me = (meName.value || '').trim()
+  const peer = (peerName.value || '').trim()
+  if (!me || !peer) return
+  if (isPeerBlocked.value) {
+    if (!confirm(`Débloquer ${peer} ?`)) return
+    try {
+      await fetch(`${API}/chat/unblock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ blocker: me, blocked: peer }) })
+      isPeerBlocked.value = false
+      showToast(`${peer} débloqué`, 'success')
+    } catch { showToast('Erreur lors du déblocage', 'error') }
+  } else {
+    if (!confirm(`Bloquer ${peer} ?`)) return
+    try {
+      await fetch(`${API}/chat/block`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ blocker: me, blocked: peer }) })
+      isPeerBlocked.value = true
+      showToast(`${peer} bloqué`, 'success')
+      emit('close')
+    } catch { showToast('Erreur lors du blocage', 'error') }
+  }
+}
+
 /** ===== Lifecycle ===== **/
 onMounted(async () => {
   // Utilise le socket fourni par le parent sinon le socket global (plugin)
@@ -343,6 +384,7 @@ onMounted(async () => {
   sock.value.on('challengeStart', handleChallengeStart)
 
   await loadMessages()
+  await refreshBlockedState()
   nextTick(scrollBottom)
   nextTick(() => inputRef.value?.focus())
 })
@@ -362,50 +404,27 @@ watch(() => props.receiver, async () => {
   draft.value = ''
   peerAvatar.value = peerName.value ? await fetchAvatar(peerName.value) : null
   await loadMessages()
+  await refreshBlockedState()
 })
 </script>
 
 <style scoped>
 /* ===== Container (Messenger style bottom-right) ===== */
-.mc {
-  position: fixed;
-  width: 320px;
-  max-height: 460px;
-  background: var(--color-background, #111);
-  border: 1px solid var(--color-border, #2a2a2a);
-  border-radius: 14px;
-  box-shadow: 0 14px 34px rgba(0,0,0,.4);
-  overflow: hidden;
-  z-index: 9999;
-  display: flex; flex-direction: column;
-}
+.mc { position: fixed; width: 320px; max-height: 460px; background: var(--color-background, #111); border: 1px solid var(--color-border, #2a2a2a); border-radius: 7px; box-shadow: 0 14px 34px rgba(0,0,0,.4); overflow: hidden; z-index: 9999; display: flex; flex-direction: column;}
 
 /* ===== Header ===== */
-.mc__head {
-  display:flex; align-items:center; justify-content:space-between; gap:.6rem;
-  padding:.6rem .6rem .6rem .4rem;
-  background: var(--color-background-soft, #181818);
-  border-bottom: 1px solid var(--color-border, #2a2a2a);
-  user-select:none; cursor:pointer;
-}
+.mc__head { display:flex; align-items:center; justify-content:space-between; gap:.6rem; padding:.6rem .6rem .6rem .4rem; background: var(--color-background-soft, #181818); border-bottom: 1px solid var(--color-border, #2a2a2a); user-select:none; cursor:pointer; }
 .mc__peer { display:flex; align-items:center; gap:.6rem }
-.mc__avatar {
-  width:30px; height:30px; border-radius:50%;
-  display:grid; place-items:center; color:#fff; font-weight:700; font-size:.95rem;
-  overflow: hidden; /* pour rogner l'image circulaire */
-}
+.mc__avatar { width:30px; height:30px; border-radius:50%; display:grid; place-items:center; color:#fff; font-weight:700; font-size:.95rem; overflow: hidden; /* pour rogner l'image circulaire */ }
 .mc__avatar-img { width:100%; height:100%; object-fit:cover; border-radius:50%; display:block }
 .mc__meta { display:flex; flex-direction:column; gap:.1rem }
 .mc__name { color:#fff; font-weight:700; font-size:.95rem; max-width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
 .mc__status { display:flex; align-items:center; gap:.4rem; font-size:.78rem; color:#9aa }
-.mc__status .dot { width:8px; height:8px; border-radius:50%; background:#ef4444 }
-.mc__status.online .dot { background:#10b981; animation:pulse 2s infinite }
+.mc__status .dot { width:8px; height:8px; border-radius:50%; background: var(--color-offline) }
+.mc__status.online .dot { background: var(--color-online); animation:pulse 2s infinite }
 .mc__status .typing { color:#bbb }
 .mc__actions { display:flex; gap:.25rem }
-.mc__btn {
-  background: transparent; border: 0; color: #bbb; width: 28px; height: 28px;
-  border-radius: 6px; cursor: pointer;
-}
+.mc__btn { background: transparent; border: 0; color: #bbb; width: 28px; height: 28px; border-radius: 7px; cursor: pointer; }
 .mc__btn:hover { background: rgba(255,255,255,.07); color:#fff }
 .mc__btn--challenge { background: linear-gradient(135deg,#ff6b6b,#ee5a24); color:#fff }
 .mc__btn--challenge:hover { filter: brightness(1.05) }
@@ -415,12 +434,7 @@ watch(() => props.receiver, async () => {
 .mc__list { padding:.75rem; display:flex; flex-direction:column; gap:.4rem; overflow-y:auto; scrollbar-gutter:stable; }
 .mc__row { display:flex }
 .mc__row.is-me { justify-content:flex-end }
-.mc__bubble {
-  max-width: 78%;
-  padding:.55rem .7rem; border-radius:14px; line-height:1.3;
-  background:#202020; color:#eee; border:1px solid #2a2a2a; position:relative;
-  box-shadow: 0 2px 12px rgba(0,0,0,.15);
-}
+.mc__bubble { max-width: 78%; padding:.55rem .7rem; border-radius:7px; line-height:1.3; background:#fff; color:#000; border:1px solid #2a2a2a; position:relative; box-shadow: 0 2px 12px rgba(0,0,0,.15); }
 .mc__row.is-me .mc__bubble { background:#2a5bd7; border-color:#2a5bd7; color:#fff }
 .mc__bubble.pending { opacity:.6 }
 .mc__headrow{ display:flex; justify-content:space-between; gap:.6rem; margin-bottom:.25rem; font-size:.75rem; opacity:.85 }
@@ -430,7 +444,7 @@ watch(() => props.receiver, async () => {
 .mc__status .read.ok{ opacity:1 }
 
 /* typing */
-.mc__typing{ display:flex; align-items:center; gap:.5rem; padding:.5rem .65rem; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); border-radius:14px; max-width:60%; }
+.mc__typing{ display:flex; align-items:center; gap:.5rem; padding:.5rem .65rem; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); border-radius:7px; max-width:60%; }
 .mc__typing .ava{
   width:20px; height:20px; border-radius:50%;
   display:grid; place-items:center; color:#fff; font-size:.8rem; overflow:hidden;
@@ -444,19 +458,19 @@ watch(() => props.receiver, async () => {
 
 /* ===== Input ===== */
 .mc__input { position:relative; padding:.55rem; border-top:1px solid var(--color-border,#2a2a2a); background: var(--color-background-soft,#181818) }
-.mc__emoji{ position:absolute; bottom:100%; left:.6rem; right:.6rem; background:linear-gradient(135deg,#2a2a3e,#1e1e2e); border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:.6rem; box-shadow:0 -10px 30px rgba(0,0,0,.3); z-index:5 }
+.mc__emoji{ position:absolute; bottom:100%; left:.6rem; right:.6rem; background:linear-gradient(135deg,#363636,#19191a); border:1px solid rgba(255,255,255,.1); border-radius:7px; padding:.6rem; box-shadow:0 -10px 30px rgba(0,0,0,.3); z-index:5 }
 .mc__emoji .grid{ display:grid; grid-template-columns: repeat(8,1fr); gap:.35rem; max-height:180px; overflow:auto }
-.mc__emoji .e{ background: rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.1); border-radius:8px; padding:.4rem; font-size:1.2rem; cursor:pointer }
+.mc__emoji .e{ background: rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.1); border-radius:7px; padding:.4rem; font-size:1.2rem; cursor:pointer }
 .mc__emoji .e:hover{ background: rgba(255,255,255,.16) }
 
 .mc__input .row{ display:flex; align-items:flex-end; gap:.5rem }
 .toggle{
   background: rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2);
-  color:#fff; width:2.4rem; height:2.4rem; border-radius:10px; cursor:pointer
+  color:#fff; width:2.4rem; height:2.4rem; border-radius:7px; cursor:pointer
 }
 .toggle:hover{ background: rgba(255,255,255,.2) }
 .field{
-  flex:1; min-height:2.5rem; max-height:6rem; padding:.6rem .75rem; border-radius:10px;
+  flex:1; min-height:2.5rem; max-height:6rem; padding:.6rem .75rem;
   background: rgba(255,255,255,.08); border:2px solid rgba(255,255,255,.12); color:#fff;
 }
 .field:focus{ outline:none; border-color:#64b5f6; box-shadow:0 0 0 3px rgba(100,181,246,.2) }
@@ -464,7 +478,7 @@ watch(() => props.receiver, async () => {
 .count{ font-size:.7rem; color:rgba(255,255,255,.6) }
 .count.warn{ color:#f59e0b }
 .send{
-  width:2.4rem; height:2.4rem; border-radius:10px; border:0; cursor:pointer; color:#fff;
+  width:2.4rem; height:2.4rem; border-radius:7px; border:0; cursor:pointer; color:#fff;
   background: linear-gradient(135deg,#64b5f6,#42a5f5); box-shadow:0 2px 8px rgba(100,181,246,.3)
 }
 .send:disabled{ opacity:.5; cursor:not-allowed }
@@ -473,8 +487,8 @@ watch(() => props.receiver, async () => {
 
 /* ===== Toast ===== */
 .toast{
-  position:absolute; top:-3.6rem; left:50%; transform:translateX(-50%);
-  background: rgba(0,0,0,.9); color:#fff; padding:.6rem .8rem; border-radius:8px; font-size:.85rem; z-index:10
+  position:absolute; top:1.6rem; left:50%; transform:translateX(-50%);
+  background: rgba(0,0,0,.9); color:#fff; padding:.6rem .8rem; border-radius:7px; font-size:.85rem; z-index:10
 }
 .toast.success{ background:rgba(16,185,129,.9) }
 .toast.error{ background:rgba(239,68,68,.9) }

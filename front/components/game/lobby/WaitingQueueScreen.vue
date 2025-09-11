@@ -19,6 +19,7 @@
 <script lang="ts">
 import { defineComponent, ref, watch, onMounted, onUnmounted } from 'vue';
 import type { Socket } from 'socket.io-client';
+import { useGlobalToasts } from '../../../composables/useGlobalToasts'
 
 export default defineComponent({
   name: 'WaitingQueueScreen',
@@ -38,6 +39,7 @@ export default defineComponent({
   },
   emits: ['leftQueue', 'gameStarted'],
   setup(props, { emit }) {
+    const { showToast } = useGlobalToasts()
     const currentPlayers = ref(0);
     const maxPlayers = ref(0);
     const statusMessage = ref('En attente de joueurs...');
@@ -100,7 +102,7 @@ export default defineComponent({
 
         // Écoute les erreurs lors de la sortie de la file
         props.socket.on('leaveGameError', (data: { message: string }) => {
-            alert(`Erreur en quittant la file: ${data.message}`);
+            showToast(`Erreur en quittant la file: ${data.message}`, 'error');
         });
     });
 

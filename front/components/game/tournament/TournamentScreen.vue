@@ -129,10 +129,10 @@ onBeforeUnmount(()=>{
 .tournament-screen{ display:grid; gap:1rem }
 .head{ display:flex; justify-content:space-between; align-items:center }
 .head .meta{ display:flex; gap:1rem; color:#9CA3AF; font-size:.9rem }
-.btn{ padding:.4rem .7rem; border:1px solid var(--color-border); background:var(--color-background); border-radius:6px; cursor:pointer }
+.btn{ padding:.4rem .7rem; border:1px solid var(--color-border); background:var(--color-background); border-radius:7px; cursor:pointer }
 .btn.primary{ border-color:var(--color-primary) }
 .content{ display:grid; grid-template-columns:2fr 1fr; gap:1rem }
-.panel{ border:1px solid var(--color-border); background:var(--color-background); border-radius:8px; padding:.75rem 1rem }
+.panel{ border:1px solid var(--color-border); background:var(--color-background); border-radius:7px; padding:.75rem 1rem }
 .panel.highlight{ border-color:var(--color-primary) }
 .panel.tip{ font-size:.95rem; color:#9CA3AF }
 .right-col .panel + .panel{ margin-top:.75rem }

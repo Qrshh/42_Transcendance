@@ -39,10 +39,10 @@ function roundName(i:number,t:number){ if(i===t-1) return 'Finale'; if(i===t-2) 
 /* petit style épuré (colonnes, ✅/❌, hover léger) */
 .tournament-bracket { width:100% }
 .columns { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:1rem }
-.round-col { background:var(--color-background); border:1px solid var(--color-border); border-radius:8px; padding:.75rem }
+.round-col { background:var(--color-background); border:1px solid var(--color-border); border-radius:7px; padding:.75rem }
 .round-title { margin:0 0 .75rem; font-weight:700; font-size:.95rem }
 .matches { display:grid; gap:.75rem }
-.match { border:1px solid var(--color-border); border-radius:8px; padding:.5rem .75rem; background:var(--color-background-soft); transition:.2s }
+.match { border:1px solid var(--color-border); border-radius:7px; padding:.5rem .75rem; background:var(--color-background-soft); transition:.2s }
 .match.playing { border-color:var(--color-primary); box-shadow:0 0 0 2px rgba(var(--color-primary-rgb),.15) inset }
 .slot { display:flex; align-items:center; justify-content:space-between; gap:.5rem }
 .name { font-weight:600 }
@@ -50,6 +50,6 @@ function roundName(i:number,t:number){ if(i===t-1) return 'Finale'; if(i===t-2) 
 .name.winner { color:#10B981 } .name.loser { color:#EF4444 }
 .vs { margin:.25rem 0; text-align:center; font-size:.8rem; color:#9CA3AF }
 .actions { display:flex; justify-content:flex-end; margin-top:.25rem }
-.btn { padding:.25rem .5rem; border-radius:6px; border:1px solid var(--color-border); background:var(--color-background); cursor:pointer }
+.btn { padding:.25rem .5rem; border-radius:7px; border:1px solid var(--color-border); background:var(--color-background); cursor:pointer }
 .btn:hover{ border-color:var(--color-primary) }
 </style>

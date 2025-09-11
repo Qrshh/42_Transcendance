@@ -16,9 +16,9 @@ async function ensureDirs() {
 (async () => {
   await ensureDirs();
   // resetDevDb(() => runMigrations()); 
-  runMigrations();
+  await runMigrations();
 
-  const fastify = Fastify({ logger: false });
+  const fastify = Fastify({ logger: false, pluginTimeout: 20000 });
 
   // Expose config & db
   fastify.decorate('config', { PORT, HOST, SERVER_ORIGIN, FRONT_ORIGINS });
@@ -38,6 +38,7 @@ async function ensureDirs() {
   await fastify.register(require('./routes/friends'));
   await fastify.register(require('./routes/stats'));
   await fastify.register(require('./routes/games'));
+  await fastify.register(require('./routes/authGoogle'))
 
   // 2FA
   const { authenticateHybrid, generate2FASecret, verify2FAToken, generateBackupCodes } = require('./utils/auth')

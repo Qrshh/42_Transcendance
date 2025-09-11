@@ -1,7 +1,7 @@
 <template>
-  <div class="social-page">
+  <div class="social-page ">
     <!-- Header -->
-    <div class="social-header">
+    <div class="panel social-header">
       <div class="header-left">
         <h2 class="title">🌐 Social</h2>
         <p class="subtitle">{{ t.socialMsg }}</p>
@@ -16,7 +16,7 @@
     </div>
 
     <!-- Onglets (mêmes styles que ProfileView) -->
-    <div class="profile-tabs">
+    <div class="profile-tabs panel">
       <button
         v-for="tab in tabs"
         :key="tab.id"
@@ -31,10 +31,10 @@
     </div>
 
     <!-- Contenu (mêmes styles que ProfileView) -->
-    <div class="profile-content">
+    <div class="panel">
       <!-- AMIS -->
       <div v-if="activeTab === 'friends'" class="tab-content">
-        <div class="friends-header">
+        <div class="friends-header ">
           <h3 class="section-title">👥 {{t.myFriends}} ({{ friendsUsernames.length }})</h3>
 
         </div>
@@ -60,7 +60,7 @@
           <button
             v-for="c in conversations"
             :key="c.id"
-            class="conversation-card"
+            class="conversation-card panel"
             @click="openConversation(c)"
           >
             <div class="friend-avatar" :style="{ background: getUserColor(c.participant) }">
@@ -265,7 +265,7 @@ import FriendList from '../social/FriendList.vue'
 import ChatBoxLite from '../../components/ChatBoxLite.vue'
 
 /* ================== Config ================== */
-import { API_BASE, SOCKET_URL } from '../../config'
+import { API_BASE } from '../../config'
 
 /* ================== Types ================== */
 interface Conversation {
@@ -289,7 +289,7 @@ interface Notification {
 /* ================== State ================== */
 const router = useRouter()
 const me = (localStorage.getItem('username') || '').trim()
-const socket: Socket = io(SOCKET_URL, { transports: ['websocket'] })
+const socket: Socket = io(API_BASE, { transports: ['websocket'] })
 if (me) socket.emit('identify', me);
 const activeTab = ref<'friends'|'messages'|'notifications'>('friends')
 
@@ -299,6 +299,7 @@ const friendsUsernames = ref<string[]>([])
 
 const conversations = ref<Conversation[]>([])
 const notifications = ref<Notification[]>([])
+// Toasts globaux gérés dans App.vue si besoin
 
 const activeChatUser = ref<string | null>(null)
 
@@ -311,6 +312,8 @@ const isAddingFriend = ref(false)
 const addFriendError = ref<string | null>(null)
 const addFriendForm = ref({ username: '' })
 const addFriendInputRef = ref<HTMLInputElement | null>(null)
+// handler global pour openChat (doit être accessible pour cleanup)
+let openChatHandler: ((e: Event) => void) | null = null
 
 /* ================== Tabs ================== */
 const tabs = computed(() => [
@@ -636,6 +639,8 @@ onMounted(async () => {
       actionData: n.actionData
     })
     saveNotifsLS()
+
+    // Les popups sont désormais gérées globalement dans App.vue
   })
 
   // Messages entrants → upsert + badge si chat non ouvert
@@ -664,6 +669,29 @@ onMounted(async () => {
   watch(activeTab, (t) => { if (t === 'messages') syncConversationsFromServer() })
   // resync quand amis changent
   watch(friendsUsernames, () => { syncConversationsFromServer() })
+
+  // Ouvrir une conversation via événement global
+  openChatHandler = (e: Event) => {
+    try {
+      const ce = e as CustomEvent
+      const u = (ce.detail?.username || '').trim()
+      if (u) {
+        startConversationWithUser(u)
+        activeTab.value = 'messages'
+      }
+    } catch {}
+  }
+  window.addEventListener('openChat', openChatHandler)
+
+  // Consommer une cible stockée (si navigation déclenchée depuis un toast)
+  try {
+    const target = (localStorage.getItem('social_open_chat_with') || '').trim()
+    if (target) {
+      localStorage.removeItem('social_open_chat_with')
+      startConversationWithUser(target)
+      activeTab.value = 'messages'
+    }
+  } catch {}
 })
 
 onBeforeUnmount(() => {
@@ -675,6 +703,8 @@ onBeforeUnmount(() => {
   socket.off('newMessage')
   socket.off('challengeStart')
   socket.disconnect()
+  if (openChatHandler) window.removeEventListener('openChat', openChatHandler)
+  openChatHandler = null
 })
 
 
@@ -684,8 +714,7 @@ onBeforeUnmount(() => {
 /* ====== En-tête (aligné sur ProfileView) ====== */
 .social-page { max-width: 1000px; margin: 0 auto; padding: 2rem }
 .social-header {
-  background: var(--color-background-soft);
-  border-radius: 20px;
+  border-radius: 7px;
   padding: 1.25rem 1.5rem;
   display: flex; align-items: center; justify-content: space-between;
   box-shadow: var(--shadow-lg);
@@ -695,14 +724,14 @@ onBeforeUnmount(() => {
 .header-left .subtitle { margin: .25rem 0 0; color: var(--color-text); opacity: .75; font-size: .95rem }
 
 /* ====== Onglets (copie du style ProfileView) ====== */
-.profile-tabs { display: flex; background: var(--color-background-soft); border-radius: 15px; padding: .5rem; margin-bottom: 1.25rem; gap: .5rem }
-.tab-btn { display: flex; align-items: center; gap: .5rem; background: none; border: none; padding: .75rem 1.5rem; border-radius: 10px; cursor: pointer; color: var(--color-text); opacity: .7; transition: .3s; font-weight: 500; flex: 1; justify-content: center }
+.profile-tabs { display: flex; border-radius: 7px; padding: .5rem; margin-bottom: 1.25rem; gap: .5rem }
+.tab-btn { display: flex; align-items: center; gap: .5rem; background: none; border: none; padding: .75rem 1.5rem; border-radius: 7px; cursor: pointer; color: var(--color-text); opacity: .7; transition: .3s; font-weight: 500; flex: 1; justify-content: center }
 .tab-btn:hover { opacity: 1 }
-.tab-btn.active { background: var(--gradient-primary); color: #fff; opacity: 1 }
-.tab-count { background: rgba(255,255,255,.3); color: #fff; font-size: .75rem; font-weight: 600; padding: .25rem .5rem; border-radius: 12px; min-width: 1.5rem; text-align: center }
+.tab-btn.active { background: white; color: #000; opacity: 1 }
+.tab-count { background: rgba(255,255,255,.3); color: #fff; font-size: .75rem; font-weight: 600; padding: .25rem .5rem; border-radius: 7px; min-width: 1.5rem; text-align: center }
 
 /* ====== Contenu (copie du style ProfileView) ====== */
-.profile-content { background: var(--color-background-soft); border-radius: 20px; padding: 1.5rem; box-shadow: var(--shadow-md) }
+.profile-content { background: var(--color-background-soft); border-radius: 7px; padding: 1.5rem; box-shadow: var(--shadow-md) }
 .tab-content { animation: fadeIn .25s ease }
 @keyframes fadeIn { from{ opacity:0; transform: translateY(10px) } to{ opacity:1; transform: translateY(0) } }
 
@@ -715,8 +744,8 @@ onBeforeUnmount(() => {
 }
 .conversation-card {
   display:flex; gap: .9rem; align-items:center; text-align:left;
-  background: var(--color-background); border: 2px solid var(--color-border);
-  padding: 1rem; border-radius: 15px; transition: .2s; cursor: pointer;
+  
+  padding: 1rem; border-radius: 7px; transition: .2s; cursor: pointer;
 }
 .conversation-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md) }
 .friend-avatar {
@@ -734,13 +763,13 @@ onBeforeUnmount(() => {
 .status.online { color: #10b981; opacity:1 }
 .status.offline { color: #ef4444; opacity:1 }
 .status .dot { width:6px; height:6px; border-radius:50%; background: currentColor }
-.badge { background: var(--gradient-primary); color:#fff; border-radius: 12px; padding:.15rem .45rem; font-size:.75rem; font-weight:700 }
+.badge { background: var(--gradient-primary); color:#fff; border-radius: 7px; padding:.15rem .45rem; font-size:.75rem; font-weight:700 }
 
 /* ====== Notifications ====== */
 .notif-list { display:flex; flex-direction:column; gap:.8rem }
 .notif-card {
   display:flex; gap:.9rem; align-items:center; background: var(--color-background);
-  border: 2px solid var(--color-border); border-radius: 15px; padding: .9rem 1rem;
+  border: 2px solid var(--color-border); border-radius: 7px; padding: .9rem 1rem;
 }
 .notif-card.unread { border-color: var(--color-primary) }
 .notif-ic { font-size: 1.6rem; flex-shrink:0 }
@@ -748,7 +777,7 @@ onBeforeUnmount(() => {
 .notif-title { margin:0 0 .2rem; font-weight:800; color: var(--color-text) }
 .notif-msg { margin:0 0 .25rem; color: var(--color-text); opacity:.85 }
 .notif-time { font-size:.85rem; color: var(--color-text); opacity:.6 }
-.btn-icon-only { background: var(--color-background); border: 2px solid var(--color-border); color: var(--color-text); border-radius: 10px; width: 2.2rem; height: 2.2rem; cursor: pointer }
+.btn-icon-only { background: var(--color-background); border: 2px solid var(--color-border); color: var(--color-text); border-radius: 7px; width: 2.2rem; height: 2.2rem; cursor: pointer }
 .btn-icon-only:hover { background: var(--color-primary); color:#fff }
 
 /* ====== États vides ====== */
@@ -758,8 +787,8 @@ onBeforeUnmount(() => {
 .empty p { margin:0 0 1rem; opacity:.75 }
 
 /* ====== Boutons / commun ====== */
-.btn { display:inline-flex; align-items:center; gap:.5rem; padding:.7rem 1.1rem; border:none; border-radius:12px; font-weight:700; cursor:pointer; transition:.2s }
-.btn-primary { background: var(--gradient-primary); color:#fff }
+.btn { display:inline-flex; align-items:center; gap:.5rem; padding:.7rem 1.1rem; border:none; border-radius:7px; font-weight:700; cursor:pointer; transition:.2s }
+
 .btn-secondary { background: var(--color-background); border: 2px solid var(--color-border); color: var(--color-text) }
 .btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-md) }
 
@@ -767,19 +796,19 @@ onBeforeUnmount(() => {
 .fade-enter-active,.fade-leave-active{ transition: opacity .15s ease }
 .fade-enter-from,.fade-leave-to{ opacity: 0 }
 .af-overlay{ position: fixed; inset: 0; background: rgba(0,0,0,.45); display:grid; place-items:center; z-index: 1000 }
-.af-modal{ width:min(520px, calc(100% - 2rem)); background: var(--color-background); border: 1px solid var(--color-border); border-radius: 16px; box-shadow: var(--shadow-lg); overflow:hidden; animation: popIn .12s ease }
+.af-modal{ width:min(520px, calc(100% - 2rem)); background: var(--color-background); border: 1px solid var(--color-border); border-radius: 7px; box-shadow: var(--shadow-lg); overflow:hidden; animation: popIn .12s ease }
 @keyframes popIn { from { transform: scale(.98); opacity: .9 } to { transform: scale(1); opacity: 1 } }
 .af-header{ display:flex; align-items:center; justify-content:space-between; padding: 1rem 1.2rem; background: var(--color-background-soft); border-bottom: 1px solid var(--color-border) }
 .af-close{ color:white; border:0; background:transparent; cursor:pointer; font-size:1.1rem; opacity:.7 }
 .af-close:hover{ opacity:1 }
 .af-body{ padding: 1.2rem }
-.af-input{ width:100%; padding:.8rem 1rem; border-radius:10px; border:2px solid var(--color-border); background: var(--color-background); color: var(--color-text); font-size:1rem }
+.af-input{ width:100%; padding:.8rem 1rem; border-radius:7px; border:2px solid var(--color-border); background: var(--color-background); color: var(--color-text); font-size:1rem }
 .af-input:focus{ outline:none; border-color: var(--color-primary) }
 .af-error{ margin:.6rem 0 0; color:#ff4d4f; font-weight:600 }
 .af-actions{ display:flex; gap:.6rem; justify-content:flex-end; margin-top:1rem }
 .search-results{ margin-top:.8rem; display:flex; flex-direction:column; gap:.5rem }
 .user-result{
-  display:flex; align-items:center; gap:.7rem; border-radius:12px; padding:.6rem .7rem;
+  display:flex; align-items:center; gap:.7rem; :12px; padding:.6rem .7rem;
   background: var(--color-background-soft); border: 1px solid var(--color-border); cursor:pointer
 }
 .user-result:hover{ transform: translateY(-1px) }

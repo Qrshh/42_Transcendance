@@ -13,14 +13,23 @@ function extFromMime(m) {
   }
 }
 function absoluteUrl(rel, req, origin, port) {
-  // Si SERVER_ORIGIN pointe vers localhost mais que la requête arrive d'une IP LAN,
-  // privilégie l'hôte de la requête pour éviter des URLs injoignables côté navigateur.
-  const forwardedProto = req.headers['x-forwarded-proto'];
-  const protocol = forwardedProto || (req.protocol && req.protocol.includes('https') ? 'https' : 'http') || 'http';
-  const requestHost = req.headers['x-forwarded-host'] || req.headers.host || `localhost:${port || 3000}`;
-  const originIsLocal = typeof origin === 'string' && /(^|:)\/\/(localhost|127\.|\[::1\])/i.test(origin);
-  const base = (!origin || originIsLocal) ? `${protocol}://${requestHost}` : origin;
-  return rel.startsWith('http') ? rel : `${base}${rel}`;
+  // Si SERVER_ORIGIN est local, privilégie l’hôte réel du navigateur, en
+  // tenant compte des proxies (x-forwarded-*) et en dernier recours Referer.
+  const h = req.headers || {}
+  const forwardedProto = h['x-forwarded-proto']
+  const protocol = forwardedProto || (req.protocol && req.protocol.includes('https') ? 'https' : 'http') || 'http'
+  const xfHost = h['x-forwarded-host']
+  let requestHost = xfHost || h.host
+  if (!requestHost) {
+    // Essaye d’extraire depuis l’en-tête Origin ou Referer
+    const from = h.origin || h.referer
+    try { if (from) requestHost = new URL(from).host } catch {}
+  }
+  requestHost = requestHost || `localhost:${port || 3000}`
+
+  const originIsLocal = typeof origin === 'string' && /(^|:)\/\/(localhost|127\.|\[::1\]|backend(?::\d+)?)/i.test(origin)
+  const base = (!origin || originIsLocal) ? `${protocol}://${requestHost}` : origin
+  return rel.startsWith('http') ? rel : `${base}${rel}`
 }
 
 module.exports = { AVATAR_DIR, BANNER_DIR, extFromMime, absoluteUrl };

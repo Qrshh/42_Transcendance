@@ -50,7 +50,7 @@
 
     <!-- Canvas de jeu -->
     <div class="game-canvas-container">
-      <PongCanvas :state="gameState" :onMove="handlePlayerMove" />
+      <PongCanvas :state="gameState" :onMove="handlePlayerMove" controlledPlayer="p1" />
       
       <!-- Indicateurs de performance IA -->
       <div class="ai-performance">
@@ -157,21 +157,21 @@ function handlePlayerMove(player: 'p1' | 'p2', direction: 'up' | 'down' | 'stop'
 const adjustAIDifficulty = () => {
   switch (aiDifficulty.value) {
     case 'Facile':
-      aiAccuracy.value = 60
+      aiAccuracy.value = 50
       break
     case 'Normal':
-      aiAccuracy.value = 75
+      aiAccuracy.value = 65
       break
     case 'Difficile':
-      aiAccuracy.value = 90
+      aiAccuracy.value = 80
       break
   }
 }
 
 // Status de l'IA
 const getAIStatus = () => {
-  if (aiAccuracy.value > 85) return 'Concentrée'
-  if (aiAccuracy.value > 70) return 'Attentive'
+  if (aiAccuracy.value > 65) return 'Concentrée'
+  if (aiAccuracy.value > 80) return 'Attentive'
   return 'Calculant...'
 }
 
@@ -196,7 +196,6 @@ const getResultMessage = () => {
 const resetGame = () => {
   gameState.score.player1 = 0
   gameState.score.player2 = 0
-  gameState.status = 'playing'
   gameState.ball.x = 300
   gameState.ball.y = 200
   gameState.ball.vx = Math.random() > 0.5 ? 5 : -5
@@ -213,7 +212,7 @@ const resetGame = () => {
   gap: 1.5rem;
   background: var(--color-background-soft);
   border: 2px solid var(--color-border);
-  border-radius: 25px;
+  border-radius: 7px;
   padding: 2rem;
   box-shadow: var(--glow-primary);
   max-width: 800px;
@@ -226,9 +225,9 @@ const resetGame = () => {
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
-  background: linear-gradient(135deg, var(--color-background) 0%, rgba(76, 175, 80, 0.1) 100%);
+  background: linear-gradient(135deg, var(--color-background) 0%, var(--color-success-soft) 100%);
   border: 1px solid var(--color-border);
-  border-radius: 15px;
+  border-radius: 7px;
 }
 
 .ai-controls {
@@ -239,10 +238,9 @@ const resetGame = () => {
 .difficulty-selector {
   background: var(--color-background);
   border: 1px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: 7px;
   padding: 0.5rem 1rem;
   color: var(--color-text);
-  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
 }
@@ -259,18 +257,18 @@ const resetGame = () => {
   align-items: center;
   background: var(--color-background);
   border: 1px solid var(--color-border);
-  border-radius: 20px;
+  border-radius: 7px;
   padding: 1.5rem;
   position: relative;
 }
 
 .player-score.human {
-  border-left: 4px solid #2196F3;
+  border-left: 4px solid var(--color-info);
   padding-left: 1rem;
 }
 
 .player-score.ai {
-  border-right: 4px solid #4CAF50;
+  border-right: 4px solid var(--color-success);
   padding-right: 1rem;
 }
 
@@ -281,20 +279,20 @@ const resetGame = () => {
 .status-text {
   font-size: 0.8rem;
   padding: 0.25rem 0.75rem;
-  border-radius: 15px;
+  border-radius: 7px;
   font-weight: 500;
 }
 
 .status-text:not(.ai-status) {
-  background: rgba(33, 150, 243, 0.1);
-  color: #2196F3;
-  border: 1px solid #2196F3;
+  background: var(--color-info-soft);
+  color: var(--color-info);
+  border: 1px solid var(--color-info);
 }
 
 .ai-status {
-  background: rgba(76, 175, 80, 0.1);
-  color: #4CAF50;
-  border: 1px solid #4CAF50;
+  background: var(--color-success-soft);
+  color: var(--color-success);
+  border: 1px solid var(--color-success);
 }
 
 .ai-indicator {
@@ -308,7 +306,7 @@ const resetGame = () => {
   display: block;
   width: 10px;
   height: 10px;
-  background: #4CAF50;
+  background: var(--color-success);
   border-radius: 50%;
   animation: ai-pulse 2s infinite;
 }
@@ -324,9 +322,9 @@ const resetGame = () => {
   position: absolute;
   top: 10px;
   right: 10px;
-  background: rgba(0, 0, 0, 0.8);
+  background: var(--color-overlay-bg);
   padding: 0.75rem;
-  border-radius: 10px;
+  border-radius: 7px;
   color: white;
   font-size: 0.8rem;
 }
@@ -344,20 +342,19 @@ const resetGame = () => {
 .perf-bar {
   width: 60px;
   height: 6px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
+  background: rgba(var(--color-background-rgb), .2);
+  border-radius: 7px;
   overflow: hidden;
 }
 
 .perf-fill {
   height: 100%;
-  background: linear-gradient(90deg, #FF5252, #4CAF50);
+  background: linear-gradient(90deg, var(--color-danger), var(--color-success));
   transition: width 0.5s ease;
 }
 
 .perf-value {
-  font-weight: 600;
-  color: #4CAF50;
+  color: var(--color-success);
 }
 
 /* Statistiques */
@@ -376,7 +373,7 @@ const resetGame = () => {
   padding: 0.75rem 1rem;
   background: var(--color-background);
   border: 1px solid var(--color-border);
-  border-radius: 15px;
+  border-radius: 7px;
   font-size: 0.9rem;
 }
 
@@ -408,7 +405,7 @@ const resetGame = () => {
   padding: 0.5rem 1rem;
   background: rgba(var(--color-primary-rgb), 0.1);
   border: 1px solid var(--color-primary);
-  border-radius: 15px;
+  border-radius: 7px;
   font-size: 0.85rem;
 }
 

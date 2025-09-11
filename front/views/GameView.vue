@@ -12,10 +12,7 @@
 
     <!-- Header de la page -->
     <div class="game-header">
-      <div class="game-title">
-        <h1 class="title-text">🎮 MasterPong Arena</h1>
-        <p class="subtitle-text">Choisis ton mode de jeu et commence l'aventure !</p>
-      </div>
+      
       
       <!-- Indicateur de mode actuel -->
       <div class="mode-indicator">
@@ -54,11 +51,14 @@
         <!-- Jeu Local -->
         <div v-else-if="mode === 'local'" key="local" class="game-section play-section">
           <div class="game-wrapper">
-            <div class="game-header-mini">
-              <h2>🏠 Mode Local</h2>
-              <p>Joue contre un ami sur le même appareil</p>
+
+            <div ref="gameContainerRef" class="game-container">
+              <button class="fs-btn" @click="toggleFullscreen" :title="isFullscreen ? 'Quitter le plein écran' : 'Plein écran'">
+                <span v-if="!isFullscreen">⤢</span>
+                <span v-else>🗗</span>
+              </button>
+              <LocalGame />
             </div>
-            <LocalGame class="game-container" />
           </div>
         </div>
 
@@ -69,7 +69,13 @@
               <h2>🤖 Mode IA</h2>
               <p>Défi l'intelligence artificielle</p>
             </div>
-            <AIGame class="game-container" />
+            <div ref="gameContainerRef" class="game-container">
+              <button class="fs-btn" @click="toggleFullscreen" :title="isFullscreen ? 'Quitter le plein écran' : 'Plein écran'">
+                <span v-if="!isFullscreen">⤢</span>
+                <span v-else>🗗</span>
+              </button>
+              <AIGame />
+            </div>
           </div>
         </div>
 
@@ -80,13 +86,18 @@
               <h2>🌐 Mode En ligne</h2>
               <p>Room: <code class="room-id">{{ roomId }}</code></p>
             </div>
-            <RemoteGame
-              :socket="socket"
-              :roomId="roomId"
-              class="game-container"
-              @leaveGame="handleLeaveGame"
-              @gameEnded="onRemoteGameEnded"
-            />
+            <div ref="gameContainerRef" class="game-container">
+              <button class="fs-btn" @click="toggleFullscreen" :title="isFullscreen ? 'Quitter le plein écran' : 'Plein écran'">
+                <span v-if="!isFullscreen">⤢</span>
+                <span v-else>🗗</span>
+              </button>
+              <RemoteGame
+                :socket="socket"
+                :roomId="roomId"
+                @leaveGame="handleLeaveGame"
+                @gameEnded="onRemoteGameEnded"
+              />
+            </div>
             <div v-if="postMatchCountdown > 0" class="postmatch-overlay">
               <div class="box">
                 <h3>🎉 Match terminé</h3>
@@ -197,6 +208,8 @@ export default defineComponent({
     }
 
     onMounted(() => {
+      document.addEventListener('fullscreenchange', onFsChange)
+      document.addEventListener('webkitfullscreenchange', onFsChange as any)
       socket.on('connect', () => {
         isSocketConnected.value = true;
         console.log('✅ Socket connecté');
@@ -256,6 +269,50 @@ export default defineComponent({
     });
 
     // ————— UI / navigation —————
+    // Plein écran
+    const gameContainerRef = ref<HTMLDivElement | null>(null)
+    const isFullscreen = ref(false)
+    const isFsSim = ref(false)
+    function onFsChange() {
+      isFullscreen.value = !!document.fullscreenElement || (document as any).webkitFullscreenElement
+      try {
+        if (isFullscreen.value) document.body.classList.add('game-fs-on')
+        else document.body.classList.remove('game-fs-on')
+      } catch {}
+    }
+    async function toggleFullscreen() {
+      const el = gameContainerRef.value
+      if (!el) return
+      try {
+        if (!document.fullscreenElement && !(document as any).webkitFullscreenElement && !isFsSim.value) {
+          if (el.requestFullscreen) await el.requestFullscreen()
+          else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen()
+          else enableSimFs()
+          isFullscreen.value = true
+        } else {
+          if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
+            if (document.exitFullscreen) await document.exitFullscreen()
+            else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen()
+            isFullscreen.value = false
+          }
+          if (isFsSim.value) disableSimFs()
+        }
+      } catch (e) { console.warn('Fullscreen toggle failed', e); if (!isFsSim.value) enableSimFs(); else disableSimFs(); }
+    }
+    function enableSimFs(){
+      const el = gameContainerRef.value; if (!el) return
+      isFsSim.value = true
+      try { document.documentElement.style.overflow = 'hidden'; document.body.classList.add('game-fs-on') } catch {}
+      el.classList.add('fs-sim')
+      try { document.dispatchEvent(new Event('fullscreenchange')) } catch {}
+    }
+    function disableSimFs(){
+      const el = gameContainerRef.value; if (!el) return
+      isFsSim.value = false
+      try { document.documentElement.style.overflow = ''; document.body.classList.remove('game-fs-on') } catch {}
+      el.classList.remove('fs-sim')
+      try { document.dispatchEvent(new Event('fullscreenchange')) } catch {}
+    }
     function setMode(m: typeof mode.value) {
       mode.value = m;
       console.log(`🎮 Mode changé vers: ${m}`);
@@ -340,14 +397,17 @@ export default defineComponent({
 
     onUnmounted(() => {
       if (postMatchTimer) { clearInterval(postMatchTimer); postMatchTimer = null; }
+      document.removeEventListener('fullscreenchange', onFsChange)
+      document.removeEventListener('webkitfullscreenchange', onFsChange as any)
     });
 
     return {
       // state
       mode, roomId, socket, isSocketConnected,
       tournamentId, postMatchCountdown,
+      gameContainerRef, isFullscreen,
       // actions
-      setMode, onRemoteStart, handleLeaveGame, onRemoteGameEnded, returnToLobby,
+      setMode, onRemoteStart, handleLeaveGame, onRemoteGameEnded, returnToLobby, toggleFullscreen,
       // display
       getModeEmoji, getModeText, getPlayerCountText
     };
@@ -361,8 +421,8 @@ export default defineComponent({
   position: relative;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(135deg, #667eea0f 0%, #764ba200 100%);
   overflow-x: hidden;
+  border-radius: 7px;
 }
 
 /* Background animé */
@@ -433,11 +493,11 @@ export default defineComponent({
   padding: 2rem;
   text-align: center;
   background: rgba(var(--color-background-soft-rgb), 0.8);
-  backdrop-filter: blur(10px);
+  
   border-bottom: 1px solid var(--color-border);
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 10;
 }
 
 .game-title {
@@ -475,7 +535,7 @@ export default defineComponent({
   padding: 1rem 2rem;
   background: var(--color-background-soft);
   border: 1px solid var(--color-border);
-  border-radius: 25px;
+  border-radius: 7px;
   box-shadow: var(--shadow-sm);
 }
 
@@ -492,9 +552,9 @@ export default defineComponent({
 .btn-back {
   padding: 0.75rem 1.5rem;
   background: var(--gradient-secondary);
-  color: white;
+  color: #000;
   border: none;
-  border-radius: 20px;
+  border-radius: 7px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -518,7 +578,7 @@ export default defineComponent({
 
 .game-section {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1800px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -552,7 +612,7 @@ export default defineComponent({
   padding: 1.5rem;
   background: var(--color-background-soft);
   border: 1px solid var(--color-border);
-  border-radius: 20px;
+  border-radius: 7px;
   box-shadow: var(--shadow-md);
   max-width: 600px;
   width: 100%;
@@ -577,7 +637,7 @@ export default defineComponent({
   background: var(--color-primary);
   color: white;
   padding: 0.25rem 0.5rem;
-  border-radius: 5px;
+  border-radius: 7px;
   font-family: 'Courier New', monospace;
   font-weight: bold;
 }
@@ -585,31 +645,72 @@ export default defineComponent({
 /* Conteneur de jeu */
 .game-container {
   width: 100%;
-  max-width: 700px;
-  height: 500px;
+  max-width: 1800px;
+  height: 900px;
   background: var(--color-background-soft);
   border: 2px solid var(--color-border);
-  border-radius: 25px;
+  border-radius: 7px;
   box-shadow: var(--glow-primary);
   transition: all 0.3s ease;
-  overflow-y: scroll;
+  overflow: hidden;
+  position: relative;
 }
 
-.game-container:hover {
-  transform: translateY(-5px);
-  box-shadow: var(--glow-primary-strong);
+/* Fallback fullscreen container */
+.game-container.fs-sim{
+  position: fixed; inset: 0; z-index: 9999; display:grid; place-items:center;
+  background: var(--color-background);
+  touch-action: none;
 }
+.game-container.fs-sim .pong-canvas{
+  /* Fallback chain: 100vh -> var(--vh) -> 100dvh (modern iOS) */
+  height: 100vh;
+  height: calc(var(--vh, 1vh) * 100);
+  height: 100dvh;
+  width: auto; max-width: 100vw;
+  /* Max-height chain aligned as well */
+  max-height: 100vh;
+  max-height: calc(var(--vh, 1vh) * 100);
+  max-height: 100dvh;
+}
+
+/* Limite l'effet hover aux devices avec vrai survol, et jamais en plein écran */
+@media (hover:hover) and (pointer:fine) {
+  html:not(.fs-active) .game-container:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--glow-primary-strong);
+  }
+}
+/* Désactive le déplacement en plein écran (simulé ou natif) */
+html.fs-active .game-container:hover,
+.game-container.fs-sim:hover,
+.game-container:has(.fs-root.fs-sim):hover {
+  transform: none;
+  box-shadow: var(--glow-primary);
+}
+
+/* Fullscreen button */
+.fs-btn{
+  position:absolute; top:10px; right:10px;
+  background: var(--color-overlay-bg);
+  color: var(--color-text); border:1px solid var(--color-border);
+  width: 36px; height: 36px; border-radius: 8px;
+  display:grid; place-items:center; cursor:pointer;
+  box-shadow: 0 6px 16px rgba(0,0,0,.25);
+  z-index: 20;
+}
+.fs-btn:hover{ background: rgba(var(--color-background-rgb), .2) }
 
 /* Overlay post-match */
 .postmatch-overlay{
   position:absolute; inset:0;
   display:flex; align-items:center; justify-content:center;
-  background:rgba(0,0,0,.35); backdrop-filter: blur(2px);
+  background: var(--color-overlay-bg); backdrop-filter: blur(2px);
 }
 .postmatch-overlay .box{
   background: var(--color-background);
   border:1px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: 7px;
   padding: 1rem 1.25rem;
   text-align:center;
 }
@@ -642,7 +743,7 @@ export default defineComponent({
   padding: 0.5rem 1rem;
   background: var(--color-background);
   border: 1px solid var(--color-border);
-  border-radius: 15px;
+  border-radius: 7px;
 }
 
 .stat-icon {
@@ -666,18 +767,18 @@ export default defineComponent({
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  border-radius: 15px;
+  border-radius: 7px;
   font-size: 0.9rem;
   font-weight: 500;
-  background: rgba(255, 82, 82, 0.1);
-  color: #ff5252;
-  border: 1px solid #ff5252;
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
 }
 
 .status-indicator.online {
-  background: rgba(76, 175, 80, 0.1);
-  color: #4caf50;
-  border: 1px solid #4caf50;
+  background: var(--color-success-soft);
+  color: var(--color-success);
+  border: 1px solid var(--color-success);
 }
 
 .status-dot {

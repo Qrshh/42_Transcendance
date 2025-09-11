@@ -1,0 +1,11 @@
+Model Information:
+* title:	MotherBoard + Components
+* source:	https://sketchfab.com/3d-models/motherboard-components-3bc94057328243d4b341a55f59160f8a
+* author:	Daniel Cardona (https://sketchfab.com/DanielCardonaArt)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "MotherBoard + Components" (https://sketchfab.com/3d-models/motherboard-components-3bc94057328243d4b341a55f59160f8a) by Daniel Cardona (https://sketchfab.com/DanielCardonaArt) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

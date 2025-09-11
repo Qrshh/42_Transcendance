@@ -1,4 +1,3 @@
-<!-- src/components/TournamentWaitingScreen.vue -->
 <template>
   <div class="tw-wrap" v-if="t">
     <header class="tw-head">
@@ -162,7 +161,10 @@ export default defineComponent({
       }, 1000) as unknown as number
     }
 
-    function askJoin(){ props.socket.emit('joinTournament', { tournamentId: props.tournamentId }) }
+    function askJoin(){
+      // Le serveur exige un alias pour rejoindre; on utilise le pseudo courant
+      props.socket.emit('joinTournament', { tournamentId: props.tournamentId, alias: me })
+    }
     function forceFill(){ props.socket.emit('forceFillWithBots', { tournamentId: props.tournamentId }) }
     function startNow(){ props.socket.emit('startTournament', { tournamentId: props.tournamentId }) }
     function leave(){
@@ -183,7 +185,9 @@ export default defineComponent({
     }
     const onMatchStart = (p:any) => {
       if (!p || p.tournamentId !== props.tournamentId) return
-      if (p.p1 === me || p.p2 === me) {
+      const meLc = String(me).toLowerCase()
+      const isMine = String(p.p1||'').toLowerCase() === meLc || String(p.p2||'').toLowerCase() === meLc
+      if (isMine) {
         myRoomId.value = p.roomId
         // rejoins la room maintenant
         props.socket.emit('joinChallengeRoom', { roomId: p.roomId, username: me })
@@ -201,6 +205,7 @@ export default defineComponent({
       myRoomId.value = ''
     }
     
+    const onChallengeError = (e:any) => { console.warn('challengeError:', e) }
     onMounted(() => {
       props.socket.emit('identify', me)
       askJoin()
@@ -209,6 +214,7 @@ export default defineComponent({
       props.socket.on('matchCountdown', onMatchCountdown)
       props.socket.on('tournamentFinished', onFinished)
       props.socket.on('tournamentRoundComplete', onRoundComplete)
+      props.socket.on('challengeError', onChallengeError)
     })
     onBeforeUnmount(() => {
       if (countdownTimer) clearInterval(countdownTimer)
@@ -217,6 +223,7 @@ export default defineComponent({
       props.socket.off('matchCountdown', onMatchCountdown)
       props.socket.off('tournamentFinished', onFinished)
       props.socket.off('tournamentRoundComplete', onRoundComplete)
+      props.socket.off('challengeError', onChallengeError)
     })
 
     return { t, runningRooms, isHost, displayTimeLeft, secondsLeft, myRoomId, winnersNow, eliminatedNow, roundCooldownLeft, matchCountdown,
@@ -232,19 +239,19 @@ export default defineComponent({
 .tw-meta{ display:flex; gap:1rem; color:#6B7280 }
 .tw-actions .btn{ margin-left:.5rem }
 .tw-content{ display:grid; grid-template-columns:2fr 1fr; gap:1rem }
-.panel{ border:1px solid var(--color-border); background:var(--color-background); border-radius:8px; padding:.75rem 1rem }
+.panel{ border:1px solid var(--color-border); background:var(--color-background); border-radius:7px; padding:.75rem 1rem }
 .panel.tip{ color:#6B7280 }
 .panel.warn{ border-color:#F59E0B; background:rgba(245,158,11,.08) }
 .plist{ list-style:none; padding:0; margin:0 } .plist li{ display:flex; align-items:center; gap:.5rem; padding:.25rem 0 }
-.pill{ font-size:.75rem; padding:.1rem .4rem; border-radius:999px; border:1px solid var(--color-border) }
+.pill{ font-size:.75rem; padding:.1rem .4rem; border:1px solid var(--color-border) }
 .pill.out{ border-color:#EF4444; color:#EF4444 } .pill.bot{ border-color:#6B7280; color:#6B7280 } .pill.host{ border-color:#10B981; color:#10B981 }
 .bot{ opacity:.9 }
 .tw-right .stack{ display:flex; flex-direction:column; gap:.5rem }
-.btn{ color:white; padding:.4rem .7rem; border:1px solid var(--color-border); background:var(--color-background); border-radius:6px; cursor:pointer }
+.btn{ color:#000; padding:.4rem .7rem; border:1px solid var(--color-border); background:var(--color-background); border-radius:7px; cursor:pointer }
 .btn.primary{ border-color:var(--color-primary) }
 .btn.ghost{ opacity:.9 } .btn.danger{ border-color:#EF4444; color:#EF4444 }
 .tw-play{ border-top:1px dashed var(--color-border); padding-top:1rem }
 .countdown{ display:flex; align-items:center; gap:1rem; margin-top:.5rem }
 .cd-label{ color:#9CA3AF }
-.cd-big{ font-size:2.5rem; font-weight:800; letter-spacing:.02em; background:var(--gradient-primary); -webkit-background-clip:text; -webkit-text-fill-color:transparent }
+.cd-big{ font-size:2.5rem; font-weight:800; letter-spacing:.02em; background:var(--gradient-primary);  -webkit-text-fill-color:transparent }
 </style>

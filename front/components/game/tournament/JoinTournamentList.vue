@@ -39,7 +39,13 @@ const loading = ref(true)
 function fmtTime(s:number){ s=Math.max(0,Math.floor(s)); const m=Math.floor(s/60), r=s%60; return m?`${m}m${String(r).padStart(2,'0')}s`:`${r}s` }
 function refresh(){ props.socket.emit('getTournamentList') }
 function join(t:TSumm){
-  props.socket.emit('joinTournament', { tournamentId: t.id })
+   //demande de l'alias a l'utilisateur 
+  const alias = prompt("Entrez votre alias pour ce tournoi ;", "")
+  if(!alias || !alias.trim()){
+    alert("Vous devez entrer un alias")
+    return 
+  }
+  props.socket.emit('joinTournament', { tournamentId: t.id, alias: alias.trim() })
   // Une fois rejoint, on bascule sur l'écran d'attente
   emit('joined', { id: t.id, name: t.name })
 }
@@ -64,13 +70,13 @@ onBeforeUnmount(() => {
 .jt-wrap{ display:grid; gap:1rem }
 .header{ display:flex; align-items:center; justify-content:space-between }
 .title{ margin:0 }
-.hint{ color:#6B7280 }
+.hint{ color:white }
 .list{ list-style:none; padding:0; margin:0; display:grid; gap:.75rem }
-.card{ display:flex; justify-content:space-between; align-items:center; border:1px solid var(--color-border); background:var(--color-background); border-radius:8px; padding:.5rem .75rem }
+.card{ display:flex; justify-content:space-between; align-items:center; border:1px solid var(--color-border); background:var(--color-background); border-radius:7px; padding:.5rem .75rem }
 .name{ font-weight:700 }
 .sub{ color:#6B7280; font-size:.9rem }
 .side{ display:flex; align-items:center; gap:.5rem }
-.btn{ color: white; padding:.4rem .7rem; border:1px solid var(--color-border); background:var(--color-background); border-radius:6px; cursor:pointer }
+.btn{ color: white; padding:.4rem .7rem; border:1px solid var(--color-border); background:var(--color-background); border-radius:7px; cursor:pointer }
 .btn.primary{ border-color:var(--color-primary) }
 .btn.ghost{ color: white; opacity:.9 }
 .time{ color:#6B7280 }

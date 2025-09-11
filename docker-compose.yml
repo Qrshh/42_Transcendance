@@ -4,8 +4,8 @@ services:
       context: ./front
       dockerfile: Dockerfile
     platform: linux/amd64
-    ports:
-      - "${FRONT_PORT:-5173}:5173"
+    #ports:
+    #  - "${FRONT_PORT:-5173}:5173"
     volumes:
       - ./front:/app
       - /app/node_modules
@@ -23,8 +23,8 @@ services:
       context: ./back
       dockerfile: Dockerfile
     platform: linux/amd64
-    ports:
-      - "${BACK_PORT:-3000}:3000"
+    #ports:
+    #  - "${BACK_PORT:-3000}:3000"
     volumes:
       - ./back:/app
       - /app/node_modules
@@ -65,6 +65,20 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-graf123}
     volumes:
       - grafana-storage:/var/lib/grafana
+    networks:
+      - transcendance
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    ports:
+      - "8443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - frontend
+      - backend
     networks:
       - transcendance
 

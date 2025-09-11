@@ -48,6 +48,9 @@ logs-grafana:
 logs-prometheus:
 	@docker-compose -f $(COMPOSE_FILE) logs -f prometheus
 
+logs-nginx:
+	@docker-compose -f $(COMPOSE_FILE) logs -f nginx
+
 status:
 	@docker-compose -f $(COMPOSE_FILE) ps
 

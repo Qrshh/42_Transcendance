@@ -1,25 +1,31 @@
 <script setup lang="ts">
 import { ref, defineEmits } from 'vue'
 import axios from 'axios'
+import { API_BASE } from '../../config'
+import { useGlobalToasts } from '../../composables/useGlobalToasts'
 
 const emits = defineEmits(['friend-added'])
 
 const username = localStorage.getItem('username') || ''
 const newFriend = ref('')
+const { showToast } = useGlobalToasts()
 
 const sendRequest = async () => {
-  if (!newFriend.value.trim()) return alert("Entrez un nom d'utilisateur")
+  if (!newFriend.value.trim()) {
+    showToast("Entrez un nom d'utilisateur", 'warning')
+    return
+  }
   try {
-    import { API_BASE } from '../../config'
     await axios.post(`${API_BASE}/friends/request`, {
       from: username,
       to: newFriend.value.trim()
     })
-    alert('Demande envoyée !')
+    showToast('Demande envoyée ✔', 'success')
     newFriend.value = ''
     emits('friend-added')
-  } catch (e) {
-    alert('Erreur: ' + e.response?.data?.error || e.message)
+  } catch (e: any) {
+    const msg = e?.response?.data?.error || e?.message || 'Erreur lors de la demande'
+    showToast(msg, 'error')
   }
 }
 </script>
