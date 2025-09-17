@@ -153,7 +153,7 @@
 <script lang="ts">
 import { defineComponent, ref, onMounted, onUnmounted } from 'vue';
 import { io, Socket } from 'socket.io-client';
-import { API_BASE } from '../config'
+import { API_BASE, SOCKET_URL } from '../config'
 import Lobby from '../components/game/lobby/Lobby.vue';
 import LocalGame from '../components/game/lobby/LocalGame.vue';
 import AIGame from '../components/game/lobby/AIGame.vue';
@@ -177,7 +177,7 @@ export default defineComponent({
     // ⚙️ URL backend
 
     // 🔌 Socket client
-    const socket: Socket = io(API_BASE, {
+    const socket: Socket = io(SOCKET_URL, {
       transports: ['websocket'],
       autoConnect: true
     });

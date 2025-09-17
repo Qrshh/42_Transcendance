@@ -5,19 +5,31 @@ const SOCKET_KEY = Symbol('socket')
 
 // Détection automatique de l'URL du serveur WebSocket
 function getSocketUrl(): string {
-  const currentHost = window.location.hostname
-  
-  if (currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
-    return `http://${currentHost}:3000`
+  const { protocol, hostname, port } = window.location
+  const secure = protocol === 'https:'
+  const socketScheme = secure ? 'wss' : 'ws'
+  const socketPort = port ? `:${port}` : secure ? '' : ':3000'
+  return `${socketScheme}://${hostname}${socketPort}`
+}
+
+function normaliseSocketUrl(url?: string): string {
+  if (!url) return getSocketUrl()
+  if (/^wss?:\/\//i.test(url)) return url
+  if (/^https?:\/\//i.test(url)) {
+    const secure = url.toLowerCase().startsWith('https://')
+    return url.replace(/^https?/i, secure ? 'wss' : 'ws')
   }
-  
-  return 'http://localhost:3000'
+  if (url.startsWith('/')) {
+    const base = window.location.origin.replace(/^http/i, window.location.protocol === 'https:' ? 'wss' : 'ws')
+    return `${base.replace(/\/$/, '')}${url}`
+  }
+  return url
 }
 
 export default {
   install(app: App, options?: { url?: string }) {
     // Utilise l'URL fournie ou détecte automatiquement
-    const socketUrl = options?.url || getSocketUrl()
+    const socketUrl = normaliseSocketUrl(options?.url)
     
     const socket = io(socketUrl, {
       transports: ['websocket'],
