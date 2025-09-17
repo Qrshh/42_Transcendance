@@ -66,13 +66,9 @@
             <span class="label-text">Joueurs</span>
           </label>
           <select v-model.number="form.maxPlayers" class="form-select">
-            <option value="2">2 joueurs</option>
-            <option value="3">3 joueurs</option>
             <option value="4">4 joueurs</option>
-            <option value="5">5 joueurs</option>
-            <option value="6">6 joueurs</option>
-            <option value="7">7 joueurs</option>
             <option value="8">8 joueurs</option>
+            <option value="16">16 joueurs</option>
           </select>
         </div>
 

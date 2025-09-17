@@ -192,7 +192,7 @@ const tournaments = new Map(); // id -> Tournament
 const TOURN_FILL_TIMEOUT_MS = 60_000;  // cooldown pour remplir / auto-bots
 const ROUND_COOLDOWN_MS     = 10_000;  // attente entre 2 rounds
 const MATCH_START_COUNTDOWN = 3;       // compte à rebours avant chaque match
-const allowedSizes = new Set([2,4,6,8]);
+const allowedSizes = new Set([4,8,16]);
 
 function nextPow2(n){let p=1;while(p<n)p<<=1;return p}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
@@ -438,7 +438,7 @@ io.on('connection', (socket) => {
       const maxPlayers=Number(data?.maxPlayers)||4;
       const maxPoints=Number(data?.maxPoints)||10;
       const durationMinutes=data?.durationMinutes?Number(data.durationMinutes):null;
-      if(!allowedSizes.has(maxPlayers)) return socket.emit('tournamentError',{message:'Taille invalide (2/4/6/8).'});
+      if(!allowedSizes.has(maxPlayers)) return socket.emit('tournamentError',{message:'Taille invalide (4/8/16).'});
       const id=`t-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
       const t={ id,name,hostId, hostAlias: alias, host: alias, createdAt:Date.now(),status:'waiting',maxPlayers,maxPoints,durationMinutes,
         participants:[{ username: hostId, display: alias }], bracket:null, currentRoundIndex:0, fillDeadline:Date.now()+TOURN_FILL_TIMEOUT_MS, runningRooms:new Set()};
