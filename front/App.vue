@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute, RouterLink, RouterView } from 'vue-router'
 import { io } from 'socket.io-client'
-import { API_BASE } from './config'
+import { API_BASE, SOCKET_URL } from './config'
 import Computer3D from './components/3d/Computer3D.vue'
 
 /* ==== i18n & auth (comme ton code existant) ==== */
@@ -189,7 +189,7 @@ onMounted(async () => {
 
   // socket + identify
   // Utilise le même endpoint socket que SocialView / plugin (backend)
-  socket.value = io(API_BASE, { withCredentials: true, transports: ['websocket'] })
+  socket.value = io(SOCKET_URL, { withCredentials: true, transports: ['websocket'] })
   if (userName.value) socket.value.emit('identify', userName.value)
 
   socket.value.on('forceLogout', ({ reason }) => {
