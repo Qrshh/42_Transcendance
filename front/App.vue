@@ -10,6 +10,7 @@ import { useI18n } from './composables/useI18n'
 import { isLoggedIn } from './stores/auth'
 const { t, onLangChange } = useI18n()
 import { useGlobalToasts } from './composables/useGlobalToasts'
+import { devNull } from 'os'
 
 /* ==== Router & Socket ==== */
 const router = useRouter()
@@ -176,6 +177,34 @@ function goProfileSettings() {
   showUserMenu.value = false
 }
 
+/* ==== Gestion de la musique ==== */
+const audio = ref<HTMLAudioElement | null>(null)
+const volume = ref(Number(localStorage.getItem('volume') || 0.5))
+const isPlaying = ref(false)
+const showVolume = ref(false)
+
+function toggleMusic()
+{
+  if(!audio.value) return 
+  if(isPlaying.value){
+    audio.value.pause()
+    isPlaying.value = false
+  } else {
+    audio.value.play().catch(() => {})
+    isPlaying.value = true
+  }
+}
+
+function toggleVolume(){
+  showVolume.value = !showVolume.value
+}
+
+watch(volume, (v) => {
+  if(audio.value)
+    audio.value.volume = v
+  localStorage.setItem('volume', String(v))
+})
+
 /* ==== Lifecycle ==== */
 onMounted(async () => {
   // applique le thème sauvegardé
@@ -277,6 +306,23 @@ onFsFlagChange() // init au chargement
 
   // Récupère l'avatar s'il existe
   await loadAvatar(userName.value)
+
+
+  //musique
+  if(audio.value){
+    audio.value.volume = volume.value
+    audio.value.loop = true
+  }
+
+  const startMusic = () => {
+    if(isPlaying.value || !audio.value) return 
+    audio.value.play().then(() => {
+      isPlaying.value = true
+    }).catch(err => console.warn("Impossible de lancer la musique:", err))
+    window.removeEventListener('click', startMusic)
+  }
+
+  window.addEventListener('click', startMusic)
 })
 
 onBeforeUnmount(() => {
@@ -358,6 +404,33 @@ watch(userName, (n, o) => {
           <option value="fr">🇫🇷 FR</option>
           <option value="es">🇪🇸 ES</option>
         </select>
+
+
+
+        <div class="music-controls">
+          <!-- bouton play/pause -->
+          <button @click="toggleMusic" class="music-btn">
+            {{ isPlaying ? '⏸️' : '▶️' }}
+          </button>
+
+          <!-- bouton volume -->
+          <button @click="toggleVolume" class="music-btn">🔊</button>
+
+          <!-- slider qui pop seulement si showVolume -->
+          <transition name="fade">
+            <input
+              v-if="showVolume"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              v-model.number="volume"
+              class="music-slider"
+            />
+          </transition>
+        </div>
+
+        <audio ref="audio" src="/music/theme.mp3" preload="auto"></audio>
 
         <!-- Avatar + menu -->
         <div class="userbox" v-if="logged">
@@ -617,4 +690,31 @@ a.router-link-active.nav-link::after,
 .gtoast-enter-active,.gtoast-leave-active{ transition: all .2s ease }
 .gtoast-enter-from,.gtoast-leave-to{ opacity:0; transform: translateY(-8px) }
 html.fs-active .gtoast-container { pointer-events: none !important; }
+
+
+.music-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  position: relative;
+}
+
+.music-slider {
+  position: absolute;
+  top: 120%; /* en dessous du bouton */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+}
+
+/* animation d’apparition/disparition */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
 </style>
