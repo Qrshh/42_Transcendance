@@ -265,6 +265,10 @@ const goBack = () => { requiresTwoFactor.value = false; twoFactorCode.value = ''
 
 function validateInputs(){
   //verification de l'email
+
+function validateInputs(){
+  //verification de l'email
+
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if(!emailRegex.test(email.value)){
     error.value = "Adresse email invalide"
@@ -275,6 +279,7 @@ function validateInputs(){
     error.value = "Le mot de passe doit contenir au moins 8 caracteres"
     return false
   }
+
   //verification de l'username (que register du coup)
   if(!isLogin.value)
   {

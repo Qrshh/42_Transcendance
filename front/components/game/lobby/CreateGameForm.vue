@@ -83,12 +83,6 @@
             <span class="slider"></span>
             <span class="toggle-text">🚀 Balle accélérante</span>
           </label>
-          <!-- Toggle paddle dash -->
-          <label class="toggle">
-            <input type="checkbox" v-model="form.paddleDash" />
-            <span class="slider"></span>
-            <span class="toggle-text">⚡ Paddle dash</span>
-          </label>
         </div>
       </div>
 

@@ -259,6 +259,7 @@ const ROUND_COOLDOWN_MS     = 10_000;  // attente entre 2 rounds
 const MATCH_START_COUNTDOWN = 3;       // compte à rebours avant chaque match
 const allowedSizes = new Set([2,4,8,16]);
 
+
 function nextPow2(n){let p=1;while(p<n)p<<=1;return p}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function pickSocket(username){const set=socketsByUserMulti.get(username);return set&&set.size?Array.from(set)[0]:null}
