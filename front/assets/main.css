@@ -141,7 +141,7 @@ header {
 /* Responsive design amélioré */
 @media (min-width: 768px) {
   #app {
-    padding: 3rem;
+    padding: 1rem;
   }
 }
 
@@ -192,7 +192,7 @@ header {
 
 /* Cacher l'UI de jeu en plein écran (mobile FS natif/fallback) */
 .game-fs-on .game-overlay,
-.game-fs-on .start-overlay,
+.game-fs-on .canvas-countdown,
 .game-fs-on .ai-performance,
 .game-fs-on .game-footer,
 .game-fs-on .game-header,
@@ -225,4 +225,3 @@ header {
 .game-fs-on .remote-game-container .game-status,
 .game-fs-on .remote-game-container .instructions,
 .game-fs-on .remote-game-container .leave-btn{ display:none !important }
-

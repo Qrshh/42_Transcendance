@@ -4,6 +4,7 @@
     <div class="form-header">
       <h2 class="form-title">✨ Créer une partie</h2>
       <p class="form-subtitle">Configure ta partie et invite tes amis !</p>
+      <button type="button" class="btn-custom" @click="openCustomization">⚙️ Options globales</button>
     </div>
 
     <!-- Formulaire -->
@@ -67,12 +68,9 @@
           </label>
           <select v-model.number="form.maxPlayers" class="form-select">
             <option value="2">2 joueurs</option>
-            <option value="3">3 joueurs</option>
             <option value="4">4 joueurs</option>
-            <option value="5">5 joueurs</option>
-            <option value="6">6 joueurs</option>
-            <option value="7">7 joueurs</option>
             <option value="8">8 joueurs</option>
+            <option value="16">16 joueurs</option>
           </select>
         </div>
 
@@ -144,12 +142,22 @@
         </div>
       </div>
     </div>
+
+    <div class="custom-summary">
+      <span class="summary-chip">{{ arenaLabel }}</span>
+      <span class="summary-chip">{{ ballSpeedLabel }}</span>
+      <span class="summary-chip">{{ ballSizeLabel }}</span>
+      <span class="summary-chip">{{ powerUpLabel }}</span>
+      <span class="summary-chip">{{ accelLabel }}</span>
+      <span class="summary-chip">{{ dashLabel }}</span>
+    </div>
   </div>
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, onMounted, onUnmounted } from 'vue';
+import { defineComponent, ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import type { Socket } from 'socket.io-client';
+import { useGameSettings } from '../../../stores/gameSettings';
 
 export default defineComponent({
   name: 'CreateTournamentForm',
@@ -162,6 +170,8 @@ export default defineComponent({
   emits: ['back', 'tournamentCreated'],
   
   setup(props, { emit }) {
+    const { settings } = useGameSettings()
+
     const form = ref({
       name: '',
       alias: '',
@@ -169,10 +179,16 @@ export default defineComponent({
       password: '',
       maxPlayers: 2,
       maxPoints: 10,
+      accelBall: settings.accelBall,
+      paddleDash: settings.paddleDash,
     });
 
     const errorMessage = ref<string | null>(null);
     const isCreating = ref(false);
+
+    const openCustomization = () => {
+      window.dispatchEvent(new Event('open-game-settings'))
+    }
 
     const createTournament = async () => {
       try {
@@ -197,6 +213,16 @@ export default defineComponent({
           password: form.value.hasPassword ? form.value.password : undefined,
           maxPlayers: form.value.maxPlayers,
           maxPoints: form.value.maxPoints,
+          accelBall: form.value.accelBall,
+          paddleDash: form.value.paddleDash,
+          customization: {
+            arena: settings.arena,
+            ballSpeed: settings.ballSpeed,
+            ballSize: settings.ballSize,
+            accelBall: settings.accelBall,
+            paddleDash: settings.paddleDash,
+            powerUps: settings.powerUps,
+          },
         };
 
         console.log("🎮 Création de partie:", tournamentData);
@@ -237,11 +263,50 @@ export default defineComponent({
     props.socket.off('tournamentError');
     });
 
+    const accelLabel = computed(() => form.value.accelBall ? '⚡ Accélération activée' : '⚡ Accélération désactivée')
+    const dashLabel = computed(() => form.value.paddleDash ? '🚀 Dash activé' : '🚀 Dash désactivé')
+
+    watch(() => settings.accelBall, (val) => { form.value.accelBall = val })
+    watch(() => settings.paddleDash, (val) => { form.value.paddleDash = val })
+
+    const arenaLabel = computed(() => {
+      switch (settings.arena) {
+        case 'neon': return 'Neon futuriste'
+        case 'cosmic': return 'Cosmos'
+        default: return 'Classique 1972'
+      }
+    })
+
+    const ballSpeedLabel = computed(() => {
+      switch (settings.ballSpeed) {
+        case 'fast': return 'Rapide'
+        case 'extreme': return 'Extrême'
+        default: return 'Normale'
+      }
+    })
+
+    const ballSizeLabel = computed(() => settings.ballSize === 'large' ? 'Balle large' : 'Balle standard')
+
+    const powerUpLabel = computed(() => {
+      switch (settings.powerUps) {
+        case 'rare': return 'PU occasionnels'
+        case 'frequent': return 'PU fréquents'
+        default: return 'PU désactivés'
+      }
+    })
+
     return {
       form,
       errorMessage,
       isCreating,
       createTournament,
+      openCustomization,
+      arenaLabel,
+      ballSpeedLabel,
+      ballSizeLabel,
+      powerUpLabel,
+      accelLabel,
+      dashLabel,
     };
   },
 });
@@ -249,30 +314,34 @@ export default defineComponent({
 
 <style scoped>
 .create-game-form {
-  max-width: 500px;
+  max-width: 560px;
   margin: 0 auto;
-  background: var(--color-background-soft);
-  border: 2px solid var(--color-border);
-  border-radius: 7px;
-  padding: 2rem;
-  box-shadow: var(--shadow-lg);
+  display: grid;
+  gap: 1.75rem;
+  padding: 2.1rem 2.4rem;
+  background: linear-gradient(165deg, var(--color-background-soft) 0%, var(--color-background) 100%);
+  border: 1px solid var(--color-border);
+  border-radius: 22px;
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: blur(16px);
 }
 
 /* Header */
 .form-header {
   text-align: center;
-  margin-bottom: 2rem;
+  display: grid;
+  gap: 0.4rem;
 }
 
 .form-title {
   font-size: 2rem;
   font-weight: 800;
   background: var(--gradient-primary);
-  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  margin-bottom: 0.5rem;
+  margin: 0;
 }
+
 
 .form-subtitle {
   color: var(--color-text);
@@ -280,17 +349,32 @@ export default defineComponent({
   margin: 0;
 }
 
+.btn-custom {
+  justify-self: center;
+  border: 1px dashed var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .2s ease;
+}
+
+.btn-custom:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(0,0,0,.18);
+}
+
 /* Formulaire */
 .game-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  display: grid;
+  gap: 1.4rem;
 }
 
 .form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  display: grid;
+  gap: 0.65rem;
 }
 
 .form-group.half {
@@ -306,39 +390,42 @@ export default defineComponent({
 .form-label {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.55rem;
   color: var(--color-text);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+  font-weight: 600;
 }
+
 
 .label-icon {
   font-size: 1rem;
 }
 
 /* Inputs */
-.form-input {
+.form-input,
+.form-select {
   background: var(--color-background);
-  border: 2px solid var(--color-border);
-  border-radius: 7px;
-  padding: 0.75rem 1rem;
+  border: 1px solid var(--panel-border, var(--color-border));
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
   color: var(--color-text);
   font-size: 1rem;
-  transition: all 0.3s ease;
-  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
-
-.form-input:focus {
+.form-input:focus,
+.form-select:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+  box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.18);
+  outline: none;
+  transform: translateY(-1px);
 }
-
 .form-input::placeholder {
   color: var(--color-text);
-  opacity: 0.5;
+  opacity: 0.45;
 }
 
 .password-input {
-  margin-top: 0.5rem;
+  margin-top: 0.4rem;
 }
 
 /* Select */
@@ -441,31 +528,36 @@ export default defineComponent({
 }
 
 .btn-primary {
-  background: var(--gradient-primary);
-  color: black;
-  box-shadow: var(--shadow-md);
+  color: #0b132b;
+  background: var(--gradient-brand);
+  border-color: transparent;
+  box-shadow: var(--glow-primary);
 }
-
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
 }
-
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
+.btn:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-border-hover);
+  box-shadow: var(--shadow-md);
 }
 
+.btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  filter: grayscale(0.2);
+}
 .btn-secondary {
-  background: var(--color-background);
+  background: transparent;
   color: var(--color-text);
-  border: 2px solid var(--color-border);
+  border-style: dashed;
 }
 
 .btn-secondary:hover {
-  background: var(--color-background-soft);
-  border-color: var(--color-primary);
+  background: rgba(148, 163, 184, 0.12);
 }
 
 .btn-icon {
@@ -483,11 +575,14 @@ export default defineComponent({
 
 /* Prévisualisation */
 .game-preview {
-  margin-top: 2rem;
-  background: var(--color-background);
-  border: 1px solid var(--color-border);
-  border-radius: 7px;
-  padding: 1rem;
+  margin-top: 0.5rem;
+  padding: 1.25rem 1.45rem;
+  border-radius: 18px;
+  border: 1px solid var(--panel-border, var(--color-border));
+  background: var(--panel-bg, rgba(255, 255, 255, 0.75));
+  box-shadow: var(--panel-shadow);
+  display: grid;
+  gap: 1rem;
 }
 
 .preview-header {
@@ -523,6 +618,29 @@ export default defineComponent({
 
 .preview-value {
   color: var(--color-text);
+}
+
+.custom-summary {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 999px;
+  padding: 0.55rem 0.9rem;
+}
+
+.summary-chip {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+  padding: 0.32rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: 0.02em;
 }
 
 /* Transitions */

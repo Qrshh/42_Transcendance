@@ -44,13 +44,13 @@ function repositionBallAfterCollision(ball: Ball, paddle: Paddle): void {
 /**
 * reset la balle à sa position initiale
 */
-function resetBall(ball: Ball): void {
+function resetBall(state: GameState): void {
+  const ball = state.ball
+  const base = state.baseSpeed ?? INITIAL_BALL_SPEED
   ball.x = CANVAS_WIDTH / 2
   ball.y = CANVAS_HEIGHT / 2
-  ball.vx = Math.random() > 0.5 ? INITIAL_BALL_SPEED : -INITIAL_BALL_SPEED
-  ball.vy = Math.random() > 0.5 ? INITIAL_BALL_SPEED : -INITIAL_BALL_SPEED
-  
-  // Reset du cooldown
+  ball.vx = Math.random() > 0.5 ? base : -base
+  ball.vy = Math.random() > 0.5 ? base : -base
   ball.lastCollisionTime = 0
 }
 
@@ -64,10 +64,13 @@ const DASH_DISTANCE = 20
 const DASH_DURATION = 10
 const COLLISION_COOLDOWN = 10 // frames de cooldown entre collisions
 
-export function updateGame(state: GameState, accelerating: boolean = true): void {
+export function updateGame(state: GameState, opts: { accelerating?: boolean } = {}): void {
   const { ball, paddles, score } = state
 
   if(state.gameOver) return ;
+
+  const accelerating = opts.accelerating ?? state.settings?.accelBall ?? true
+  const targetScore = state.targetScore ?? 5
 
   // Incrémenter le timer de collisions
   if (ball.lastCollisionTime !== undefined && ball.lastCollisionTime > 0) {
@@ -123,19 +126,21 @@ export function updateGame(state: GameState, accelerating: boolean = true): void
   // Gestion des buts
   if (ball.x - ball.radius < 0) {
     score.player2++
-    if(score.player2 >= 5){
+    if(score.player2 >= targetScore){
       state.gameOver = true
       state.winner = 'player 2'
+      state.status = 'finished'
     } else {
-      resetBall(ball)
+      resetBall(state)
     }
   } else if (ball.x + ball.radius > CANVAS_WIDTH) {
     score.player1++
-    if(score.player1 >= 5){
+    if(score.player1 >= targetScore){
       state.gameOver = true
       state.winner = 'player 1'
+      state.status = 'finished'
     } else {
-      resetBall(ball)
+      resetBall(state)
     }
   }
 }

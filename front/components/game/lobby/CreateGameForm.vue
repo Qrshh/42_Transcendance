@@ -4,6 +4,7 @@
     <div class="form-header">
       <h2 class="form-title">✨ Créer une partie</h2>
       <p class="form-subtitle">Configure ta partie et invite tes amis !</p>
+      <button class="btn btn-tertiary" type="button" @click="openCustomization">⚙️ Personnaliser globalement</button>
     </div>
 
     <!-- Formulaire -->
@@ -91,6 +92,13 @@
         </div>
       </div>
 
+      <div class="custom-summary">
+        <span class="summary-chip">{{ arenaLabel }}</span>
+        <span class="summary-chip">{{ ballSpeedLabel }}</span>
+        <span class="summary-chip">{{ ballSizeLabel }}</span>
+        <span class="summary-chip">PU: {{ powerUpLabel }}</span>
+      </div>
+
       <!-- Message d'erreur -->
       <Transition name="fade">
         <div v-if="errorMessage" class="error-message">
@@ -149,8 +157,9 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, onMounted, onUnmounted } from 'vue';
+import { defineComponent, ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import type { Socket } from 'socket.io-client';
+import { useGameSettings } from '../../../stores/gameSettings';
 
 export default defineComponent({
   name: 'CreateGameForm',
@@ -163,14 +172,16 @@ export default defineComponent({
   emits: ['back', 'gameCreated'],
   
   setup(props, { emit }) {
+    const { settings } = useGameSettings()
+
     const form = ref({
       name: '',
       hasPassword: false,
       password: '',
       maxPlayers: 2,
       maxPoints: 10,
-      accelBall: false,
-      paddleDash: false
+      accelBall: settings.accelBall,
+      paddleDash: settings.paddleDash
     });
 
     const errorMessage = ref<string | null>(null);
@@ -199,7 +210,15 @@ export default defineComponent({
           maxPlayers: form.value.maxPlayers,
           maxPoints: form.value.maxPoints,
           accelBall: form.value.accelBall,
-          paddleDash: form.value.paddleDash
+          paddleDash: form.value.paddleDash,
+          customization: {
+            arena: settings.arena,
+            ballSpeed: settings.ballSpeed,
+            ballSize: settings.ballSize,
+            accelBall: settings.accelBall,
+            paddleDash: settings.paddleDash,
+            powerUps: settings.powerUps,
+          }
         };
 
         props.socket.emit('createGame', gameData);
@@ -240,11 +259,49 @@ export default defineComponent({
       props.socket.off('gameCreateError');
     });
 
+    const openCustomization = () => {
+      window.dispatchEvent(new Event('open-game-settings'))
+    }
+
+    const arenaLabel = computed(() => {
+      switch (settings.arena) {
+        case 'neon': return 'Neon futuriste'
+        case 'cosmic': return 'Cosmos'
+        default: return 'Classique 1972'
+      }
+    })
+
+    const ballSpeedLabel = computed(() => {
+      switch (settings.ballSpeed) {
+        case 'fast': return 'Rapide'
+        case 'extreme': return 'Extrême'
+        default: return 'Normale'
+      }
+    })
+
+    const ballSizeLabel = computed(() => settings.ballSize === 'large' ? 'Large' : 'Standard')
+
+    const powerUpLabel = computed(() => {
+      switch (settings.powerUps) {
+        case 'rare': return 'Occasionnel'
+        case 'frequent': return 'Fréquent'
+        default: return 'Désactivé'
+      }
+    })
+
+    watch(() => settings.accelBall, (val) => { form.value.accelBall = val })
+    watch(() => settings.paddleDash, (val) => { form.value.paddleDash = val })
+
     return {
       form,
       errorMessage,
       isCreating,
       createGame,
+      openCustomization,
+      arenaLabel,
+      ballSpeedLabel,
+      ballSizeLabel,
+      powerUpLabel,
     };
   },
 });
@@ -265,6 +322,10 @@ export default defineComponent({
 .form-header {
   text-align: center;
   margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
 }
 
 .form-title {
@@ -469,6 +530,39 @@ export default defineComponent({
 .btn-secondary:hover {
   background: var(--color-background-soft);
   border-color: var(--color-primary);
+}
+
+.btn-tertiary {
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  background: transparent;
+  color: var(--color-text);
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .2s ease;
+}
+
+.btn-tertiary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(79,172,254,.25);
+}
+
+.custom-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  color: var(--color-text);
+}
+
+.summary-chip {
+  background: rgba(79,172,254,0.12);
+  border: 1px solid rgba(79,172,254,0.35);
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .btn-icon {

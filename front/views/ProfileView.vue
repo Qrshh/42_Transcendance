@@ -71,10 +71,6 @@
           </div>
         </div>
         <div class="profile-actions">
-          <button @click="shareProfile" class="btn btn-secondary">
-            <span class="btn-icon">📤</span>
-            <span class="btn-text">{{ t.shareBtn }}</span>
-          </button>
           <button v-if="isSelf" @click="handleLogout" class="btn btn-danger " style="background-color: var(--color-danger);">
               <span class="btn-icon">🚪</span>
               <span class="btn-text">{{ t.logoutBtn }}</span>

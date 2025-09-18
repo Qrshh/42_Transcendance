@@ -1,19 +1,26 @@
 <template>
-  <div class="remote-game">
+  <div class="remote-game" :class="[arenaClass, { spectator: isSpectator }]">
     <!-- Header -->
     <div class="game-header">
       <div class="game-mode-info">
-        <h2 class="mode-title">🌐 Mode En ligne</h2>
+        <h2 class="mode-title">{{ headerTitle }}</h2>
         <p class="mode-description">Room: <code class="room-id">{{ roomId }}</code></p>
       </div>
 
       <div class="game-controls">
-        <div class="control-hint">
+        <div v-if="!isSpectator" class="control-hint">
           <span class="keys">W/S</span>
           <span class="vs">vs</span>
           <span class="keys">↑/↓</span>
         </div>
+        <div v-else class="control-hint spectator">
+          <span class="keys">👀</span>
+          <span class="vs"> </span>
+          <span class="keys">Spectateur</span>
+        </div>
+        
         <div class="actions">
+          <button class="btn ghost" type="button" @click="openCustomization" title="Options">⚙️</button>
           <button
             class="btn"
             @pointerdown.capture.prevent.stop="toggleFullscreen"
@@ -25,57 +32,41 @@
       </div>
     </div>
 
-    <!-- Scoreboard -->
-    <div class="score-board">
-      <div class="player-score">
-        <div class="player-info">
-          <span class="player-icon">🎮</span>
-          <span class="player-name">Vous</span>
-        </div>
-        <div class="score-value player1">{{ gameState.score.player1 }}</div>
-      </div>
-
-      <div class="score-separator">
-        <span class="vs-text">VS</span>
-      </div>
-
-      <div class="player-score">
-        <div class="player-info">
-          <span class="player-name">Adversaire</span>
-          <span class="player-icon">🎯</span>
-        </div>
-        <div class="score-value player2">{{ gameState.score.player2 }}</div>
-      </div>
-    </div>
-
-    <!-- Canvas + overlays -->
     <div class="game-canvas-container">
-      <PongCanvas ref="canvasRef" :state="gameState" :onMove="handleMove" controlledPlayer="p1" />
-
-      <!-- Countdown overlay (conservé) -->
-      <div v-if="countdownToStart > 0" class="start-overlay">
-        <div class="start-box">
-          <div class="label">Début dans</div>
-          <div class="big">{{ countdownToStart }}</div>
-        </div>
-      </div>
-
-      <!-- Overlay fin/attente selon status serveur -->
-      <div v-if="gameState.gameOver || gameState.status === 'waiting'" class="game-overlay">
+      <PongCanvas
+        ref="canvasRef"
+        :state="gameState"
+        :onMove="handlePlayerMove"
+        :controls="canvasControls"
+        :showFullscreenButton="false"
+        :countdown="countdownToStart"
+      />
+      <div
+        v-if="gameState.status === 'waiting' && countdownToStart === 0 && !gameState.gameOver"
+        class="game-overlay"
+      >
         <div class="overlay-content">
-          <h3 v-if="gameState.status === 'waiting'" class="overlay-title">⏳ En attente...</h3>
-          <h3 v-else class="overlay-title">🎉 Partie terminée !</h3>
-          <p v-if="gameState.gameOver" class="overlay-message">{{ endMessage }}</p>
+          <h3 class="overlay-title">⏳ En attente...</h3>
         </div>
       </div>
     </div>
-
+    <div class="config-chips">
+          <span class="chip">{{ ballSizeLabel }}</span>
+          <span class="chip">{{ powerUpsLabel }}</span>
+          <span class="chip">{{ accelLabel }}</span>
+          <span class="chip">{{ dashLabel }}</span>
+          <span class="chip">{{ arenaLabel }} • {{ ballSpeedLabel }}</span>
+        </div>
     <!-- Footer -->
     <div class="game-footer">
       <div class="game-instructions">
-        <div class="instruction-item">
+        <div class="instruction-item" v-if="!isSpectator">
           <span class="instruction-icon">⌨️</span>
-          <span class="instruction-text">Contrôles: W/S et ↑/↓</span>
+          <span class="instruction-text">{{ controlLabel }}</span>
+        </div>
+        <div class="instruction-item" v-else>
+          <span class="instruction-icon">👀</span>
+          <span class="instruction-text">{{ controlLabel }}</span>
         </div>
         <div class="instruction-item">
           <span class="instruction-icon">🚪</span>
@@ -87,14 +78,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import type { Socket } from 'socket.io-client'
 import PongCanvas from '../PongCanvas.vue'
 import type { GameState } from '../ts/types'
+import { useGameSettings } from '../../../stores/gameSettings'
 
 const props = defineProps<{ 
   socket: Socket, 
-  roomId: string 
+  roomId: string,
+  isSpectator?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -103,26 +96,111 @@ const emit = defineEmits<{
 }>()
 
 // --- état jeu (avec quelques champs init pour éviter les undefined)
+const { settings: globalSettings } = useGameSettings()
+
 const gameState = ref<GameState>({
-  ball: { x: 300, y: 200, vx: 0, vy: 0, radius: 8 },
+  ball: { x: 400, y: 200, vx: 0, vy: 0, radius: 8 },
   paddles: {
-    p1: { x: 10,  y: 150, width: 10, height: 100, vy: 0 },
-    p2: { x: 580, y: 150, width: 10, height: 100, vy: 0 }
+    p1: { x: 10, y: 150, width: 10, height: 100, vy: 0 },
+    p2: { x: 780, y: 150, width: 10, height: 100, vy: 0 }
   },
   score: { player1: 0, player2: 0 },
   status: 'starting' as any,
   gameOver: false,
-  winner: undefined,
-  // players: { p1: null as any, p2: null as any },
-  // usernames: { p1: undefined as any, p2: undefined as any }
+  winner: null,
+  countdown: 0,
+  settings: {
+    arena: globalSettings.arena,
+    ballSpeed: globalSettings.ballSpeed,
+    ballSize: globalSettings.ballSize,
+    accelBall: globalSettings.accelBall,
+    paddleDash: globalSettings.paddleDash,
+    powerUps: globalSettings.powerUps
+  }
+} as GameState)
+
+const meName = ref(localStorage.getItem('username') || 'anon')
+const socketId = ref(props.socket.id)
+const isSpectator = computed(() => !!props.isSpectator)
+
+const usernames = computed(() => ((gameState.value as any).usernames) || {})
+const players = computed(() => ((gameState.value as any).players) || {})
+
+const controllingSide = computed<'p1' | 'p2' | null>(() => {
+  if (isSpectator.value) return null
+  if (usernames.value?.p1 && usernames.value.p1 === meName.value) return 'p1'
+  if (usernames.value?.p2 && usernames.value.p2 === meName.value) return 'p2'
+  if (players.value?.p1 && players.value.p1 === socketId.value) return 'p1'
+  if (players.value?.p2 && players.value.p2 === socketId.value) return 'p2'
+  return null
 })
+
+const canvasControls = computed(() => {
+  if (isSpectator.value) return 'none'
+  if (controllingSide.value === 'p1') return 'left'
+  if (controllingSide.value === 'p2') return 'right'
+  return 'auto'
+})
+
+const playerLabel = (side: 'p1' | 'p2') => {
+  const name = usernames.value?.[side]
+  if (!name) return side === 'p1' ? 'Joueur 1' : 'Joueur 2'
+  if (!isSpectator.value && name === meName.value) return 'Vous'
+  return name
+}
+
+const p1Label = computed(() => playerLabel('p1'))
+const p2Label = computed(() => playerLabel('p2'))
+const headerTitle = computed(() => (isSpectator.value ? '👀 Mode Spectateur' : '🌐 Mode En ligne'))
+const controlLabel = computed(() => (isSpectator.value ? 'Mode spectateur — aucune interaction' : 'Contrôles: W/S et ↑/↓'))
+const resolvedArena = computed(() => gameState.value.settings?.arena ?? globalSettings.arena)
+const resolvedBallSpeed = computed(() => gameState.value.settings?.ballSpeed ?? globalSettings.ballSpeed)
+const resolvedBallSize = computed(() => gameState.value.settings?.ballSize ?? globalSettings.ballSize)
+const resolvedPowerUps = computed(() => gameState.value.settings?.powerUps ?? globalSettings.powerUps)
+
+const arenaClass = computed(() => `arena-${resolvedArena.value || 'classic'}`)
+
+const arenaLabel = computed(() => {
+  switch (resolvedArena.value) {
+    case 'neon': return 'Neon futuriste'
+    case 'cosmic': return 'Cosmos'
+    default: return 'Classique'
+  }
+})
+
+const ballSpeedLabel = computed(() => {
+  switch (resolvedBallSpeed.value) {
+    case 'fast': return 'Rapide'
+    case 'extreme': return 'Extrême'
+    default: return 'Normale'
+  }
+})
+
+const ballSizeLabel = computed(() => resolvedBallSize.value === 'large' ? 'Balle large' : 'Balle standard')
+
+const powerUpsLabel = computed(() => {
+  switch (resolvedPowerUps.value) {
+    case 'rare': return 'Power-ups occasionnels'
+    case 'frequent': return 'Power-ups fréquents'
+    default: return 'Power-ups désactivés'
+  }
+})
+
+const accelLabel = computed(() => (gameState.value.settings?.accelBall ?? globalSettings.accelBall) ? '⚡ Accélération activée' : '⚡ Accélération désactivée')
+const dashLabel = computed(() => (gameState.value.settings?.paddleDash ?? globalSettings.paddleDash) ? '🚀 Dash activé' : '🚀 Dash désactivé')
+const dashEnabled = computed(() => gameState.value.settings?.paddleDash ?? globalSettings.paddleDash)
 
 // Compte à rebours: alimente via 'matchCountdown' (tournoi) ou fallback local si status==='starting'
 const countdownToStart = ref<number>(0)
 let localCdTimer: number | null = null
 
-// --- mouvement depuis PongCanvas
-const handleMove = (_player: 'p1' | 'p2', direction: 'up' | 'down' | 'stop') => {
+const canvasRef = ref<InstanceType<typeof PongCanvas> | null>(null)
+
+const handlePlayerMove = (player: 'p1' | 'p2', direction: 'up' | 'down' | 'stop' | 'dash') => {
+  if (isSpectator.value) return
+  const side = controllingSide.value
+  if (side && player !== side) return
+  if (direction === 'dash' && !dashEnabled.value) return
   props.socket.emit('movePaddle', { roomId: props.roomId, direction })
 }
 
@@ -140,26 +218,114 @@ const getStatusText = () => {
 }
 
 const leaveGame = () => {
+  if (isSpectator.value) {
+    props.socket.emit('leaveSpectate', { roomId: props.roomId })
+    emit('leaveGame')
+    return
+  }
   props.socket.emit('leaveGame', { gameId: props.roomId })
   emit('leaveGame')
 }
 
 // Texte fin de partie
-const endMessage = computed(() => {
-  if (!gameState.value.gameOver) return ''
-  return gameState.value.winner ? `${gameState.value.winner} a gagné !` : 'Partie terminée.'
-})
-
 // FS via bouton (même logique que LocalGame)
-const canvasRef = ref<InstanceType<typeof PongCanvas> | null>(null)
 const fsLatch = ref(false)
 let fsLatchTimer: number | null = null
+
+const onSocketConnect = () => {
+  socketId.value = props.socket.id
+}
+
+const startLocalCountdown = (seconds = 3) => {
+  if (localCdTimer) {
+    clearInterval(localCdTimer)
+    localCdTimer = null
+  }
+  if (seconds > 0 && gameState.value.status !== 'starting' && gameState.value.status !== 'playing') {
+    gameState.value.status = 'starting'
+  }
+  countdownToStart.value = seconds
+  gameState.value.countdown = countdownToStart.value
+  if (seconds <= 0) {
+    if (gameState.value.status === 'starting') gameState.value.status = 'playing'
+    gameState.value.countdown = 0
+    return
+  }
+  localCdTimer = window.setInterval(() => {
+    countdownToStart.value -= 1
+    gameState.value.countdown = Math.max(countdownToStart.value, 0)
+    if (countdownToStart.value <= 0 && localCdTimer) {
+      clearInterval(localCdTimer)
+      localCdTimer = null
+      if (gameState.value.status === 'starting') gameState.value.status = 'playing'
+      gameState.value.countdown = 0
+    }
+  }, 1000) as unknown as number
+}
+
+watch(p1Label, (val) => {
+  if (!gameState.value.usernames) gameState.value.usernames = {}
+  gameState.value.usernames.p1 = val
+})
+
+watch(p2Label, (val) => {
+  if (!gameState.value.usernames) gameState.value.usernames = {}
+  gameState.value.usernames.p2 = val
+})
+
+const ensureSettings = () => {
+  if (!gameState.value.settings) {
+    gameState.value.settings = {
+      arena: globalSettings.arena,
+      ballSpeed: globalSettings.ballSpeed,
+      ballSize: globalSettings.ballSize,
+      accelBall: globalSettings.accelBall,
+      paddleDash: globalSettings.paddleDash,
+      powerUps: globalSettings.powerUps
+    }
+  }
+  return gameState.value.settings!
+}
+
+watch(() => globalSettings.arena, (val) => {
+  const settings = ensureSettings()
+  if (!joined) settings.arena = val
+})
+
+watch(() => globalSettings.ballSpeed, (val) => {
+  const settings = ensureSettings()
+  if (!joined) settings.ballSpeed = val
+})
+
+watch(() => globalSettings.ballSize, (val) => {
+  const settings = ensureSettings()
+  if (!joined) settings.ballSize = val
+})
+
+watch(() => globalSettings.powerUps, (val) => {
+  const settings = ensureSettings()
+  if (!joined) settings.powerUps = val
+})
+
+watch(() => globalSettings.accelBall, (val) => {
+  const settings = ensureSettings()
+  if (!joined) settings.accelBall = val
+})
+
+watch(() => globalSettings.paddleDash, (val) => {
+  const settings = ensureSettings()
+  if (!joined) settings.paddleDash = val
+})
 function toggleFullscreen() {
   if (fsLatch.value) return
   fsLatch.value = true
   canvasRef.value?.toggleFs()
   if (fsLatchTimer) clearTimeout(fsLatchTimer)
   fsLatchTimer = window.setTimeout(() => { fsLatch.value = false; fsLatchTimer = null }, 400)
+}
+
+const openCustomization = () => {
+  window.dispatchEvent(new Event('open-game-settings'))
 }
 
 // ====== JOIN AVEC RETRY ======
@@ -173,8 +339,8 @@ function tryJoin(username: string) {
 
   const onGameState = (newState: any) => {
     joined = true
-    // sécurité: on enlève l’écouteur d’erreur lié à cette tentative
-    props.socket.off('challengeError', onErr)
+    if (isSpectator.value) props.socket.off('tournamentError', onErr)
+    else props.socket.off('challengeError', onErr)
 
     gameState.value = {
       ...gameState.value,
@@ -183,31 +349,35 @@ function tryJoin(username: string) {
       score: { ...newState.score },
       players: newState.players ?? (gameState.value as any).players,
       usernames: newState.usernames ?? (gameState.value as any).usernames,
-      status: newState.status,
+      settings: newState.settings ?? gameState.value.settings,
+      status: countdownToStart.value > 0 ? 'starting' : newState.status,
       gameOver: newState.status === 'finished' || !!newState.gameOver,
-      winner: newState.winner ?? gameState.value.winner
+      winner: newState.winner ?? gameState.value.winner,
+      countdown: typeof newState.countdown === 'number' ? newState.countdown : countdownToStart.value
     }
   }
 
   const onErr = (e: any) => {
     const msg = e?.error || ''
     if (msg.includes('Room introuvable') && tries < 15) {
-      // réessaie vite (150ms)
       retryTimer = window.setTimeout(() => tryJoin(username), 150)
     } else {
-      console.warn('joinChallengeRoom error:', e)
+      console.warn('join room error:', e)
     }
   }
 
-  // `once` pour éviter d’empiler des listeners
   props.socket.once('gameState', onGameState)
-  props.socket.once('challengeError', onErr)
+  if (isSpectator.value) props.socket.once('tournamentError', onErr)
+  else props.socket.once('challengeError', onErr)
 
-  props.socket.emit('joinChallengeRoom', { roomId: props.roomId, username })
+  if (isSpectator.value) props.socket.emit('spectateMatch', { roomId: props.roomId })
+  else props.socket.emit('joinChallengeRoom', { roomId: props.roomId, username })
 }
 
 onMounted(() => {
   const me = localStorage.getItem('username') || 'anon'
+  meName.value = me
+  socketId.value = props.socket.id
   props.socket.emit('identify', me)
 
   // écouter les mises à jour de jeu (stream continu)
@@ -222,21 +392,15 @@ onMounted(() => {
       score: { ...newState.score },
       players: newState.players ?? (gameState.value as any).players,
       usernames: newState.usernames ?? (gameState.value as any).usernames,
+      settings: newState.settings ?? gameState.value.settings,
       status: newState.status,
       gameOver: newState.status === 'finished' || !!newState.gameOver,
       winner: newState.winner ?? gameState.value.winner
     }
 
-    // Fallback local: si statut 'starting' et pas de compte à rebours serveur, affiche 2s
+    // Fallback local: si statut 'starting' et pas de compte à rebours serveur, affiche 3s
     if (newState.status === 'starting' && countdownToStart.value === 0) {
-      if (localCdTimer) { clearInterval(localCdTimer); localCdTimer = null }
-      countdownToStart.value = 2
-      localCdTimer = window.setInterval(() => {
-        countdownToStart.value -= 1
-        if (countdownToStart.value <= 0 && localCdTimer) {
-          clearInterval(localCdTimer); localCdTimer = null
-        }
-      }, 1000) as unknown as number
+      startLocalCountdown(3)
     }
   }
   props.socket.on('gameState', onGameStateStream)
@@ -250,18 +414,19 @@ onMounted(() => {
 
     if (nameFromServer) gameState.value.winner = nameFromServer
     gameState.value.gameOver = true
+    gameState.value.countdown = 0
     emit('gameEnded', data)
     window.dispatchEvent(new CustomEvent('playerStatsUpdated'))
   }
   props.socket.on('gameEnded', onGameEnded)
+  props.socket.on('connect', onSocketConnect)
 
-  // lance le join (avec retry)
   tryJoin(me)
 
-  // Tournoi: écoute le compte à rebours serveur
   const onMatchCountdown = (c: any) => {
     if (!c || c.roomId !== props.roomId) return
-    countdownToStart.value = Number(c.count) || 0
+    const count = Number(c.count) || 0
+    startLocalCountdown(count)
   }
   props.socket.on('matchCountdown', onMatchCountdown)
 
@@ -271,8 +436,11 @@ onMounted(() => {
     props.socket.off('gameState', onGameStateStream)
     props.socket.off('gameEnded', onGameEnded)
     props.socket.off('challengeError') // au cas où
+    props.socket.off('tournamentError')
     props.socket.off('matchCountdown', onMatchCountdown)
+    props.socket.off('connect', onSocketConnect)
     if (localCdTimer) { clearInterval(localCdTimer); localCdTimer = null }
+    gameState.value.countdown = 0
   })
 })
 </script>
@@ -377,6 +545,39 @@ onMounted(() => {
   box-shadow: 0 8px 24px rgba(0,0,0,.18);
 }
 
+.game-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.config-chip {
+  background: rgba(255,255,255,.14);
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.config-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.chip {
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 999px;
+  padding: 0.28rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
 .mode-title {
   margin: 0;
   font-size: 1.35rem;
@@ -416,80 +617,6 @@ onMounted(() => {
 .vs { color: var(--color-text); opacity: .65; font-weight: 700; }
 
 /* ====== Scoreboard ====== */
-.score-board {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr 64px 1fr;
-  align-items: center;
-  gap: .75rem;
-  background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
-  border: 1px solid var(--color-border);
-  border-radius: 7px;
-  padding: 1.2rem 1.4rem;
-  box-shadow: 0 10px 30px rgba(0,0,0,.2);
-}
-.score-board::after{
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 7px;
-  pointer-events: none;
-  background: radial-gradient(400px 120px at 50% 50%, rgba(255,255,255,.06), transparent 60%);
-}
-
-.player-score {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: .4rem;
-}
-.player-info {
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-  color: var(--color-text);
-  opacity: .85;
-  font-size: .95rem;
-}
-.player-icon { font-size: 1.1rem; }
-
-.score-value {
-  font-size: clamp(2.2rem, 4vw + .5rem, 3.4rem);
-  line-height: 1;
-  font-weight: 900;
-  letter-spacing: .02em;
-  text-shadow: 0 6px 18px rgba(0,0,0,.35);
-  filter: drop-shadow(0 6px 20px rgba(0,0,0,.25));
-}
-
-.score-value.player1 {
-  background: linear-gradient(135deg, #00BCD4, #2196F3);
-  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
-}
-.score-value.player2 {
-  background: linear-gradient(135deg, #FF9800, #F44336);
-  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
-}
-
-/* Médaille VS */
-.score-separator{
-  display: grid;
-  place-items: center;
-  width: 64px; height: 64px;
-  margin: 0 auto;
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.25), rgba(255,255,255,.06));
-  border: 2px solid var(--color-border);
-  box-shadow: 0 8px 20px rgba(0,0,0,.25), inset 0 2px 6px rgba(255,255,255,.08);
-}
-.vs-text{
-  font-weight: 900;
-  font-size: .95rem;
-  letter-spacing: .12em;
-  background: linear-gradient(90deg, #b9c4ff, #9fe7ff);
-  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
-}
-
 /* ====== Canvas Container ====== */
 .game-canvas-container {
   position: relative;
@@ -504,6 +631,22 @@ onMounted(() => {
   box-shadow: inset 0 2px 10px rgba(0,0,0,.12);
   overflow: hidden;
 }
+.game-canvas-container :deep(.pong-wrapper) {
+  width: 100%;
+  justify-content: center;
+}
+.game-canvas-container :deep(.pong-stage) {
+  width: 100%;
+  max-width: 960px;
+}
+.game-canvas-container :deep(.pong-stage.fullscreen) {
+  max-width: 100%;
+  height: 100%;
+}
+.game-canvas-container :deep(.pong-canvas) {
+  width: 100%;
+  height: 100%;
+}
 .game-canvas-container::before{
   /* fines lignes pour un effet “arena” discret */
   content: "";
@@ -514,21 +657,6 @@ onMounted(() => {
     repeating-linear-gradient( to bottom, rgba(255,255,255,.03) 0, rgba(255,255,255,.03) 1px, transparent 1px, transparent 22px );
   pointer-events: none;
 }
-
-/* Overlay de départ (countdown) */
-.start-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-overlay-bg);
-  border-radius: 7px;
-  z-index: 12;
-}
-.start-box { text-align:center; padding: 12px 18px; border:1px solid var(--color-border, #333); background: var(--color-overlay-bg); border-radius: 7px; }
-.start-box .label { color:#d1d5db; font-size: .9rem; margin-bottom:.25rem }
-.start-box .big { font-size: 2.5rem; font-weight: 800; background: var(--gradient-primary); -webkit-text-fill-color:transparent }
 
 /* Overlay (pause/fin) */
 .game-overlay {
@@ -597,28 +725,56 @@ onMounted(() => {
   margin: 0 auto;
 }
 
-
-/* Scoreboard (copie LocalGame) */
-.score-board {
-  display: grid;
-  grid-template-columns: 1fr 64px 1fr;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.2rem;
-  border: 1px solid var(--color-border);
-  border-radius: 7px;
-  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+.remote-game.arena-neon {
+  background: radial-gradient(circle at top, rgba(79,172,254,0.25), transparent 55%),
+              linear-gradient(200deg, rgba(19,23,45,0.92), rgba(8,12,28,0.95));
+  border-color: rgba(79,172,254,0.35);
+  box-shadow: 0 20px 55px rgba(79,172,254,0.25);
 }
-.vs-text{ font-weight:900; font-size:.95rem; letter-spacing:.12em; background: linear-gradient(90deg, #b9c4ff, #9fe7ff); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent }
 
-/* Canvas container + overlays (comme LocalGame) */
-.start-box{ text-align:center; padding:12px 18px; border:1px solid var(--color-border,#333); background: var(--color-overlay-bg); border-radius:7px }
-.start-box .label{ color:#d1d5db; font-size:.9rem; margin-bottom:.25rem }
-.start-box .big{ font-size:2.5rem; font-weight:800; background: var(--gradient-primary);  -webkit-text-fill-color:transparent }
+.remote-game.arena-cosmic {
+  background: radial-gradient(circle at 30% 20%, rgba(168,85,247,0.28), transparent 60%),
+              radial-gradient(circle at 70% 80%, rgba(34,211,238,0.22), transparent 65%),
+              linear-gradient(210deg, rgba(11,17,32,0.95), rgba(5,8,18,0.98));
+  border-color: rgba(168,85,247,0.35);
+  box-shadow: 0 25px 60px rgba(168,85,247,0.25);
+}
+
+.btn {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 0.5rem 0.9rem;
+  background: transparent;
+  color: var(--color-text);
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .2s ease;
+}
+
+.btn.ghost {
+  border-style: dashed;
+}
+
+.btn.danger {
+  border-color: rgba(244,67,54,.6);
+  color: #f87171;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(0,0,0,.18);
+}
 
 
 @media (max-width: 820px){
   .remote-game { padding: 1.1rem; gap: 1.1rem }
-  .score-board{ grid-template-columns: 1fr 56px 1fr; padding: 1rem }
+  .game-header { flex-direction: column; gap: .8rem; text-align: center; }
+  .game-canvas-container { padding: 0.75rem; }
+}
+
+@media (max-width: 520px){
+  .keys { font-size: .78rem; padding: .18rem .52rem; }
+  .control-hint { flex-wrap: wrap; justify-content: center; }
+  .game-canvas-container { padding: 0.55rem; border-radius: 6px; }
 }
 </style>
