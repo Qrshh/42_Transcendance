@@ -43,6 +43,7 @@
               @startLocal="() => setMode('local')"
               @startAI="() => setMode('ai')"
               @startRemote="onRemoteStart"
+              @startTournament="onTournamentStart"
               :socket="socket"
             />
           </div>
@@ -52,11 +53,7 @@
         <div v-else-if="mode === 'local'" key="local" class="game-section play-section">
           <div class="game-wrapper">
 
-            <div ref="gameContainerRef" class="game-container">
-              <button class="fs-btn" @click="toggleFullscreen" :title="isFullscreen ? 'Quitter le plein écran' : 'Plein écran'">
-                <span v-if="!isFullscreen">⤢</span>
-                <span v-else>🗗</span>
-              </button>
+            <div ref="gameContainerRef" class="">
               <LocalGame />
             </div>
           </div>
@@ -65,15 +62,7 @@
         <!-- Jeu IA -->
         <div v-else-if="mode === 'ai'" key="ai" class="game-section play-section">
           <div class="game-wrapper">
-            <div class="game-header-mini">
-              <h2>🤖 Mode IA</h2>
-              <p>Défi l'intelligence artificielle</p>
-            </div>
-            <div ref="gameContainerRef" class="game-container">
-              <button class="fs-btn" @click="toggleFullscreen" :title="isFullscreen ? 'Quitter le plein écran' : 'Plein écran'">
-                <span v-if="!isFullscreen">⤢</span>
-                <span v-else>🗗</span>
-              </button>
+            <div ref="gameContainerRef" class="">
               <AIGame />
             </div>
           </div>
@@ -82,18 +71,11 @@
         <!-- Jeu en ligne -->
         <div v-else-if="mode === 'remote'" key="remote" class="game-section play-section">
           <div class="game-wrapper">
-            <div class="game-header-mini">
-              <h2>🌐 Mode En ligne</h2>
-              <p>Room: <code class="room-id">{{ roomId }}</code></p>
-            </div>
-            <div ref="gameContainerRef" class="game-container">
-              <button class="fs-btn" @click="toggleFullscreen" :title="isFullscreen ? 'Quitter le plein écran' : 'Plein écran'">
-                <span v-if="!isFullscreen">⤢</span>
-                <span v-else>🗗</span>
-              </button>
+            <div ref="gameContainerRef" class="">
               <RemoteGame
                 :socket="socket"
                 :roomId="roomId"
+                :isSpectator="spectatorMode"
                 @leaveGame="handleLeaveGame"
                 @gameEnded="onRemoteGameEnded"
               />
@@ -148,6 +130,8 @@
       </div>
     </div>
   </div>
+
+  <GameCustomizationModal :open="showCustomizationModal" @close="closeCustomization" />
 </template>
 
 <script lang="ts">
@@ -159,12 +143,14 @@ import LocalGame from '../components/game/lobby/LocalGame.vue';
 import AIGame from '../components/game/lobby/AIGame.vue';
 import RemoteGame from '../components/game/lobby/RemoteGame.vue';
 import TournamentWaitingScreen from '../components/game/tournament/TournamentWaitingScreen.vue';
+import GameCustomizationModal from '../components/game/settings/GameCustomizationModal.vue';
 
 export default defineComponent({
-  components: { Lobby, LocalGame, AIGame, RemoteGame, TournamentWaitingScreen },
+  components: { Lobby, LocalGame, AIGame, RemoteGame, TournamentWaitingScreen, GameCustomizationModal },
   setup() {
     const mode   = ref<'lobby'|'local'|'ai'|'remote'|'tournament'>('lobby');
     const roomId = ref<string>('');
+    const spectatorMode = ref(false);
     const isSocketConnected = ref(false);
 
     // 👉 tournoi courant (sert pour revenir à l’attente après un match)
@@ -173,6 +159,10 @@ export default defineComponent({
     // 👉 overlay/cooldown post-match
     const postMatchCountdown = ref<number>(0);
     let postMatchTimer: number | null = null;
+
+    const showCustomizationModal = ref(false);
+    const openCustomization = () => { showCustomizationModal.value = true }
+    const closeCustomization = () => { showCustomizationModal.value = false }
 
     // ⚙️ URL backend
 
@@ -191,7 +181,12 @@ export default defineComponent({
     /** évite les doubles join + (re)join partout où il faut */
     const joinedOnce = ref(false);
     function ensureJoined() {
-      if (!roomId.value || joinedOnce.value) return;
+      if (!roomId.value) return;
+      if (spectatorMode.value) {
+        socket.emit('spectateMatch', { roomId: roomId.value });
+        return;
+      }
+      if (joinedOnce.value) return;
       const me = localStorage.getItem('username') || 'anon';
       socket.emit('joinChallengeRoom', { roomId: roomId.value, username: me });
       joinedOnce.value = true;
@@ -201,6 +196,7 @@ export default defineComponent({
     function onWinChallengeStart(e: any) {
       const rid = e?.detail?.roomId;
       if (!rid) return;
+      spectatorMode.value = false;
       roomId.value = rid;
       mode.value = 'remote';
       joinedOnce.value = false;
@@ -221,6 +217,7 @@ export default defineComponent({
 
       // Quand un défi est accepté -> lance la RemoteGame ici
       socket.on('challengeStart', ({ roomId: rid }) => {
+        spectatorMode.value = false;
         roomId.value = rid;
         mode.value = 'remote';
         joinedOnce.value = false;
@@ -229,16 +226,20 @@ export default defineComponent({
 
       // Au montage si pendingRoomId existe
       const pending = localStorage.getItem('pendingRoomId');
+      const pendingSpectator = localStorage.getItem('pendingRoomSpectator') === '1';
       if (pending) {
         localStorage.removeItem('pendingRoomId');
+        localStorage.removeItem('pendingRoomSpectator');
         roomId.value = pending;
         mode.value = 'remote';
-        joinedOnce.value = false;
+        spectatorMode.value = pendingSpectator;
+        joinedOnce.value = pendingSpectator ? true : false;
         ensureJoined();
       }
 
       // challengeStart relayé par window
       window.addEventListener('challengeStart', onWinChallengeStart);
+      window.addEventListener('open-game-settings', openCustomization);
 
       socket.io.on('reconnect', () => {
         identify();
@@ -320,9 +321,10 @@ export default defineComponent({
 
     // démarrage d’un match online (depuis l’écran tournoi)
     const endedOnce = ref(false);
-    function onRemoteStart({ mode: m, roomId: rid, tournamentId: tid }: {mode:string, roomId:string, tournamentId?: string}) {
+    function onRemoteStart({ mode: m, roomId: rid, tournamentId: tid, spectator }: {mode:string, roomId:string, tournamentId?: string, spectator?: boolean}) {
       roomId.value = rid;
       mode.value = 'remote';
+      spectatorMode.value = !!spectator;
       // mémorise le tournoi
       if (tid) {
         tournamentId.value = tid;
@@ -333,13 +335,19 @@ export default defineComponent({
       }
       console.log(`🌐 Jeu en ligne démarré - Room: ${rid}`);
       const me = localStorage.getItem('username') || 'anon';
-      socket.emit('joinChallengeRoom', { roomId: rid, username: me });
-      joinedOnce.value = false;
-      ensureJoined();
+      if (spectatorMode.value) {
+        socket.emit('spectateMatch', { roomId: rid });
+        joinedOnce.value = true;
+      } else {
+        socket.emit('joinChallengeRoom', { roomId: rid, username: me });
+        joinedOnce.value = false;
+        ensureJoined();
+      }
       endedOnce.value = false; // prêt pour une nouvelle fin de partie
     }
 
     function onTournamentStart({ mode: m, tournamentId: tid }: { mode: string, tournamentId: string }) {
+      spectatorMode.value = false;
       tournamentId.value = tid;
       mode.value = 'tournament';
     }
@@ -381,6 +389,8 @@ export default defineComponent({
     function returnToLobby() {
       mode.value = 'lobby';
       roomId.value = '';
+      spectatorMode.value = false;
+      joinedOnce.value = false;
       console.log('🏠 Retour au lobby');
     }
 
@@ -399,6 +409,7 @@ export default defineComponent({
       if (postMatchTimer) { clearInterval(postMatchTimer); postMatchTimer = null; }
       document.removeEventListener('fullscreenchange', onFsChange)
       document.removeEventListener('webkitfullscreenchange', onFsChange as any)
+      window.removeEventListener('open-game-settings', openCustomization)
     });
 
     return {
@@ -406,6 +417,8 @@ export default defineComponent({
       mode, roomId, socket, isSocketConnected,
       tournamentId, postMatchCountdown,
       gameContainerRef, isFullscreen,
+      showCustomizationModal,
+      closeCustomization,
       // actions
       setMode, onRemoteStart, handleLeaveGame, onRemoteGameEnded, returnToLobby, toggleFullscreen,
       // display
@@ -490,9 +503,8 @@ export default defineComponent({
 
 /* Header */
 .game-header {
-  padding: 2rem;
+  padding: 10px;
   text-align: center;
-  background: rgba(var(--color-background-soft-rgb), 0.8);
   
   border-bottom: 1px solid var(--color-border);
   position: sticky;

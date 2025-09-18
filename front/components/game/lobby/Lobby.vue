@@ -8,6 +8,7 @@
       </div>
 
       <div class="header-right">
+        <button class="btn ghost" type="button" @click="openCustomization">⚙️ Options</button>
         <span class="conn-pill" :class="{ connected: isConnected }" role="status" aria-live="polite">
           <span class="dot" aria-hidden="true"></span>
           {{ isConnected ? 'En ligne' : 'Hors ligne' }}
@@ -162,7 +163,7 @@
             :socket="socket"
             :tournament-id="waitingTournId!"
             @back="currentScreen = 'main'"
-            @startRemote="({ roomId, tournamentId }) => $emit('startRemote', { mode: 'remote', roomId, tournamentId })"
+            @startRemote="(payload) => $emit('startRemote', payload)"
           />
         </section>
       </Transition>
@@ -256,6 +257,7 @@ export default defineComponent({
         waitingTournId.value = tid
         waitingTournName.value = t?.name || 'Tournoi'
         currentScreen.value = 'tourn-waiting'
+        emit('startTournament', { mode: 'tournament', tournamentId: tid })
       } else {
         currentScreen.value = 'main';
       }
@@ -265,6 +267,7 @@ export default defineComponent({
         waitingTournId.value = p.id
         waitingTournName.value = p.name
         currentScreen.value = 'tourn-waiting'
+        emit('startTournament', { mode: 'tournament', tournamentId: p.id })
       }
     function onLeftQueue() {
       waitingGameId.value = null
@@ -276,14 +279,26 @@ export default defineComponent({
       emit('startRemote', { mode: 'remote', roomId })
     }
 
+    const openCustomization = () => {
+      window.dispatchEvent(new Event('open-game-settings'))
+    }
+
     return {
-      currentScreen, waitingGameId, waitingGameName,
-      onlinePlayersCount, activeGamesCount, isConnected,
-      onGameJoined, onGameCreated,
-  waitingTournId,
-  waitingTournName,
-  onTournamentCreated,
-  onTournamentJoined, onLeftQueue, onGameStarted
+      currentScreen,
+      waitingGameId,
+      waitingGameName,
+      onlinePlayersCount,
+      activeGamesCount,
+      isConnected,
+      onGameJoined,
+      onGameCreated,
+      waitingTournId,
+      waitingTournName,
+      onTournamentCreated,
+      onTournamentJoined,
+      onLeftQueue,
+      onGameStarted,
+      openCustomization,
     }
   }
 })
@@ -295,7 +310,7 @@ export default defineComponent({
 .lobby-page { max-width: 1000px; margin: 0 auto; padding: 1.6rem }
 .lobby-header {
   display:flex; align-items:center; justify-content:space-between;
-  background: #3131318f;
+  background: #31313100;
   border: 1px solid rgba(255,255,255,.08);
   border-radius: 7px;
   padding: 1rem 1.25rem;
@@ -314,6 +329,26 @@ export default defineComponent({
   display:inline-flex; align-items:center; gap:.5rem;
   padding:.55rem .9rem; border-radius: 999px; font-weight: 700; font-size:.9rem;
   color:#ef5350; border:1px solid #ef5350; background: rgba(239,83,80,.12);
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.header-right .btn {
+  border-radius: 10px;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.header-right .btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 .conn-pill.connected { color:#43c169; border-color:#43c169; background: rgba(67,193,105,.14) }
 .conn-pill .dot { width:8px; height:8px; border-radius:50%; background: currentColor; animation:pulse 2s infinite }

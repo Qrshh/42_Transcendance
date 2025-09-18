@@ -2,6 +2,8 @@ const fp = require('fastify-plugin');
 const { dbGet, dbAll } = require('../db');
 
 module.exports = fp(async function statsRoutes(fastify) {
+  const getSocketState = () => fastify.socketState || {}
+
   fastify.get('/user/:username/stats', async (req, reply) => {
     const { username } = req.params;
     try {
@@ -49,4 +51,74 @@ module.exports = fp(async function statsRoutes(fastify) {
       })));
     } catch (e) { reply.code(500).send({ error: e.message }); }
   });
+
+  fastify.get('/stats/overview', async (_req, reply) => {
+    try {
+      const { socketsByUserMulti = new Map(), gameLobbies = new Map(), activeGameRooms = new Map() } = getSocketState()
+
+      const playersOnline = socketsByUserMulti.size
+      const lobbiesOpen = Array.from(gameLobbies.values()).filter(l => l.status === 'lobby').length
+      const tournamentsLive = Array.from(activeGameRooms.values()).filter(room => room?.source === 'tournament' && room?.gameState?.status !== 'finished').length
+
+      const matchesRow = await dbGet("SELECT COUNT(*) AS count FROM games WHERE datetime(played_at) >= datetime('now','start of day')")
+      const matchesToday = matchesRow?.count || 0
+
+      reply.send({ playersOnline, matchesToday, tournamentsLive, lobbiesOpen })
+    } catch (e) {
+      reply.code(500).send({ error: e?.message || 'overview_failed' })
+    }
+  })
+
+  fastify.get('/stats/live/matches', async (_req, reply) => {
+    try {
+      const { gameLobbies = new Map(), activeGameRooms = new Map() } = getSocketState()
+
+      const matches = []
+      for (const [roomId, room] of activeGameRooms.entries()) {
+        const state = room?.gameState || {}
+        const score = state.score || {}
+        const players = room?.playerUsernames || state.usernames || {}
+        const roomSockets = fastify.io?.sockets?.adapter?.rooms?.get(roomId)
+        const socketCount = roomSockets ? roomSockets.size : 0
+        const playerIds = [room?.playerSockets?.p1, room?.playerSockets?.p2].filter(Boolean)
+        const spectators = Math.max(0, socketCount - new Set(playerIds).size)
+
+        matches.push({
+          id: roomId,
+          source: room?.source || 'duel',
+          mode: 'duel',
+          status: state.status || 'unknown',
+          createdAt: room?.createdAt || null,
+          spectators,
+          score: {
+            player1: Number(score.player1 ?? 0),
+            player2: Number(score.player2 ?? 0)
+          },
+          players: {
+            p1: players?.p1 || null,
+            p2: players?.p2 || null
+          }
+        })
+      }
+
+      const lobbies = []
+      for (const lobby of gameLobbies.values()) {
+        lobbies.push({
+          id: lobby.id,
+          name: lobby.name,
+          status: lobby.status,
+          hasPassword: !!lobby.password,
+          maxPlayers: lobby.maxPlayers,
+          currentPlayers: Array.isArray(lobby.currentPlayers) ? lobby.currentPlayers.length : 0,
+          accelBall: !!lobby.accelBall,
+          paddleDash: !!lobby.paddleDash,
+          createdAt: lobby.createdAt || null
+        })
+      }
+
+      reply.send({ matches, lobbies })
+    } catch (e) {
+      reply.code(500).send({ error: e?.message || 'live_failed' })
+    }
+  })
 });

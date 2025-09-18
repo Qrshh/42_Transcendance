@@ -76,7 +76,7 @@
         <h2>🎮 Votre match</h2>
         <p>Room: <code class="room-id">{{ currentRoomId }}</code></p>
       </div>
-      <RemoteGame :socket="socket" :roomId="currentRoomId" @leaveGame="leaveMatch" @gameEnded="onGameEnded" />
+      <RemoteGame :socket="socket" :roomId="currentRoomId" :isSpectator="true" @leaveGame="leaveMatch" @gameEnded="onGameEnded" />
     </section>
   </div>
 </template>

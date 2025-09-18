@@ -219,6 +219,11 @@ function persistProfile(user: any) {
 // Actions login/register classiques
 const handleLogin = async () => {
   error.value = null
+  if(!validateInputs())
+  {
+    loading.value = false
+    return
+  }
   loading.value = true
   try {
     const { data } = await api.post('/auth/login', { email: email.value, password: password.value })
@@ -243,6 +248,11 @@ const handleTwoFactorLogin = async () => {
 }
 const handleRegister = async () => {
   error.value = null
+  if(!validateInputs())
+  {
+    loading.value = false
+    return
+  }
   loading.value = true
   try {
     await api.post('/register', { username: username.value, email: email.value, password: password.value })
@@ -252,6 +262,30 @@ const handleRegister = async () => {
   } finally { loading.value = false }
 }
 const goBack = () => { requiresTwoFactor.value = false; twoFactorCode.value = ''; error.value = null }
+
+function validateInputs(){
+  //verification de l'email
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if(!emailRegex.test(email.value)){
+    error.value = "Adresse email invalide"
+    return false
+  }
+  //verification du mot de passe (minimum 8 cara)
+  if(password.value.length < 8){
+    error.value = "Le mot de passe doit contenir au moins 8 caracteres"
+    return false
+  }
+  //verification de l'username (que register du coup)
+  if(!isLogin.value)
+  {
+    if(username.value.length < 3)
+    {
+      error.value = "Le pseudo doit contenir au moins 3 caracteres"
+      return false
+    }
+  }
+  return true
+}
 </script>
 
 

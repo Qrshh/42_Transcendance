@@ -11,6 +11,50 @@ module.exports = fp(async function socketsPlugin(fastify) {
   const gameLobbies = new Map();
   const activeGameRooms = new Map();
   const W = 800, H = 400;
+  const DEFAULT_CUSTOMIZATION = {
+    arena: 'classic',
+    ballSpeed: 'normal',
+    ballSize: 'standard',
+    accelBall: false,
+    paddleDash: false,
+    powerUps: 'off'
+  };
+  const BALL_SPEED_VALUES = { normal: 4, fast: 6, extreme: 8 };
+  const BALL_RADIUS_VALUES = { standard: 8, large: 14 };
+  const PADDLE_SPEED = 8;
+  const DASH_DISTANCE = 20;
+  const DASH_DURATION = 10;
+  const DASH_COOLDOWN = 60;
+  const SPEED_INCREMENT = 1.05;
+  const MAX_SPEED = 20;
+  const COLLISION_COOLDOWN = 8;
+
+  const ARENA_VALUES = new Set(['classic', 'neon', 'cosmic']);
+  const BALL_SPEED_KEYS = new Set(['normal', 'fast', 'extreme']);
+  const BALL_SIZE_KEYS = new Set(['standard', 'large']);
+  const POWER_UP_KEYS = new Set(['off', 'rare', 'frequent']);
+
+  const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+  function normalizeCustomization(raw = {}) {
+    const data = typeof raw === 'object' && raw !== null ? raw : {};
+    const arena = ARENA_VALUES.has(data.arena) ? data.arena : DEFAULT_CUSTOMIZATION.arena;
+    const ballSpeed = BALL_SPEED_KEYS.has(data.ballSpeed) ? data.ballSpeed : DEFAULT_CUSTOMIZATION.ballSpeed;
+    const ballSize = BALL_SIZE_KEYS.has(data.ballSize) ? data.ballSize : DEFAULT_CUSTOMIZATION.ballSize;
+    const powerUps = POWER_UP_KEYS.has(data.powerUps) ? data.powerUps : DEFAULT_CUSTOMIZATION.powerUps;
+
+    return {
+      arena,
+      ballSpeed,
+      ballSize,
+      accelBall: !!data.accelBall,
+      paddleDash: !!data.paddleDash,
+      powerUps,
+    };
+  }
+
+  const resolveBallSpeed = (speed) => BALL_SPEED_VALUES[speed] || BALL_SPEED_VALUES.normal;
+  const resolveBallRadius = (size) => BALL_RADIUS_VALUES[size] || BALL_RADIUS_VALUES.standard;
   // --- Défis (challenges) ---
   const pendingChallenges = new Map(); // id -> { id, from, to, options, createdAt, status }
   
@@ -93,27 +137,48 @@ module.exports = fp(async function socketsPlugin(fastify) {
     // ==== jeu util ====
     const initialGameStateTemplate = {
       gameId: null,
-      ball: { x: W / 2, y: H / 2, vx: 4, vy: 4, radius: 8 },
+      ball: {
+        x: W / 2,
+        y: H / 2,
+        vx: BALL_SPEED_VALUES.normal,
+        vy: BALL_SPEED_VALUES.normal,
+        radius: BALL_RADIUS_VALUES.standard,
+        lastCollisionTime: 0
+      },
       paddles: {
         p1: { x: 10, y: H / 2 - 50, width: 10, height: 100, vy: 0 },
         p2: { x: W - 20, y: H / 2 - 50, width: 10, height: 100, vy: 0 }
       },
       players: { p1: null, p2: null },
       score: { player1: 0, player2: 0 },
-      status: 'waiting'
+      status: 'waiting',
+      settings: { ...DEFAULT_CUSTOMIZATION },
+      baseSpeed: BALL_SPEED_VALUES.normal,
+      gameOver: false,
+      winner: null,
+      countdown: 0,
+      targetScore: 10
     };
-    const resetBall = (ball) => {
-      ball.x = W / 2; ball.y = H / 2;
-      ball.vx = Math.random() > 0.5 ? 4 : -4;
-      ball.vy = Math.random() > 0.5 ? 4 : -4;
+    const resetBall = (ball, baseSpeed = BALL_SPEED_VALUES.normal) => {
+      const speed = Math.max(1, baseSpeed || BALL_SPEED_VALUES.normal);
+      ball.x = W / 2;
+      ball.y = H / 2;
+      ball.vx = (Math.random() > 0.5 ? 1 : -1) * speed;
+      ball.vy = (Math.random() > 0.5 ? 1 : -1) * speed;
+      ball.lastCollisionTime = 0;
     };
-    const collides = (ball, p) => {
-      const hit = ball.x - ball.radius < p.x + p.width &&
-                  ball.x + ball.radius > p.x &&
-                  ball.y - ball.radius < p.y + p.height &&
-                  ball.y + ball.radius > p.y;
-      if (hit) console.log('Collision détectée', { ball, paddle: p });
-      return hit;
+    const collides = (ball, p) => (
+      ball.x - ball.radius < p.x + p.width &&
+      ball.x + ball.radius > p.x &&
+      ball.y - ball.radius < p.y + p.height &&
+      ball.y + ball.radius > p.y
+    );
+    const repositionBallAfterCollision = (ball, paddle) => {
+      if (paddle.x < W / 2) {
+        ball.x = paddle.x + paddle.width + ball.radius + 1;
+      } else {
+        ball.x = paddle.x - ball.radius - 1;
+      }
     };
     function stopGameForRoom(roomId, silent = false) {
       const room = activeGameRooms.get(roomId);
@@ -192,7 +257,7 @@ const tournaments = new Map(); // id -> Tournament
 const TOURN_FILL_TIMEOUT_MS = 60_000;  // cooldown pour remplir / auto-bots
 const ROUND_COOLDOWN_MS     = 10_000;  // attente entre 2 rounds
 const MATCH_START_COUNTDOWN = 3;       // compte à rebours avant chaque match
-const allowedSizes = new Set([2,4,6,8]);
+const allowedSizes = new Set([2,4,8,16]);
 
 function nextPow2(n){let p=1;while(p<n)p<<=1;return p}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
@@ -265,12 +330,21 @@ function launchMatch(t, match){
   const roomId=`tourn-${t.id}-r${match.roundIndex+1}-m${match.index}-${Math.random().toString(36).slice(2,8)}`;
   match.roomId=roomId;
 
-  const gs={ gameId:roomId,
-    ball:{x:W/2,y:H/2,vx:4,vy:4,radius:8},
-    paddles:{p1:{x:10,y:H/2-50,width:10,height:100,vy:0},p2:{x:W-20,y:H/2-50,width:10,height:100,vy:0}},
-    players:{p1:null,p2:null}, score:{player1:0,player2:0}, status:'starting',
-    usernames:{p1:p1U,p2:p2U}
-  };
+  const gs = JSON.parse(JSON.stringify(initialGameStateTemplate));
+  const customization = t.customization || DEFAULT_CUSTOMIZATION;
+  gs.gameId = roomId;
+  gs.usernames = { p1: p1U, p2: p2U };
+  gs.settings = { ...DEFAULT_CUSTOMIZATION, ...customization };
+  gs.baseSpeed = resolveBallSpeed(gs.settings.ballSpeed);
+  gs.ball.radius = resolveBallRadius(gs.settings.ballSize);
+  gs.ball.vx = 0;
+  gs.ball.vy = 0;
+  gs.accelBall = gs.settings.accelBall;
+  gs.paddleDash = gs.settings.paddleDash;
+  gs.powerUpsFrequency = gs.settings.powerUps;
+  gs.targetScore = Number(t.maxPoints) || 10;
+  gs.status = 'starting';
+  gs.countdown = 0;
   const p1Sid= p1U && !match.p1.isBot ? pickSocket(p1U) : null;
   const p2Sid= p2U && !match.p2.isBot ? pickSocket(p2U) : null;
   if(p1Sid) io.sockets.sockets.get(p1Sid)?.join(roomId);
@@ -280,7 +354,13 @@ function launchMatch(t, match){
   const room={ gameState:gs, intervalId:null, durationTimer:null,
     playerSockets:{p1:p1Sid,p2:p2Sid}, playerUsernames:{p1:p1U,p2:p2U},
     maxPoints:Number(t.maxPoints)||10, durationMinutes:Number(t.durationMinutes)||null,
-    tournamentContext:{ tournamentId:t.id, matchId:match.id }
+    tournamentContext:{ tournamentId:t.id, matchId:match.id },
+    customization: gs.settings,
+    accelBall: !!gs.accelBall,
+    paddleDash: !!gs.paddleDash,
+    baseSpeed: gs.baseSpeed,
+    source: 'tournament',
+    createdAt: Date.now()
   };
   activeGameRooms.set(roomId, room);
   if(!t.runningRooms) t.runningRooms=new Set(); t.runningRooms.add(roomId);
@@ -439,9 +519,13 @@ io.on('connection', (socket) => {
       const maxPoints=Number(data?.maxPoints)||10;
       const durationMinutes=data?.durationMinutes?Number(data.durationMinutes):null;
       if(!allowedSizes.has(maxPlayers)) return socket.emit('tournamentError',{message:'Taille invalide (2/4/6/8).'});
+      const customization = normalizeCustomization(data?.customization);
+      if (typeof data?.accelBall === 'boolean') customization.accelBall = data.accelBall;
+      if (typeof data?.paddleDash === 'boolean') customization.paddleDash = data.paddleDash;
       const id=`t-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
       const t={ id,name,hostId, hostAlias: alias, host: alias, createdAt:Date.now(),status:'waiting',maxPlayers,maxPoints,durationMinutes,
-        participants:[{ username: hostId, display: alias }], bracket:null, currentRoundIndex:0, fillDeadline:Date.now()+TOURN_FILL_TIMEOUT_MS, runningRooms:new Set()};
+        participants:[{ username: hostId, display: alias }], bracket:null, currentRoundIndex:0, fillDeadline:Date.now()+TOURN_FILL_TIMEOUT_MS, runningRooms:new Set(),
+        customization };
       tournaments.set(id,t); socket.join(`tournament:${id}`);
       t.fillTimer=setTimeout(()=>{ if(t.status!=='waiting') return; fillWithBotsIfNeeded(t); startTournamentInternal(t); }, TOURN_FILL_TIMEOUT_MS);
       socket.emit('tournamentCreated',{id,name}); emitTournamentToAll(t);
@@ -485,7 +569,14 @@ io.on('connection', (socket) => {
 
   socket.on('spectateMatch', ({roomId})=>{
     if(!roomId || !activeGameRooms.has(roomId)) return socket.emit('tournamentError',{message:'Match introuvable'});
-    socket.join(roomId); const room=activeGameRooms.get(roomId); if(room?.gameState) socket.emit('gameState', room.gameState);
+    socket.join(roomId);
+    const room=activeGameRooms.get(roomId);
+    if(room?.gameState){
+      socket.emit('gameState', room.gameState);
+      if (typeof room.gameState.countdown === 'number') {
+        socket.emit('matchCountdown', { roomId, count: room.gameState.countdown });
+      }
+    }
   });
 });
 
@@ -502,10 +593,28 @@ function startTournamentInternal(t){
     function startGameForRoom(roomId) {
       const room = activeGameRooms.get(roomId);
       if (!room || room.gameState.status === 'playing') return;
-       room.gameState.accelBall = room.accelBall || false;
-      room.gameState.paddleDash = room.paddleDash || false;
+      let customization = room.customization || room.gameState.settings;
+      if (!customization && room.tournamentContext?.tournamentId) {
+        const t = tournaments.get(room.tournamentContext.tournamentId);
+        if (t?.customization) customization = t.customization;
+      }
+      customization = { ...DEFAULT_CUSTOMIZATION, ...(customization || {}) };
+      room.customization = customization;
+      room.gameState.settings = { ...customization };
+      room.gameState.accelBall = !!room.gameState.settings.accelBall;
+      room.gameState.paddleDash = !!room.gameState.settings.paddleDash;
+      room.gameState.baseSpeed = resolveBallSpeed(room.gameState.settings.ballSpeed);
+      room.gameState.ball.radius = resolveBallRadius(room.gameState.settings.ballSize);
+      room.gameState.targetScore = Number(room.maxPoints) || room.gameState.targetScore || 10;
+      room.gameState.gameOver = false;
+      room.gameState.winner = null;
+      room.gameState.countdown = 0;
+      room.accelBall = room.gameState.accelBall;
+      room.paddleDash = room.gameState.paddleDash;
+      room.baseSpeed = room.gameState.baseSpeed;
+
+      resetBall(room.gameState.ball, room.baseSpeed);
       room.gameState.status = 'playing';
-      resetBall(room.gameState.ball);
       io.to(roomId).emit('gameState', room.gameState);
       room.intervalId = setInterval(() => gameLoopForRoom(roomId), 1000/60);
       if (room.durationMinutes && !room.durationTimer) {
@@ -520,73 +629,113 @@ function startTournamentInternal(t){
     function gameLoopForRoom(roomId) {
       const room = activeGameRooms.get(roomId);
       if (!room || room.gameState.status !== 'playing') return;
-          
+
       const { ball, paddles, score } = room.gameState;
-          
-      // Mouvements paddles + clamp + anti-poussée
-      [paddles.p1, paddles.p2].forEach(p => {
+      const accelerate = !!room.accelBall;
+      const dashEnabled = !!room.paddleDash;
+      const baseSpeed = room.baseSpeed || room.gameState.baseSpeed || BALL_SPEED_VALUES.normal;
+      const targetScore = Number(room.maxPoints) || room.gameState.targetScore || 10;
+
+      if (ball.lastCollisionTime && ball.lastCollisionTime > 0) {
+        ball.lastCollisionTime -= 1;
+      }
+
+      [paddles.p1, paddles.p2].forEach((p, index) => {
+        if (dashEnabled) {
+          if (p.dashCooldown && p.dashCooldown > 0) p.dashCooldown -= 1;
+          if (p.isDashing) {
+            p.dashProgress = (p.dashProgress ?? 0) + 1;
+            if (p.startX === undefined) p.startX = p.x;
+            const direction = index === 0 ? 1 : -1;
+            if (p.dashProgress <= DASH_DURATION) {
+              p.x = p.startX + direction * (DASH_DISTANCE * (p.dashProgress / DASH_DURATION));
+            } else if (p.dashProgress <= DASH_DURATION * 2) {
+              const backProgress = p.dashProgress - DASH_DURATION;
+              p.x = p.startX + direction * (DASH_DISTANCE * (1 - backProgress / DASH_DURATION));
+            } else {
+              p.x = p.startX;
+              p.isDashing = false;
+              p.dashProgress = undefined;
+              p.startX = undefined;
+            }
+          }
+        }
+
         p.y += p.vy;
-      
+
         if (p.y < 0) {
           p.y = 0;
-          if (p.vy < 0) p.vy = 0; // stop si on pousse vers le haut collé
+          if (p.vy < 0) p.vy = 0;
         }
         const maxY = H - p.height;
         if (p.y > maxY) {
           p.y = maxY;
-          if (p.vy > 0) p.vy = 0; // stop si on pousse vers le bas collé
+          if (p.vy > 0) p.vy = 0;
         }
       });
-  
-      // Balle
+
       ball.x += ball.vx;
       ball.y += ball.vy;
-  
-      // Rebond haut/bas
+
       if (ball.y - ball.radius < 0 || ball.y + ball.radius > H) {
         ball.vy *= -1;
       }
-      console.log('ACCEL BAll', room.gameState.accelBall);
-      // Rebond sur paddles
-      if (collides(ball, paddles.p1) || collides(ball, paddles.p2)) {
-        console.log('Rebond détecté avant accel');
-        ball.vx *= -1;
-        if(room.gameState.accelBall){
-          console.log('Accel appliquée !', ball.vx, ball.vy);
-          ball.vx *= 3;
-          ball.vy *= 3;
-        }
+
+      const canCollide = !ball.lastCollisionTime || ball.lastCollisionTime <= 0;
+
+      if (canCollide && ball.vx < 0 && collides(ball, paddles.p1)) {
+        handlePaddleCollision(ball, paddles.p1, accelerate);
+      } else if (canCollide && ball.vx > 0 && collides(ball, paddles.p2)) {
+        handlePaddleCollision(ball, paddles.p2, accelerate);
       }
-      // Point Player 2 (balle sort à gauche)
+
       if (ball.x - ball.radius < 0) {
-        score.player2++;
-        if (score.player2 >= (room.maxPoints || 10)) {
+        score.player2 += 1;
+        if (score.player2 >= targetScore) {
           room.gameState.status = 'finished';
           room.gameState.winner = 'Player 2';
           room.gameState.gameOver = true;
+          io.to(roomId).emit('gameState', room.gameState);
           io.to(roomId).emit('gameEnded', { winner: 'Player 2', finalScore: { ...score } });
           return persistAndNotifyRoomResult(roomId, 'p2');
-        } else {
-          resetBall(ball);
         }
+        resetBall(ball, baseSpeed);
+      } else if (ball.x + ball.radius > W) {
+        score.player1 += 1;
+        if (score.player1 >= targetScore) {
+          room.gameState.status = 'finished';
+          room.gameState.winner = 'Player 1';
+          room.gameState.gameOver = true;
+          io.to(roomId).emit('gameState', room.gameState);
+          io.to(roomId).emit('gameEnded', { winner: 'Player 1', finalScore: { ...score } });
+          return persistAndNotifyRoomResult(roomId, 'p1');
+        }
+        resetBall(ball, baseSpeed);
       }
 
-  // Point Player 1 (balle sort à droite)
-  if (ball.x + ball.radius > W) {
-    score.player1++;
-    if (score.player1 >= (room.maxPoints || 10)) {
-      room.gameState.status = 'finished';
-      room.gameState.winner = 'Player 1';
-      room.gameState.gameOver = true;
-      io.to(roomId).emit('gameEnded', { winner: 'Player 1', finalScore: { ...score } });
-      return persistAndNotifyRoomResult(roomId, 'p1');
-    } else {
-      resetBall(ball);
+      io.to(roomId).emit('gameState', room.gameState);
     }
-  }
 
-  io.to(roomId).emit('gameState', room.gameState);
-}
+    function handlePaddleCollision(ball, paddle, accelerating) {
+      ball.vx *= -1;
+      repositionBallAfterCollision(ball, paddle);
+
+      if (accelerating) {
+        ball.vx *= SPEED_INCREMENT;
+        ball.vy *= SPEED_INCREMENT;
+        ball.vx = clamp(ball.vx, -MAX_SPEED, MAX_SPEED);
+        ball.vy = clamp(ball.vy, -MAX_SPEED, MAX_SPEED);
+      }
+
+      if (paddle.isDashing) {
+        ball.vx *= 1.2;
+        ball.vy *= 1.2;
+        ball.vx = clamp(ball.vx, -MAX_SPEED, MAX_SPEED);
+        ball.vy = clamp(ball.vy, -MAX_SPEED, MAX_SPEED);
+      }
+
+      ball.lastCollisionTime = COLLISION_COOLDOWN;
+    }
 
 
     function broadcastGameListUpdate() {
@@ -733,12 +882,16 @@ function startTournamentInternal(t){
           if (!fromU || !toU) return socket.emit('challengeError', { error: 'Utilisateur introuvable' });
       
           const challengeId = `ch-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+          const customization = normalizeCustomization(options?.customization);
+          if (typeof options?.accelBall === 'boolean') customization.accelBall = options.accelBall;
+          if (typeof options?.paddleDash === 'boolean') customization.paddleDash = options.paddleDash;
           const payload = {
             id: challengeId,
             from, to,
             options: {
               maxPoints: Number(options?.maxPoints) || 10,
-              durationMinutes: Number(options?.durationMinutes) || null
+              durationMinutes: Number(options?.durationMinutes) || null,
+              customization
             },
             createdAt: new Date().toISOString(),
             status: 'pending'
@@ -781,20 +934,22 @@ function startTournamentInternal(t){
         pendingChallenges.delete(challengeId);
       
         const roomId = `game-${Date.now()}-${Math.random().toString(36).slice(2,11)}`;
-      
-        // construire un état de jeu propre
-        const gs = {
-          gameId: roomId,
-          ball: { x: W/2, y: H/2, vx: 4, vy: 4, radius: 8 },
-          paddles: {
-            p1: { x: 10,   y: H/2 - 50, width: 10, height: 100, vy: 0 },
-            p2: { x: W-20, y: H/2 - 50, width: 10, height: 100, vy: 0 }
-          },
-          players: { p1: null, p2: null },
-          score: { player1: 0, player2: 0 },
-          status: 'starting',
-          usernames: { p1: ch.from, p2: ch.to }
-        };
+
+        const gs = JSON.parse(JSON.stringify(initialGameStateTemplate));
+        const customization = ch.options?.customization || DEFAULT_CUSTOMIZATION;
+        gs.gameId = roomId;
+        gs.usernames = { p1: ch.from, p2: ch.to };
+        gs.settings = { ...DEFAULT_CUSTOMIZATION, ...customization };
+        gs.baseSpeed = resolveBallSpeed(gs.settings.ballSpeed);
+        gs.ball.radius = resolveBallRadius(gs.settings.ballSize);
+        gs.ball.vx = 0;
+        gs.ball.vy = 0;
+        gs.accelBall = gs.settings.accelBall;
+        gs.paddleDash = gs.settings.paddleDash;
+        gs.powerUpsFrequency = gs.settings.powerUps;
+        gs.targetScore = Number(ch.options?.maxPoints) || 10;
+        gs.status = 'starting';
+        gs.countdown = 0;
       
         const p1Sid = pickOneSocketId(ch.from);
         const p2Sid = pickOneSocketId(ch.to);
@@ -814,9 +969,15 @@ function startTournamentInternal(t){
           intervalId: null,
           playerSockets:  { p1: p1Sid, p2: p2Sid },
           playerUsernames:{ p1: ch.from, p2: ch.to },
-          maxPoints: ch.options.maxPoints,
-          durationMinutes: ch.options.durationMinutes,
-          durationTimer: null
+          maxPoints: Number(ch.options?.maxPoints) || 10,
+          durationMinutes: Number(ch.options?.durationMinutes) || null,
+          durationTimer: null,
+          accelBall: !!gs.accelBall,
+          paddleDash: !!gs.paddleDash,
+          customization: gs.settings,
+          baseSpeed: gs.baseSpeed,
+          source: 'challenge',
+          createdAt: Date.now()
         });
       
         // Informer d’ouvrir l’écran de jeu
@@ -869,9 +1030,12 @@ function startTournamentInternal(t){
       });
 
       // lobbies
-      socket.on('createGame', (gameData) => {
+      socket.on('createGame', (gameData = {}) => {
         const newGameId = `game-${Date.now()}-${Math.random().toString(36).slice(2,11)}`;
         const userId = connectedUsers.get(socket.id) || socket.id;
+        const customization = normalizeCustomization(gameData.customization);
+        if (typeof gameData.accelBall === 'boolean') customization.accelBall = gameData.accelBall;
+        if (typeof gameData.paddleDash === 'boolean') customization.paddleDash = gameData.paddleDash;
         const lobby = {
           id: newGameId,
           name: gameData.name,
@@ -884,12 +1048,19 @@ function startTournamentInternal(t){
           maxPoints: gameData.maxPoints,
           createdAt: Date.now(),
           //modes de jeu
-          accelBall: !!gameData.accelBall,
-          paddleDash: !!gameData.paddleDash
+          accelBall: customization.accelBall,
+          paddleDash: customization.paddleDash,
+          customization
         };
         gameLobbies.set(newGameId, lobby);
         socket.join(newGameId);
-        socket.emit('gameCreatedConfirmation', { id: lobby.id, name: lobby.name, accelBall: lobby.accelBall, paddleDash: lobby.paddleDash, });
+        socket.emit('gameCreatedConfirmation', {
+          id: lobby.id,
+          name: lobby.name,
+          accelBall: lobby.accelBall,
+          paddleDash: lobby.paddleDash,
+          customization: lobby.customization
+        });
         broadcastGameListUpdate();
       });
 
@@ -916,12 +1087,24 @@ function startTournamentInternal(t){
           broadcastGameListUpdate();
 
           const gs = JSON.parse(JSON.stringify(initialGameStateTemplate));
+          const customization = lobby.customization || DEFAULT_CUSTOMIZATION;
           gs.gameId = gameId;
           gs.players.p1 = lobby.currentPlayers[0].socketId;
           gs.players.p2 = lobby.currentPlayers[1].socketId;
           const p1Username = connectedUsers.get(gs.players.p1);
           const p2Username = connectedUsers.get(gs.players.p2);
           gs.usernames = { p1: p1Username, p2: p2Username };
+          gs.settings = { ...DEFAULT_CUSTOMIZATION, ...customization };
+          gs.baseSpeed = resolveBallSpeed(gs.settings.ballSpeed);
+          gs.ball.radius = resolveBallRadius(gs.settings.ballSize);
+          gs.ball.vx = 0;
+          gs.ball.vy = 0;
+          gs.accelBall = gs.settings.accelBall;
+          gs.paddleDash = gs.settings.paddleDash;
+          gs.powerUpsFrequency = gs.settings.powerUps;
+          gs.targetScore = Number(lobby.maxPoints) || 10;
+          gs.status = 'starting';
+          gs.countdown = 0;
 
           activeGameRooms.set(gameId, {
             gameState: gs,
@@ -931,9 +1114,15 @@ function startTournamentInternal(t){
             maxPoints: Number(lobby.maxPoints) || 10,
             durationMinutes: Number(lobby.durationMinutes) || null,
             durationTimer: null,
-            accelBall: lobby.accelBall || false,
-            paddleDash: lobby.paddleDash || false
+            accelBall: !!gs.accelBall,
+            paddleDash: !!gs.paddleDash,
+            customization: gs.settings,
+            baseSpeed: gs.baseSpeed,
+            source: 'lobby',
+            createdAt: Date.now()
           });
+
+          io.to(gameId).emit('gameState', gs);
 
           setTimeout(() => {
             if (activeGameRooms.has(gameId)) {
@@ -971,6 +1160,7 @@ function startTournamentInternal(t){
       socket.on('movePaddle', ({ roomId, direction }) => {
         const room = activeGameRooms.get(roomId);
         if (!room || room.gameState.status !== 'playing') return;
+        if (typeof direction !== 'string') return;
           
         const { gameState } = room;
         const isP1 = socket.id === (room.playerSockets?.p1) || socket.id === (gameState.players?.p1);
@@ -978,8 +1168,18 @@ function startTournamentInternal(t){
         if (!isP1 && !isP2) return;
           
         const p = isP1 ? gameState.paddles.p1 : gameState.paddles.p2;
-          
-        let vy = direction === 'up' ? -8 : direction === 'down' ? 8 : 0;
+        if (direction === 'dash') {
+          if (!room.paddleDash) return;
+          if (!p.isDashing && (!p.dashCooldown || p.dashCooldown <= 0)) {
+            p.isDashing = true;
+            p.dashCooldown = DASH_COOLDOWN;
+            p.dashProgress = 0;
+            p.startX = p.x;
+          }
+          return;
+        }
+
+        let vy = direction === 'up' ? -PADDLE_SPEED : direction === 'down' ? PADDLE_SPEED : 0;
         const atTop = p.y <= 0;
         const atBottom = p.y >= (H - p.height);
         if ((atTop && vy < 0) || (atBottom && vy > 0)) vy = 0;
