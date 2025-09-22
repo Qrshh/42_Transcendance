@@ -4,8 +4,8 @@ services:
       context: ./front
       dockerfile: Dockerfile
     platform: linux/amd64
-    #ports:
-    #  - "${FRONT_PORT:-5173}:5173"
+    ports:
+      - "${FRONT_PORT:-5173}:5173"
     volumes:
       - ./front:/app
       - /app/node_modules
@@ -23,8 +23,8 @@ services:
       context: ./back
       dockerfile: Dockerfile
     platform: linux/amd64
-    #ports:
-    #  - "${BACK_PORT:-3000}:3000"
+    ports:
+      - "${BACK_PORT:-3000}:3000"
     volumes:
       - ./back:/app
       - /app/node_modules

@@ -1157,6 +1157,13 @@ function startTournamentInternal(t){
         socket.emit('leaveGameError', { message: 'Partie introuvable ou vous n\'êtes pas dedans.' });
       });
 
+      socket.on('leaveSpectate', ({ roomId }) => {
+        socket.leave(roomId);
+        //log pour debug
+        const username = connectedUsers.get(socket.id) || 'anon';
+        console.log(`👀 ${username} a arrêté de regarder la room ${roomId}`);
+      });
+
       socket.on('movePaddle', ({ roomId, direction }) => {
         const room = activeGameRooms.get(roomId);
         if (!room || room.gameState.status !== 'playing') return;

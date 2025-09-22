@@ -77,6 +77,7 @@
                 :roomId="roomId"
                 :isSpectator="spectatorMode"
                 @leaveGame="handleLeaveGame"
+                @stopSpectating="returnToLobby"
                 @gameEnded="onRemoteGameEnded"
               />
             </div>
@@ -352,9 +353,18 @@ export default defineComponent({
       mode.value = 'tournament';
     }
 
-    function handleLeaveGame() {
-      console.log('🏠 Retour au lobby depuis RemoteGame');
-      returnToLobby();
+    function handleLeaveGame(payload = {}) {
+      if (payload.isSpectator) {
+        console.log('👀 Arrêt du spectateur');
+        // Juste retourner au lobby localement sans affecter la partie
+        mode.value = 'lobby';
+        roomId.value = '';
+        spectatorMode.value = false;
+        joinedOnce.value = false;
+      } else {
+        console.log('🏠 Retour au lobby depuis RemoteGame');
+        returnToLobby();
+      }
     }
 
     // cooldown 5s puis retour à l’écran d’attente du tournoi

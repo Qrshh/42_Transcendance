@@ -20,8 +20,8 @@ groups:
           description: "Instance {{ $labels.instance }} has been down for more than 1 minute."
 
       - alert: HighLoginFailures
-        expr: increase(login_attempts_total{status="failure"}[5m]) > 5
-        for: 1m
+        expr: rate(login_attempts_total{status="failure", method!~"test|simulation"}[5m]) * 300 > 5
+        for: 2m
         labels:
           severity: warning
         annotations:
