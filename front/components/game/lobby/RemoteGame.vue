@@ -92,7 +92,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   leaveGame: []
-  stopSpectating: []
   gameEnded: [payload: any]
 }>()
 
@@ -221,7 +220,7 @@ const getStatusText = () => {
 const leaveGame = () => {
   if (isSpectator.value) {
     props.socket.emit('leaveSpectate', { roomId: props.roomId })
-    emit('stopSpectating')
+    emit('leaveGame')
     return
   }
   props.socket.emit('leaveGame', { gameId: props.roomId })
