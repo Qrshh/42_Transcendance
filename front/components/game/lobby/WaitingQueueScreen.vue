@@ -1,25 +1,28 @@
 <template>
   <div class="waiting-queue-screen p-6 bg-gray-700 rounded-lg shadow-md text-center">
-    <h2 class="text-3xl font-bold mb-4 text-white">En attente de la partie :</h2>
+    <h2 class="text-3xl font-bold mb-4 text-white">{{ t.waitingForGame }}</h2>
     <p class="text-4xl font-extrabold text-blue-400 mb-6">{{ gameName }}</p>
 
     <div class="space-y-3 text-lg text-gray-200">
-      <p>Joueurs: <span class="font-bold text-blue-300">{{ currentPlayers }}</span> / <span class="font-bold text-blue-300">{{ maxPlayers }}</span></p>
-      <p>Statut: <span class="font-bold text-purple-300">{{ statusMessage }}</span></p>
-      <p v-if="estimatedWaitTime">Temps d'attente estimé: <span class="font-bold text-yellow-300">{{ estimatedWaitTime }} min</span></p>
+      <p>{{ t.players }}: <span class="font-bold text-blue-300">{{ currentPlayers }}</span> / <span class="font-bold text-blue-300">{{ maxPlayers }}</span></p>
+      <p>{{ t.status }}: <span class="font-bold text-purple-300">{{ statusMessage }}</span></p>
+      <p v-if="estimatedWaitTime">{{ t.estimatedWaitTime }}: <span class="font-bold text-yellow-300">{{ estimatedWaitTime }} {{ t.minutes }}</span></p>
     </div>
 
     <button @click="leaveQueue"
             class="mt-8 py-3 px-​6 bg-red-600 hover:bg-red-700 rounded-lg text-white font-semibold transition duration-300">
-      Quitter la file
+      {{ t.leaveQueue }}
     </button>
   </div>
 </template>
+
 
 <script lang="ts">
 import { defineComponent, ref, watch, onMounted, onUnmounted } from 'vue';
 import type { Socket } from 'socket.io-client';
 import { useGlobalToasts } from '../../../composables/useGlobalToasts'
+import { useI18n } from '../../../composables/useI18n'
+
 
 export default defineComponent({
   name: 'WaitingQueueScreen',
@@ -39,6 +42,7 @@ export default defineComponent({
   },
   emits: ['leftQueue', 'gameStarted'],
   setup(props, { emit }) {
+    const {t} = useI18n()
     const { showToast } = useGlobalToasts()
     const currentPlayers = ref(0);
     const maxPlayers = ref(0);
@@ -125,6 +129,7 @@ export default defineComponent({
       statusMessage,
       estimatedWaitTime,
       leaveQueue,
+      t,
     };
   },
 });

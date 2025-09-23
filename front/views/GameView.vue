@@ -144,11 +144,11 @@ import TournamentWaitingScreen from '../components/game/tournament/TournamentWai
 import GameCustomizationModal from '../components/game/settings/GameCustomizationModal.vue';
 import { useI18n } from '../composables/useI18n'
 
-const { t } = useI18n()
 
 export default defineComponent({
   components: { Lobby, LocalGame, AIGame, RemoteGame, TournamentWaitingScreen, GameCustomizationModal },
   setup() {
+    const { t } = useI18n()
     const mode   = ref<'lobby'|'local'|'ai'|'remote'|'tournament'>('lobby');
     const roomId = ref<string>('');
     const spectatorMode = ref(false);
@@ -417,13 +417,16 @@ export default defineComponent({
       // state
       mode, roomId, socket, isSocketConnected,
       tournamentId, postMatchCountdown,
+      onTournamentStart,
       gameContainerRef, isFullscreen,
       showCustomizationModal,
       closeCustomization,
       // actions
       setMode, onRemoteStart, handleLeaveGame, onRemoteGameEnded, returnToLobby, toggleFullscreen,
       // display
-      getModeEmoji, getModeText, getPlayerCountText
+      getModeEmoji, getModeText, getPlayerCountText,
+
+      t
     };
   }
 });

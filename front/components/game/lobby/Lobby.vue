@@ -196,7 +196,6 @@ import JoinTournamentList from '../tournament/JoinTournamentList.vue'
 import TournamentWaitingScreen from '../tournament/TournamentWaitingScreen.vue'
 import { useI18n } from '../../../composables/useI18n'
 
-const { t } = useI18n()
 
 
 
@@ -210,6 +209,7 @@ export default defineComponent({
   },
   emits: ['startLocal', 'startAI', 'startRemote', 'startTournament'],
   setup(props, { emit }) {
+    const { t } = useI18n()
     const currentScreen = ref<LobbyScreen>('main')
     const waitingGameId = ref<string | null>(null)
     const waitingGameName = ref<string | null>(null)
@@ -308,6 +308,7 @@ export default defineComponent({
       onLeftQueue,
       onGameStarted,
       openCustomization,
+      t
     }
   }
 })

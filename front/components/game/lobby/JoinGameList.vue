@@ -3,14 +3,14 @@
     <!-- Header -->
     <div class="list-header">
       <div class="header-info">
-        <h2 class="list-title">🔍 Parties disponibles</h2>
-        <p class="list-subtitle">Trouve la partie parfaite pour toi !</p>
+        <h2 class="list-title">🔍 {{ t.availableGames }}</h2>
+        <p class="list-subtitle">{{ t.findThePerfectGame }}</p>
       </div>
       
       <div class="header-actions">
         <button @click="refreshGameList" :disabled="loading" class="btn-refresh">
           <span class="refresh-icon" :class="{ spinning: loading }">🔄</span>
-          <span class="refresh-text">{{ loading ? 'Recherche...' : 'Actualiser' }}</span>
+          <span class="refresh-text">{{ loading ? t.searching : t.refresh }}</span>
         </button>
       </div>
     </div>
@@ -19,12 +19,12 @@
     <div class="connection-stats">
       <div class="stat-item">
         <span class="stat-icon">📡</span>
-        <span class="stat-label">Ping moyen:</span>
+        <span class="stat-label">{{ t.averagePing }}:</span>
         <span class="stat-value" :class="getPingClass(averagePing)">{{ averagePing }}ms</span>
       </div>
       <div class="stat-item">
         <span class="stat-icon">🎮</span>
-        <span class="stat-label">Parties trouvées:</span>
+        <span class="stat-label">{{ t.gamesFound }}:</span>
         <span class="stat-value">{{ availableGames.length }}</span>
       </div>
     </div>
@@ -34,17 +34,17 @@
       <!-- État de chargement -->
       <div v-if="loading" class="loading-state">
         <div class="loading-spinner">⏳</div>
-        <h3 class="loading-title">Recherche de parties...</h3>
-        <p class="loading-text">Analyse des serveurs disponibles</p>
+        <h3 class="loading-title">{{ t.searchingGames }}</h3>
+        <p class="loading-text">{{ t.scanningServers }}</p>
       </div>
 
       <!-- Aucune partie disponible -->
       <div v-else-if="availableGames.length === 0" class="empty-state">
         <div class="empty-icon">🎯</div>
-        <h3 class="empty-title">Aucune partie disponible</h3>
-        <p class="empty-text">Sois le premier à créer une partie !</p>
+        <h3 class="empty-title">{{ t.noGamesAvailable }}</h3>
+        <p class="empty-text">{{ t.beFirstToCreate }}</p>
         <button @click="$emit('back')" class="btn-create">
-          ✨ Créer une partie
+          ✨ {{ t.createGame }}
         </button>
       </div>
 
@@ -80,7 +80,7 @@
           <div class="card-details">
             <div class="detail-item">
               <span class="detail-icon">👥</span>
-              <span class="detail-text">{{ game.currentPlayers }}/{{ game.maxPlayers }} joueurs</span>
+              <span class="detail-text">{{ game.currentPlayers }}/{{ game.maxPlayers }} {{ t.players }}</span>
               <div class="players-bar">
                 <div 
                   class="players-fill" 
@@ -91,12 +91,12 @@
 
             <div v-if="game.estimatedWaitTime" class="detail-item">
               <span class="detail-icon">⏱️</span>
-              <span class="detail-text">Attente: ~{{ game.estimatedWaitTime }} min</span>
+              <span class="detail-text">{{ t.waitingTime }}: ~{{ game.estimatedWaitTime }} {{ t.minutes }}</span>
             </div>
 
             <div class="detail-item">
               <span class="detail-icon">🏆</span>
-              <span class="detail-text">Mode: {{ getGameMode(game) }}</span>
+              <span class="detail-text">{{ t.mode }}: {{ getGameMode(game) }}</span>
             </div>
           </div>
 
@@ -122,7 +122,7 @@
 
           <!-- Indicateur de popularité -->
           <div v-if="game.currentPlayers > 0" class="popularity-badge">
-            🔥 {{ game.currentPlayers }} en ligne
+            🔥 {{ game.currentPlayers }} {{ t.online }}
           </div>
         </div>
       </div>
@@ -132,7 +132,7 @@
     <div class="list-footer">
       <button @click="$emit('back')" class="btn-back">
         <span class="back-icon">←</span>
-        <span class="back-text">Retour au lobby</span>
+        <span class="back-text">{{ t.backToLobby }}</span>
       </button>
     </div>
 
@@ -141,16 +141,16 @@
       <div v-if="showPasswordModal" class="modal-overlay" @click.self="showPasswordModal = false">
         <div class="modal-content">
           <div class="modal-header">
-            <h3 class="modal-title">🔐 Partie protégée</h3>
+            <h3 class="modal-title">🔐 {{ t.protectedGame }}</h3>
             <button @click="showPasswordModal = false" class="modal-close">✕</button>
           </div>
           
           <div class="modal-body">
-            <p class="password-prompt">Cette partie nécessite un mot de passe :</p>
+            <p class="password-prompt">{{ t.passwordRequired }}</p>
             <input 
               v-model="passwordInput" 
               type="password" 
-              placeholder="Mot de passe secret"
+              placeholder="{{ t.secretPassword }}"
               class="password-input"
               @keyup.enter="confirmJoinWithPassword"
               ref="passwordInputRef"
@@ -159,11 +159,11 @@
           
           <div class="modal-actions">
             <button @click="showPasswordModal = false" class="btn-cancel">
-              Annuler
+              {{ t.cancel }}
             </button>
             <button @click="confirmJoinWithPassword" class="btn-confirm">
               <span class="confirm-icon">🚀</span>
-              <span class="confirm-text">Rejoindre</span>
+              <span class="confirm-text">{{ t.join }}</span>
             </button>
           </div>
         </div>
@@ -181,9 +181,13 @@
   </div>
 </template>
 
+
 <script lang="ts">
 import { defineComponent, ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { Socket } from 'socket.io-client';
+import { useI18n } from '../../../composables/useI18n';
+
+
 
 interface GameLobby {
   id: string;
@@ -208,6 +212,7 @@ export default defineComponent({
   emits: ['back', 'gameJoined'],
   
   setup(props, { emit }) {
+    const {t} = useI18n()
     const availableGames = ref<GameLobby[]>([]);
     const loading = ref(true);
     const errorMessage = ref<string | null>(null);
@@ -378,6 +383,7 @@ export default defineComponent({
       getStatusText,
       getGameMode,
       getJoinButtonText,
+      t,
     };
   },
 });

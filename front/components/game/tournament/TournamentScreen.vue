@@ -86,6 +86,9 @@ import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import type { Socket } from 'socket.io-client';
 import TournamentBracket from './TournamentBracket.vue';
 import RemoteGame from '../lobby/RemoteGame.vue';
+import { useI18n } from '../../../composables/useI18n';
+
+const {t} = useI18n()
 
 const props = defineProps<{ socket: Socket, tournamentId: string }>();
 defineEmits<{ (e:'leave'): void }>();

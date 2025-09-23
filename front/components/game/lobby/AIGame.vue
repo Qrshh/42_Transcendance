@@ -1,24 +1,24 @@
 <template>
   <div class="ai-game" :class="arenaClass">
     <div v-if="!gameStarted" class="menu">
-      <h2 class="menu-title">⚙️ Préparer la partie</h2>
-      <p class="menu-sub">Ajuste les réglages avant d'affronter l'IA.</p>
+      <h2 class="menu-title">{{ t.prepareMatch }}</h2>
+      <p class="menu-sub">{{ t.adjustSettings }}</p>
 
       <ul class="settings-list">
         <li>
-          <span class="label">Thème d'arène</span>
+          <span class="label">{{ t.arenaTheme }}</span>
           <span class="value">{{ arenaLabel }}</span>
         </li>
         <li>
-          <span class="label">Vitesse de balle</span>
+          <span class="label">{{ t.ballSpeed }}</span>
           <span class="value">{{ ballSpeedLabel }}</span>
         </li>
         <li>
-          <span class="label">Taille de balle</span>
+          <span class="label">{{ t.ballSize }}</span>
           <span class="value">{{ ballSizeLabel }}</span>
         </li>
         <li>
-          <span class="label">Power-ups</span>
+          <span class="label">{{ t.powerUps }}</span>
           <span class="value">{{ powerUpLabel }}</span>
         </li>
       </ul>
@@ -27,27 +27,27 @@
         <label class="toggle">
           <input type="checkbox" v-model="acceleratingBall" />
           <span class="slider"></span>
-          <span class="toggle-text">🚀 Balle accélérante</span>
+          <span class="toggle-text">{{ t.acceleratingBall }}</span>
         </label>
         <label class="toggle">
           <input type="checkbox" v-model="dashEnabled" />
           <span class="slider"></span>
-          <span class="toggle-text">⚡ Dash des paddles</span>
+          <span class="toggle-text">{{ t.dashPaddles }}</span>
         </label>
       </div>
 
       <div class="difficulty-row">
-        <label for="ai-difficulty">Difficulté IA</label>
+        <label for="ai-difficulty">{{ t.aiDifficulty }}</label>
         <select id="ai-difficulty" v-model="aiDifficulty" @change="adjustAIDifficulty" class="difficulty-selector">
-          <option value="Facile">🟢 Facile</option>
-          <option value="Normal">🟡 Normal</option>
-          <option value="Difficile">🔴 Difficile</option>
+          <option value="Facile">{{ t.easy }}</option>
+          <option value="Normal">{{ t.normal }}</option>
+          <option value="Difficile">{{ t.hard }}</option>
         </select>
       </div>
 
       <div class="menu-actions">
-        <button class="btn ghost" type="button" @click="openCustomization">Personnaliser…</button>
-        <button class="btn primary" type="button" @click="startGame">▶️ Lancer la partie</button>
+        <button class="btn ghost" type="button" @click="openCustomization">{{ t.customize }}</button>
+        <button class="btn primary" type="button" @click="startGame">{{ t.startGame }}</button>
       </div>
     </div>
 
@@ -55,28 +55,28 @@
       <!-- Header du jeu IA -->
       <div class="game-header">
         <div class="game-mode-info">
-          <h2 class="mode-title">🤖 Mode Intelligence Artificielle</h2>
-          <p class="mode-description">Vous vs IA • Niveau: {{ aiDifficulty }}</p>
+          <h2 class="mode-title">{{ t.aiMode }}</h2>
+          <p class="mode-description">{{ t.youVsAI }}</p>
         </div>
         
         <div class="ai-controls">
-          <button class="btn ghost" type="button" @click="openCustomization">⚙️ Options</button>
+          <button class="btn ghost" type="button" @click="openCustomization">{{ t.optionsBtn }}</button>
           <button
             class="btn"
             type="button"
-            title="Pause (P)"
+            title="{{ t.pause }}"
             @click="togglePause"
             :disabled="!canTogglePause"
           >P</button>
           <select v-model="aiDifficulty" @change="adjustAIDifficulty" class="difficulty-selector">
-            <option value="Facile">🟢 Facile</option>
-            <option value="Normal">🟡 Normal</option>
-            <option value="Difficile">🔴 Difficile</option>
+            <option value="Facile">{{ t.easy }}</option>
+            <option value="Normal">{{ t.normal }}</option>
+            <option value="Difficile">{{ t.hard }}</option>
           </select>
           <button
             class="btn"
             type="button"
-            title="Plein écran"
+            title="{{ t.fullscreen }}"
             @pointerdown.capture.prevent.stop="toggleFullscreen"
             @click.capture.prevent.stop
           >⤢</button>
@@ -85,49 +85,38 @@
 
       <!-- Canvas de jeu -->
       <div class="game-canvas-container">
-      <PongCanvas
-        ref="canvasRef"
-        :state="gameState"
-        :onMove="handlePlayerMove"
-        controls="left"
-        :showFullscreenButton="false"
-        :countdown="countdownToStart"
-        :showResultOverlay="gameStarted"
-        :resultActionLabel="gameState.gameOver ? '🔄 Rejouer' : ''"
-        :onResultAction="resetGame"
-      />
+        <PongCanvas
+          ref="canvasRef"
+          :state="gameState"
+          :onMove="handlePlayerMove"
+          controls="left"
+          :showFullscreenButton="false"
+          :countdown="countdownToStart"
+          :showResultOverlay="gameStarted"
+          :resultActionLabel="gameState.gameOver ? '🔄 ' + t.startGame : ''"
+          :onResultAction="resetGame"
+        />
 
-      <div
-        v-if="!gameState.gameOver && gameState.status !== 'playing' && countdownToStart === 0"
-        class="game-overlay"
-      >
-        <div class="overlay-content">
-          <h3 class="overlay-title">{{ overlayTitle }}</h3>
-          <p v-if="overlayMessage" class="overlay-message">{{ overlayMessage }}</p>
-        </div>
-      </div>
-
-      <!-- Indicateurs de performance IA -->
-      <div class="ai-performance">
-        <div class="performance-item">
-          <span class="perf-label">Précision IA:</span>
-          <div class="perf-bar">
-            <div class="perf-fill" :style="{ width: aiAccuracy + '%' }"></div>
-          </div>
-          <span class="perf-value">{{ aiAccuracy }}%</span>
-        </div>
-      </div>
-      
-      <!-- Overlay pour les messages de jeu -->
-      <!--
-        <div v-if="gameState.gameOver" class="game-overlay">
+        <div
+          v-if="!gameState.gameOver && gameState.status !== 'playing' && countdownToStart === 0"
+          class="game-overlay"
+        >
           <div class="overlay-content">
-            <h3 class="overlay-title">{{ getGameResult() }}</h3>
-          <p class="overlay-message">{{ getWinnerMessage() }}</p>
-          <button @click="resetGame" class="btn-restart">🔄 Revanche contre l'IA</button>
+            <h3 class="overlay-title">{{ overlayTitle }}</h3>
+            <p v-if="overlayMessage" class="overlay-message">{{ overlayMessage }}</p>
+          </div>
         </div>
-      </div>
-      -->
+
+        <!-- Indicateurs de performance IA -->
+        <div class="ai-performance">
+          <div class="performance-item">
+            <span class="perf-label">{{ t.aiAccuracy }}</span>
+            <div class="perf-bar">
+              <div class="perf-fill" :style="{ width: aiAccuracy + '%' }"></div>
+            </div>
+            <span class="perf-value">{{ aiAccuracy }}%</span>
+          </div>
+        </div>
       </div>
 
       <div class="ai-summary">
@@ -135,52 +124,54 @@
         <span class="chip">{{ ballSpeedLabel }}</span>
         <span class="chip">{{ ballSizeLabel }}</span>
         <span class="chip">PU: {{ powerUpLabel }}</span>
-        <span class="chip">{{ acceleratingBall ? '⚡ Accélération ON' : '⚡ Accélération OFF' }}</span>
-        <span class="chip">{{ dashEnabled ? '🚀 Dash ON' : '🚀 Dash OFF' }}</span>
+        <span class="chip">{{ acceleratingBall ? t.accelerationOn : t.accelerationOff }}</span>
+        <span class="chip">{{ dashEnabled ? t.dashOn : t.dashOff }}</span>
       </div>
+
       <!-- Statistiques et conseils -->
       <div class="game-footer">
         <div class="game-stats">
           <div class="stat-item">
             <span class="stat-icon">🎯</span>
-            <span class="stat-label">Frappes réussies:</span>
+            <span class="stat-label">{{ t.hits }}</span>
             <span class="stat-value">{{ playerHits }}</span>
           </div>
           <div class="stat-item">
             <span class="stat-icon">🏁</span>
-            <span class="stat-label">Score max:</span>
+            <span class="stat-label">{{ t.maxScore }}</span>
             <span class="stat-value">{{ targetScore }}</span>
           </div>
           <div class="stat-item">
             <span class="stat-icon">⚡</span>
-            <span class="stat-label">Vitesse max:</span>
+            <span class="stat-label">{{ t.maxSpeed }}</span>
             <span class="stat-value">{{ Math.abs(gameState.ball.vx).toFixed(1) }}px/s</span>
           </div>
           <div class="stat-item">
             <span class="stat-icon">🧠</span>
-            <span class="stat-label">Décisions IA:</span>
+            <span class="stat-label">{{ t.aiDecisions }}</span>
             <span class="stat-value">{{ aiDecisions }}</span>
           </div>
         </div>
-        
+
         <div class="game-tips">
           <div class="tip-item">
             <span class="tip-icon">💡</span>
-            <span class="tip-text">Utilisez W/S pour déplacer votre paddle</span>
+            <span class="tip-text">{{ t.movePaddle }}</span>
           </div>
           <div class="tip-item">
             <span class="tip-icon">🎯</span>
-            <span class="tip-text">Frappez avec les bords pour des angles surprenants</span>
+            <span class="tip-text">{{ t.hitEdges }}</span>
           </div>
           <div class="tip-item">
             <span class="tip-icon">⚡</span>
-            <span class="tip-text">{{ acceleratingBall ? 'La balle accélère' : 'Vitesse constante' }} — {{ dashEnabled ? 'Dash activé' : 'Dash désactivé' }}</span>
+            <span class="tip-text">{{ t.ballSpeedStatus }}</span>
           </div>
         </div>
       </div>
     </div>
   </div>
 </template>
+
 
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, computed, watch } from 'vue'
@@ -192,6 +183,10 @@ import { movePaddle } from '../ts/controls'
 import { useGameLoop } from '../ts/gameloop'
 import { useGameSettings, resolveBallRadius, resolveBallSpeed } from '../../../stores/gameSettings'
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../ts/constants'
+import { useI18n } from '../../../composables/useI18n'
+
+
+const {t} = useI18n()
 
 const { settings } = useGameSettings()
 

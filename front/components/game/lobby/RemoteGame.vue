@@ -3,8 +3,8 @@
     <!-- Header -->
     <div class="game-header">
       <div class="game-mode-info">
-        <h2 class="mode-title">{{ headerTitle }}</h2>
-        <p class="mode-description">Room: <code class="room-id">{{ roomId }}</code></p>
+        <h2 class="mode-title">{{ t.remoteHeader }}</h2>
+        <p class="mode-description">{{ t.roomLabel }}: <code class="room-id">{{ roomId }}</code></p>
       </div>
 
       <div class="game-controls">
@@ -16,18 +16,18 @@
         <div v-else class="control-hint spectator">
           <span class="keys">👀</span>
           <span class="vs"> </span>
-          <span class="keys">Spectateur</span>
+          <span class="keys">{{ t.spectatorMode }}</span>
         </div>
         
         <div class="actions">
-          <button class="btn ghost" type="button" @click="openCustomization" title="Options">⚙️</button>
+          <button class="btn ghost" type="button" @click="openCustomization" :title="t.options">⚙️</button>
           <button
             class="btn"
             @pointerdown.capture.prevent.stop="toggleFullscreen"
             @click.capture.prevent.stop
-            title="Plein écran"
+            :title="t.fullscreen"
           >⤢</button>
-          <button class="btn danger" @click="leaveGame" title="Quitter">↩</button>
+          <button class="btn danger" @click="leaveGame" :title="t.leaveGame">↩</button>
         </div>
       </div>
     </div>
@@ -46,36 +46,39 @@
         class="game-overlay"
       >
         <div class="overlay-content">
-          <h3 class="overlay-title">⏳ En attente...</h3>
+          <h3 class="overlay-title">{{ t.waiting }}</h3>
         </div>
       </div>
     </div>
+
     <div class="config-chips">
-          <span class="chip">{{ ballSizeLabel }}</span>
-          <span class="chip">{{ powerUpsLabel }}</span>
-          <span class="chip">{{ accelLabel }}</span>
-          <span class="chip">{{ dashLabel }}</span>
-          <span class="chip">{{ arenaLabel }} • {{ ballSpeedLabel }}</span>
-        </div>
+      <span class="chip">{{ t.ballSize }}: {{ ballSizeLabel }}</span>
+      <span class="chip">{{ t.powerUps }}: {{ powerUpsLabel }}</span>
+      <span class="chip">{{ t.acceleratingBall }}: {{ accelLabel }}</span>
+      <span class="chip">{{ t.dashPaddles }}: {{ dashLabel }}</span>
+      <span class="chip">{{ arenaLabel }} • {{ ballSpeedLabel }}</span>
+    </div>
+
     <!-- Footer -->
     <div class="game-footer">
       <div class="game-instructions">
         <div class="instruction-item" v-if="!isSpectator">
           <span class="instruction-icon">⌨️</span>
-          <span class="instruction-text">{{ controlLabel }}</span>
+          <span class="instruction-text">{{ t.controlsHint }}</span>
         </div>
         <div class="instruction-item" v-else>
           <span class="instruction-icon">👀</span>
-          <span class="instruction-text">{{ controlLabel }}</span>
+          <span class="instruction-text">{{ t.spectatorHint }}</span>
         </div>
         <div class="instruction-item">
           <span class="instruction-icon">🚪</span>
-          <span class="instruction-text">Bouton ↩ pour quitter</span>
+          <span class="instruction-text">{{ t.leaveInstruction }}</span>
         </div>
       </div>
     </div>
   </div>
 </template>
+
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
@@ -83,6 +86,9 @@ import type { Socket } from 'socket.io-client'
 import PongCanvas from '../PongCanvas.vue'
 import type { GameState } from '../ts/types'
 import { useGameSettings } from '../../../stores/gameSettings'
+import { useI18n } from '../../../composables/useI18n'
+
+const {t} = useI18n()
 
 const props = defineProps<{ 
   socket: Socket, 

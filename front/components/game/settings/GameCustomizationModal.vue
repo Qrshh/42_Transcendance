@@ -18,40 +18,40 @@
           <div v-if="isMobile" class="drag-handle" aria-hidden="true"></div>
           <div class="header-content">
             <div class="title-block">
-              <h3 id="game-custom-title">⚙️ Personnalisation du jeu</h3>
-              <p>Applique ces réglages à tous les modes de jeu.</p>
+              <h3 id="game-custom-title">⚙️ {{ t.gameCustomization }}</h3>
+              <p>{{ t.applySettingsAllModes }}</p>
             </div>
-            <button class="close-btn" type="button" @click="close" aria-label="Fermer">✕</button>
+            <button class="close-btn" type="button" @click="close" aria-label="{{ t.close }}">✕</button>
           </div>
         </header>
 
         <div class="modal-body">
           <section class="preset-section">
-            <h4>Pré-réglage</h4>
+            <h4>{{ t.preset }}</h4>
             <div class="preset-buttons">
               <button
                 type="button"
                 :class="['preset-btn', { active: isClassic } ]"
                 @click="setPreset('classic')"
               >
-                🎯 Classique
+                🎯 {{ t.classic }}
               </button>
               <button
                 type="button"
                 :class="['preset-btn', { active: !isClassic } ]"
                 @click="setPreset('custom')"
               >
-                🎮 Personnalisé
+                🎮 {{ t.custom }}
               </button>
             </div>
             <p class="preset-desc">
-              {{ isClassic ? 'Retour aux réglages Pong originaux.' : 'Active des variantes pour dynamiser les parties.' }}
+              {{ isClassic ? t.classicDesc : t.customDesc }}
             </p>
           </section>
 
           <section class="grid">
             <article class="card">
-              <h5>Thème d'arène</h5>
+              <h5>{{ t.arenaTheme }}</h5>
               <div class="options-row">
                 <label v-for="theme in arenaOptions" :key="theme.value" :class="['option-pill', { active: settings.arena === theme.value }]">
                   <input type="radio" :value="theme.value" v-model="settings.arena" @change="markCustom" />
@@ -61,7 +61,7 @@
             </article>
 
             <article class="card">
-              <h5>Vitesse de balle</h5>
+              <h5>{{ t.ballSpeed }}</h5>
               <div class="options-row">
                 <label v-for="speed in speedOptions" :key="speed.value" :class="['option-pill', { active: settings.ballSpeed === speed.value }]">
                   <input type="radio" :value="speed.value" v-model="settings.ballSpeed" @change="markCustom" />
@@ -71,7 +71,7 @@
             </article>
 
             <article class="card">
-              <h5>Taille de balle</h5>
+              <h5>{{ t.ballSize }}</h5>
               <div class="options-row">
                 <label v-for="size in sizeOptions" :key="size.value" :class="['option-pill', { active: settings.ballSize === size.value }]">
                   <input type="radio" :value="size.value" v-model="settings.ballSize" @change="markCustom" />
@@ -81,40 +81,41 @@
             </article>
 
             <article class="card">
-              <h5>Bonus & attaques</h5>
+              <h5>{{ t.powerUps }}</h5>
               <div class="options-row">
                 <label v-for="power in powerOptions" :key="power.value" :class="['option-pill', { active: settings.powerUps === power.value }]">
                   <input type="radio" :value="power.value" v-model="settings.powerUps" @change="markCustom" />
                   <span>{{ power.label }}</span>
                 </label>
               </div>
-              <p class="hint">Déclenche des boosts automatiques pendant les matchs.</p>
+              <p class="hint">{{ t.autoBoostHint }}</p>
             </article>
 
             <article class="card toggles">
-              <h5>Modules optionnels</h5>
+              <h5>{{ t.optionalModules }}</h5>
               <label class="toggle">
                 <input type="checkbox" v-model="settings.accelBall" @change="markCustom" />
                 <span class="slider"></span>
-                <span class="toggle-label">🚀 Balle qui accélère</span>
+                <span class="toggle-label">🚀 {{ t.acceleratingBall }}</span>
               </label>
               <label class="toggle">
                 <input type="checkbox" v-model="settings.paddleDash" @change="markCustom" />
                 <span class="slider"></span>
-                <span class="toggle-label">⚡ Dash des paddles</span>
+                <span class="toggle-label">⚡ {{ t.paddleDash }}</span>
               </label>
             </article>
           </section>
         </div>
 
         <footer class="modal-footer">
-          <button type="button" class="btn ghost" @click="applyClassic">Mode Classique</button>
-          <button type="button" class="btn primary" @click="close">Enregistrer</button>
+          <button type="button" class="btn ghost" @click="applyClassic">{{ t.classicMode }}</button>
+          <button type="button" class="btn primary" @click="close">{{ t.save }}</button>
         </footer>
       </div>
     </div>
   </Transition>
 </template>
+
 
 <script setup lang="ts">
 import { watch, computed, ref, onMounted, onBeforeUnmount } from 'vue'

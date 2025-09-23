@@ -1,24 +1,28 @@
-<!-- src/components/game/tournament/TournamentBracket.vue -->
 <template>
   <div class="tournament-bracket" v-if="bracket">
     <div class="columns">
       <div v-for="(round, rIdx) in bracket.rounds" :key="rIdx" class="round-col">
         <h3 class="round-title">{{ roundName(rIdx, bracket.rounds.length) }}</h3>
         <div class="matches">
-          <div v-for="m in round" :key="m.id" class="match" :class="{ playing: m.status==='playing', done: m.status==='done' }">
+          <div 
+            v-for="m in round" 
+            :key="m.id" 
+            class="match" 
+            :class="{ playing: m.status==='playing', done: m.status==='done' }"
+          >
             <div class="slot">
               <span :class="slotClass(m, 'p1')">{{ pretty(m.p1) }}</span>
               <span v-if="m.status==='done' && m.winner===m.p1?.username" class="badge win">✅</span>
               <span v-else-if="m.status==='done' && m.winner && m.p1 && m.p1.username !== m.winner" class="badge lose">❌</span>
             </div>
-            <div class="vs">vs</div>
+            <div class="vs">{{ t.vs }}</div>
             <div class="slot">
               <span :class="slotClass(m, 'p2')">{{ pretty(m.p2) }}</span>
               <span v-if="m.status==='done' && m.winner===m.p2?.username" class="badge win">✅</span>
               <span v-else-if="m.status==='done' && m.winner && m.p2 && m.p2.username !== m.winner" class="badge lose">❌</span>
             </div>
             <div class="actions" v-if="m.roomId && m.status==='playing'">
-              <button class="btn btn-spectate" @click="$emit('spectate', m.roomId)">👁️ Spectate</button>
+              <button class="btn btn-spectate" @click="$emit('spectate', m.roomId)">👁️ {{ t.spectate }}</button>
             </div>
           </div>
         </div>
@@ -27,7 +31,10 @@
   </div>
 </template>
 
+
 <script lang="ts" setup>
+import { useI18n } from '../../../composables/useI18n';
+const {t} = useI18n()
 const props = defineProps<{ bracket: any }>();
 defineEmits<{ (e:'spectate', roomId:string): void }>();
 function pretty(p:any){ if(!p) return '—'; if(p.isBye) return 'BYE'; return p.username; }
