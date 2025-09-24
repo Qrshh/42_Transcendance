@@ -111,6 +111,7 @@ export default defineComponent({
   },
   emits: ['startRemote', 'back'],
   setup(props, { emit }) {
+    const { t: tt } = useI18n()
     const t = ref<any>(null)
     const runningRooms = ref<string[]>([])
     const runningMatches = computed(() => {

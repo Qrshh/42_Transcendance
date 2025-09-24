@@ -534,12 +534,17 @@ io.on('connection', (socket) => {
 
    socket.on('joinTournament', ({tournamentId, alias})=>{
     const t=tournaments.get(tournamentId); 
-    if(!t || t.status!=='waiting') 
+    if(!t)
       return socket.emit('tournamentError',{message:'Tournoi introuvable'});
     const real = connectedUsers.get(socket.id) || 'anon';
     if(!real) return socket.emit('tournamentError',{message:'Non identifié'});
-    if(t.participants.some(p=>p.username===real)) 
-      return socket.emit('tournamentError',{message:'Déjà inscrit'});
+    const already = t.participants.some(p=>p.username===real);
+    if(already) {
+      socket.join(`tournament:${t.id}`);
+      return socket.emit('tournamentUpdate', tournamentToPublic(t));
+    }
+    if(t.status!=='waiting')
+      return socket.emit('tournamentError',{message:'Tournoi déjà démarré'});
     if(t.participants.length>=t.maxPlayers) 
       return socket.emit('tournamentError',{message:'Tournoi plein'});
     const display = String(alias || '').trim() || real;
