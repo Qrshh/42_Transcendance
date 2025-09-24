@@ -416,6 +416,7 @@ export default defineComponent({
     return {
       // state
       mode, roomId, socket, isSocketConnected,
+      spectatorMode,
       tournamentId, postMatchCountdown,
       onTournamentStart,
       gameContainerRef, isFullscreen,
