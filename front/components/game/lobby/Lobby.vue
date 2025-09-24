@@ -3,94 +3,96 @@
     <!-- Header -->
     <header class="lobby-header">
       <div class="header-left">
-        <h1 class="title-main">🏛️ Transcendence Lobby</h1>
-        <p class="subtitle">Choisis un mode et lance la partie.</p>
+        <h1 class="title-main">🏛️ {{ t.lobbyTitle }}</h1>
+        <p class="subtitle">{{ t.lobbySubtitle }}</p>
       </div>
 
       <div class="header-right">
-        <button class="btn ghost" type="button" @click="openCustomization">⚙️ Options</button>
+        <button class="btn ghost" type="button" @click="openCustomization">⚙️ {{ t.options }}</button>
         <span class="conn-pill" :class="{ connected: isConnected }" role="status" aria-live="polite">
           <span class="dot" aria-hidden="true"></span>
-          {{ isConnected ? 'En ligne' : 'Hors ligne' }}
+          {{ isConnected ? t.online : t.offline }}
         </span>
       </div>
     </header>
 
-    <!-- Corps -->
-    <main class="">
+    <!-- Body -->
+    <main>
       <Transition name="slidefade" mode="out-in">
-        <!-- Écran principal -->
+        <!-- Main screen -->
         <section v-if="currentScreen === 'main'" key="main" class="section">
           <div class="modes-grid">
             <!-- Local -->
             <button class="mode-card tone-blue" @click="$emit('startLocal')">
-              <div class="ic card-title">🏠 Partie locale</div>
-              <p class="card-desc">Joue à deux sur le même écran.</p>
-              <span class="chip">👥 2 joueurs</span>
+              <div class="ic card-title">🏠 {{ t.localGame }}</div>
+              <p class="card-desc">{{ t.localDesc }}</p>
+              <span class="chip">👥 {{ t.twoPlayers }}</span>
               <span class="arrow">→</span>
             </button>
 
-            <!-- IA -->
+            <!-- AI -->
             <button class="mode-card tone-green" @click="$emit('startAI')">
-              <div class="ic card-title">🤖 Contre l’IA</div>
-              <p class="card-desc">Défie l’IA et progresse.</p>
-              <span class="chip">🎯 Solo vs IA</span>
+              <div class="ic card-title">🤖 {{ t.aiGame }}</div>
+              <p class="card-desc">{{ t.aiDesc }}</p>
+              <span class="chip">🎯 {{ t.soloVsAI }}</span>
               <span class="arrow">→</span>
             </button>
 
-            <!-- Rejoindre -->
+            <!-- Join -->
             <button class="mode-card tone-purple" @click="currentScreen = 'join-list'">
-              <div class="ic card-title">🌐 Rejoindre 1vs1</div>
-              <p class="card-desc">Trouve une partie en cours.</p>
-              <span class="chip">🔍 Multijoueur</span>
+              <div class="ic card-title">🌐 {{ t.join1v1 }}</div>
+              <p class="card-desc">{{ t.joinDesc }}</p>
+              <span class="chip">🔍 {{ t.multiplayer }}</span>
               <span class="arrow">→</span>
             </button>
             <button class="mode-card tone-orange" @click="currentScreen = 'join-tourn-list'">
-              <div class="ic card-title">🏆 Rejoindre un tournoi</div>
-              <p class="card-desc">Voir les tournois en attente.</p>
-              <span class="chip">🔎 Tournois</span>
-              <span class="arrow">→</span>
-            </button>
-            <!-- Créer une partie -->
-            <button class="mode-card tone-purple" @click="currentScreen = 'create-form'">
-              <div class="ic card-title">✨ Créer une salle</div>
-              <p class="card-desc">Lance ta propre salle 1vs1.</p>
-              <span class="chip">🚀 Host</span>
+              <div class="ic card-title">🏆 {{ t.joinTournament }}</div>
+              <p class="card-desc">{{ t.joinTournamentDesc }}</p>
+              <span class="chip">🔎 {{ t.tournaments }}</span>
               <span class="arrow">→</span>
             </button>
 
-            <!-- Créer un tournoi -->
+            <!-- Create game -->
+            <button class="mode-card tone-purple" @click="currentScreen = 'create-form'">
+              <div class="ic card-title">✨ {{ t.createRoom }}</div>
+              <p class="card-desc">{{ t.createRoomDesc }}</p>
+              <span class="chip">🚀 {{ t.host }}</span>
+              <span class="arrow">→</span>
+            </button>
+
+            <!-- Create tournament -->
             <button class="mode-card tone-orange" @click="currentScreen = 'create-tourn'">
-              <div class="ic card-title">🏆 Tournoi</div>
-              <p class="card-desc">Crée un tournoi à élimination.</p>
-              <span class="chip">🚀 Host</span>
+              <div class="ic card-title">🏆 {{ t.createTournament }}</div>
+              <p class="card-desc">{{ t.createTournamentDesc }}</p>
+              <span class="chip">🚀 {{ t.host }}</span>
               <span class="arrow">→</span>
             </button>
           </div>
+
           <!-- Stats -->
           <div class="stats-grid">
             <div class="stat-card">
               <div class="s-ic">👥</div>
               <div class="s-col">
                 <div class="s-val">{{ onlinePlayersCount }}</div>
-                <div class="s-lb">Joueurs connectés</div>
+                <div class="s-lb">{{ t.onlinePlayers }}</div>
               </div>
             </div>
             <div class="stat-card">
               <div class="s-ic">🎮</div>
               <div class="s-col">
                 <div class="s-val">{{ activeGamesCount }}</div>
-                <div class="s-lb">Parties actives</div>
+                <div class="s-lb">{{ t.activeGames }}</div>
               </div>
             </div>
           </div>
         </section>
 
-        <!-- Rejoindre -->
+        <!-- Join -->
         <section v-else-if="currentScreen === 'join-list'" key="join" class="section">
           <div class="sub-header">
-            <button class="btn ghost" @click="currentScreen = 'main'">← Retour</button>
-            <h2 class="sub-title">🔍 Rejoindre une partie</h2>
+            <button class="btn ghost" @click="currentScreen = 'main'">← {{ t.back }}</button>
+            <h2 class="sub-title">🔍 {{ t.joinGame }}</h2>
           </div>
           <JoinGameList
             :socket="socket"
@@ -99,11 +101,11 @@
           />
         </section>
 
-        <!-- Créer une partie -->
+        <!-- Create game -->
         <section v-else-if="currentScreen === 'create-form'" key="create" class="section">
           <div class="sub-header">
-            <button class="btn ghost" @click="currentScreen = 'main'">← Retour</button>
-            <h2 class="sub-title">✨ Créer une partie</h2>
+            <button class="btn ghost" @click="currentScreen = 'main'">← {{ t.back }}</button>
+            <h2 class="sub-title">✨ {{ t.createGame }}</h2>
           </div>
           <CreateGameForm
             :socket="socket"
@@ -112,11 +114,11 @@
           />
         </section>
 
-        <!-- Créer un tournoi -->
+        <!-- Create tournament -->
         <section v-else-if="currentScreen === 'create-tourn'" key="create-tourn" class="section">
           <div class="sub-header">
-            <button class="btn ghost" @click="currentScreen = 'main'">← Retour</button>
-            <h2 class="sub-title">🏆 Créer un tournoi</h2>
+            <button class="btn ghost" @click="currentScreen = 'main'">← {{ t.back }}</button>
+            <h2 class="sub-title">🏆 {{ t.createTournament }}</h2>
           </div>
           <CreateTournamentForm
             :socket="socket"
@@ -125,11 +127,11 @@
           />
         </section>
 
-        <!-- Attente / file d’attente -->
+        <!-- Waiting / queue -->
         <section v-else-if="currentScreen === 'waiting-queue'" key="waiting-queue" class="section">
           <div class="sub-header">
-            <button class="btn ghost" @click="onLeftQueue()">← Quitter</button>
-            <h2 class="sub-title">⏳ En attente</h2>
+            <button class="btn ghost" @click="onLeftQueue()">← {{ t.leave }}</button>
+            <h2 class="sub-title">⏳ {{ t.waiting }}</h2>
           </div>
           <WaitingQueueScreen
             :socket="socket"
@@ -139,11 +141,12 @@
             @gameStarted="onGameStarted"
           />
         </section>
-         <!-- Rejoindre un tournoi (liste) -->
+
+        <!-- Join tournament list -->
         <section v-else-if="currentScreen === 'join-tourn-list'" key="join-tourn" class="section">
           <div class="sub-header">
-            <button class="btn ghost" @click="currentScreen = 'main'">← Retour</button>
-            <h2 class="sub-title">🔎 Tournois ouverts</h2>
+            <button class="btn ghost" @click="currentScreen = 'main'">← {{ t.back }}</button>
+            <h2 class="sub-title">🔎 {{ t.openTournaments }}</h2>
           </div>
           <JoinTournamentList
             :socket="socket"
@@ -152,11 +155,11 @@
           />
         </section>
 
-        <!-- Attente Tournoi -->
+        <!-- Tournament waiting -->
         <section v-else-if="currentScreen === 'tourn-waiting'" key="t-wait" class="section">
           <div class="sub-header">
-            <button class="btn ghost" @click="currentScreen = 'main'">← Lobby</button>
-            <h2 class="sub-title">⏳ En attente — {{ waitingTournName || 'Tournoi' }}</h2>
+            <button class="btn ghost" @click="currentScreen = 'main'">← {{ t.lobby }}</button>
+            <h2 class="sub-title">⏳ {{ t.waiting }} — {{ waitingTournName || t.tournament }}</h2>
           </div>
           <TournamentWaitingScreen
             v-if="waitingTournId"
@@ -173,11 +176,12 @@
     <footer class="lobby-footer">
       <div class="tip-pill">
         <span class="tip-ic">💡</span>
-        <span class="tip-text">Astuce : utilise les flèches pour jouer en local.</span>
+        <span class="tip-text">{{ t.tip }}</span>
       </div>
     </footer>
   </div>
 </template>
+
 
 
 <script lang="ts">
@@ -190,6 +194,10 @@ import WaitingQueueScreen from './WaitingQueueScreen.vue'
 import CreateTournamentForm from '../tournament/CreateTournamentForm.vue'
 import JoinTournamentList from '../tournament/JoinTournamentList.vue'
 import TournamentWaitingScreen from '../tournament/TournamentWaitingScreen.vue'
+import { useI18n } from '../../../composables/useI18n'
+
+
+
 
 type LobbyScreen = 'main' | 'join-list' | 'create-form' | 'create-tourn' | 'waiting-queue' | 'join-tourn-list' | 'tourn-waiting'
 
@@ -201,6 +209,7 @@ export default defineComponent({
   },
   emits: ['startLocal', 'startAI', 'startRemote', 'startTournament'],
   setup(props, { emit }) {
+    const { t } = useI18n()
     const currentScreen = ref<LobbyScreen>('main')
     const waitingGameId = ref<string | null>(null)
     const waitingGameName = ref<string | null>(null)
@@ -299,6 +308,7 @@ export default defineComponent({
       onLeftQueue,
       onGameStarted,
       openCustomization,
+      t
     }
   }
 })

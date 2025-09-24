@@ -2,24 +2,24 @@
   <div class="local-game" :class="arenaClass">
 
     <div v-if="!gameStarted" class="menu" :class="arenaClass">
-      <h2 class="menu-title">⚙️ Paramètres de la partie</h2>
-      <p class="menu-sub">Ces réglages sont appliqués à tous les modes locaux.</p>
+      <h2 class="menu-title">{{ t.localSettings }}</h2>
+      <p class="menu-sub">{{ t.localSettingsDesc }}</p>
 
       <ul class="settings-list">
         <li>
-          <span class="label">Thème d'arène</span>
+          <span class="label">{{ t.arenaTheme }}</span>
           <span class="value">{{ arenaLabel }}</span>
         </li>
         <li>
-          <span class="label">Vitesse de balle</span>
+          <span class="label">{{ t.ballSpeed }}</span>
           <span class="value">{{ ballSpeedLabel }}</span>
         </li>
         <li>
-          <span class="label">Taille de balle</span>
+          <span class="label">{{ t.ballSize }}</span>
           <span class="value">{{ ballSizeLabel }}</span>
         </li>
         <li>
-          <span class="label">Power-ups</span>
+          <span class="label">{{ t.powerUps }}</span>
           <span class="value">{{ powerUpLabel }}</span>
         </li>
       </ul>
@@ -28,26 +28,26 @@
         <label class="toggle">
           <input type="checkbox" v-model="acceleratingBall" />
           <span class="slider"></span>
-          <span class="toggle-text">🚀 Balle accélérante</span>
+          <span class="toggle-text">{{ t.acceleratingBall }}</span>
         </label>
         <label class="toggle">
           <input type="checkbox" v-model="dashPaddle" />
           <span class="slider"></span>
-          <span class="toggle-text">⚡ Dash des paddles</span>
+          <span class="toggle-text">{{ t.dashPaddles }}</span>
         </label>
       </div>
 
       <div class="menu-actions">
-        <button class="btn ghost" type="button" @click="openCustomization">Personnaliser…</button>
-        <button class="btn primary" type="button" @click="startMatch">▶️ Lancer la partie</button>
+        <button class="btn ghost" type="button" @click="openCustomization">{{ t.customize }}</button>
+        <button class="btn primary" type="button" @click="startMatch">{{ t.startGame }}</button>
       </div>
     </div>
 
     <div v-else>
       <div class="game-header">
         <div class="game-mode-info">
-          <h2 class="mode-title">🏠 Mode Local</h2>
-          <p class="mode-description">Joueur 1 vs Joueur 2</p>
+          <h2 class="mode-title">{{ t.localMode }}</h2>
+          <p class="mode-description">{{ t.player1VsPlayer2 }}</p>
         </div>
 
         <div class="game-controls">
@@ -60,14 +60,14 @@
           <button
             class="btn"
             type="button"
-            title="Pause (P)"
+            title="{{ t.pause }}"
             @click="togglePause"
             :disabled="!canTogglePause"
           >P</button>
           <button
             class="btn"
             type="button"
-            title="Plein écran"
+            title="{{ t.fullscreen }}"
             @pointerdown.capture.prevent.stop="toggleFullscreen"
             @click.capture.prevent.stop
           >⤢</button>
@@ -75,16 +75,16 @@
       </div>
 
       <div class="game-canvas-container">
-      <PongCanvas
-        ref="canvasRef"
-        :state="gameState"
-        :onMove="handlePlayerMove"
-        controls="both"
-        :showFullscreenButton="false"
-        :countdown="countdownToStart"
-        :resultActionLabel="gameState.gameOver ? '🔄 Nouvelle partie' : ''"
-        :onResultAction="resetGame"
-      />
+        <PongCanvas
+          ref="canvasRef"
+          :state="gameState"
+          :onMove="handlePlayerMove"
+          controls="both"
+          :showFullscreenButton="false"
+          :countdown="countdownToStart"
+          :resultActionLabel="gameState.gameOver ? '🔄 ' + t.newGame : ''"
+          :onResultAction="resetGame"
+        />
 
         <div
           v-if="!gameState.gameOver && gameState.status !== 'playing' && countdownToStart === 0"
@@ -95,24 +95,23 @@
             <p v-if="overlayMessage" class="overlay-message">{{ overlayMessage }}</p>
           </div>
         </div>
-
       </div>
 
       <div class="game-footer">
         <div class="game-instructions">
           <div class="instruction-item">
             <span class="instruction-icon">⚡</span>
-            <span class="instruction-text">Première à {{ targetScore }} points gagne</span>
+            <span class="instruction-text">{{ t.firstToPoints }} {{ targetScore }} {{ t.wins }}</span>
           </div>
           <div class="instruction-item">
             <span class="instruction-icon">🎯</span>
             <span class="instruction-text">
-              {{ acceleratingBall ? 'La balle accélère après chaque échange' : 'Vitesse constante' }}
+              {{ acceleratingBall ? t.ballAccelerates : t.constantSpeed }}
             </span>
           </div>
           <div class="instruction-item" v-if="dashPaddle">
             <span class="instruction-icon">⚡</span>
-            <span class="instruction-text">Dash disponible (Espace / Entrée)</span>
+            <span class="instruction-text">{{ t.dashAvailable }}</span>
           </div>
         </div>
       </div>
@@ -120,6 +119,7 @@
 
   </div>
 </template>
+
 
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, computed, ref, watch } from 'vue'
@@ -130,6 +130,9 @@ import { movePaddle } from '../ts/controls'
 import { useGameLoop } from '../ts/gameloop'
 import { useGameSettings, resolveBallRadius, resolveBallSpeed } from '../../../stores/gameSettings'
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../ts/constants'
+import { useI18n } from '../../../composables/useI18n'
+
+const {t} = useI18n()
 
 const { settings } = useGameSettings()
 

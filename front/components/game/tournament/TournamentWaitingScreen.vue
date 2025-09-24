@@ -101,6 +101,7 @@
 <script lang="ts">
 import { defineComponent, ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import type { Socket } from 'socket.io-client'
+import { useI18n } from '../../../composables/useI18n';
 
 export default defineComponent({
   name: 'TournamentWaitingScreen',
@@ -262,7 +263,7 @@ export default defineComponent({
     })
 
     return { t, runningRooms, runningMatches, isHost, displayTimeLeft, secondsLeft, myRoomId, winnersNow, eliminatedNow, roundCooldownLeft, matchCountdown,
-      openCustomization, forceFill, startNow, spectate, leave, copyId }
+      openCustomization, forceFill, startNow, spectate, leave, copyId, tt }
   }
 })
 </script>

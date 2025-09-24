@@ -1,6 +1,6 @@
 <template>
   <div class="game-view">
-    <!-- Background animé -->
+    <!-- Animated background -->
     <div class="game-background">
       <div class="floating-shapes">
         <div class="shape shape-1"></div>
@@ -10,30 +10,28 @@
       </div>
     </div>
 
-    <!-- Header de la page -->
+    <!-- Page header -->
     <div class="game-header">
-      
-      
-      <!-- Indicateur de mode actuel -->
+      <!-- Current mode indicator -->
       <div class="mode-indicator">
         <div class="indicator-content">
           <span class="mode-emoji">{{ getModeEmoji() }}</span>
           <span class="mode-text">{{ getModeText() }}</span>
         </div>
         
-        <!-- Bouton retour au lobby (affiché uniquement si on n'est pas dans le lobby) -->
+        <!-- Back to lobby button (shown only if not in lobby) -->
         <button 
           v-if="mode !== 'lobby'" 
           @click="returnToLobby"
           class="btn btn-back"
-          title="Retour au lobby"
+          :title="t.backToLobby"
         >
-          🏠 Lobby
+          🏠 {{ t.lobby }}
         </button>
       </div>
     </div>
 
-    <!-- Contenu principal avec transitions -->
+    <!-- Main content with transitions -->
     <div class="game-content">
       <Transition name="game-fade" mode="out-in">
         <!-- Lobby -->
@@ -49,17 +47,16 @@
           </div>
         </div>
 
-        <!-- Jeu Local -->
+        <!-- Local Game -->
         <div v-else-if="mode === 'local'" key="local" class="game-section play-section">
           <div class="game-wrapper">
-
             <div ref="gameContainerRef" class="">
               <LocalGame />
             </div>
           </div>
         </div>
 
-        <!-- Jeu IA -->
+        <!-- AI Game -->
         <div v-else-if="mode === 'ai'" key="ai" class="game-section play-section">
           <div class="game-wrapper">
             <div ref="gameContainerRef" class="">
@@ -68,7 +65,7 @@
           </div>
         </div>
 
-        <!-- Jeu en ligne -->
+        <!-- Online Game -->
         <div v-else-if="mode === 'remote'" key="remote" class="game-section play-section">
           <div class="game-wrapper">
             <div ref="gameContainerRef" class="">
@@ -82,14 +79,14 @@
             </div>
             <div v-if="postMatchCountdown > 0" class="postmatch-overlay">
               <div class="box">
-                <h3>🎉 Match terminé</h3>
-                <p>Retour à l’écran du tournoi dans <strong>{{ postMatchCountdown }}</strong>s…</p>
+                <h3>🎉 {{ t.matchEnded }}</h3>
+                <p>{{ t.backToTournament }} <strong>{{ postMatchCountdown }}</strong>s…</p>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Écran d’attente du tournoi -->
+        <!-- Tournament waiting screen -->
         <div v-else-if="mode === 'tournament'" key="tournament" class="game-section play-section">
           <div class="game-wrapper">
             <TournamentWaitingScreen
@@ -103,7 +100,7 @@
       </Transition>
     </div>
 
-    <!-- Footer avec informations -->
+    <!-- Footer with information -->
     <div class="game-footer">
       <div class="footer-content">
         <div class="stats-info">
@@ -113,18 +110,18 @@
           </div>
           <div class="stat-item">
             <span class="stat-icon">🎯</span>
-            <span class="stat-text">Mode: {{ getModeText() }}</span>
+            <span class="stat-text">{{ t.mode }}: {{ getModeText() }}</span>
           </div>
           <div class="stat-item" v-if="mode === 'remote' && roomId">
             <span class="stat-icon">🔗</span>
-            <span class="stat-text">Room: {{ roomId }}</span>
+            <span class="stat-text">{{ t.room }}: {{ roomId }}</span>
           </div>
         </div>
         
         <div class="connection-status">
           <div class="status-indicator" :class="{ online: isSocketConnected }">
             <span class="status-dot"></span>
-            <span>{{ isSocketConnected ? 'Connecté' : 'Déconnecté' }}</span>
+            <span>{{ isSocketConnected ? t.connected : t.disconnected }}</span>
           </div>
         </div>
       </div>
@@ -133,6 +130,7 @@
 
   <GameCustomizationModal :open="showCustomizationModal" @close="closeCustomization" />
 </template>
+
 
 <script lang="ts">
 import { defineComponent, ref, onMounted, onUnmounted } from 'vue';
@@ -144,10 +142,13 @@ import AIGame from '../components/game/lobby/AIGame.vue';
 import RemoteGame from '../components/game/lobby/RemoteGame.vue';
 import TournamentWaitingScreen from '../components/game/tournament/TournamentWaitingScreen.vue';
 import GameCustomizationModal from '../components/game/settings/GameCustomizationModal.vue';
+import { useI18n } from '../composables/useI18n'
+
 
 export default defineComponent({
   components: { Lobby, LocalGame, AIGame, RemoteGame, TournamentWaitingScreen, GameCustomizationModal },
   setup() {
+    const { t } = useI18n()
     const mode   = ref<'lobby'|'local'|'ai'|'remote'|'tournament'>('lobby');
     const roomId = ref<string>('');
     const spectatorMode = ref(false);
@@ -415,14 +416,18 @@ export default defineComponent({
     return {
       // state
       mode, roomId, socket, isSocketConnected,
+      spectatorMode,
       tournamentId, postMatchCountdown,
+      onTournamentStart,
       gameContainerRef, isFullscreen,
       showCustomizationModal,
       closeCustomization,
       // actions
       setMode, onRemoteStart, handleLeaveGame, onRemoteGameEnded, returnToLobby, toggleFullscreen,
       // display
-      getModeEmoji, getModeText, getPlayerCountText
+      getModeEmoji, getModeText, getPlayerCountText,
+
+      t
     };
   }
 });

@@ -2,50 +2,51 @@
   <div class="create-game-form">
     <!-- Header -->
     <div class="form-header">
-      <h2 class="form-title">✨ Créer une partie</h2>
-      <p class="form-subtitle">Configure ta partie et invite tes amis !</p>
-      <button type="button" class="btn-custom" @click="openCustomization">⚙️ Options globales</button>
+      <h2 class="form-title">✨ {{ t.createTournament }}</h2>
+      <p class="form-subtitle">{{ t.configureAndInvite }}</p>
+      <button type="button" class="btn-custom" @click="openCustomization">⚙️ {{ t.globalOptions }}</button>
     </div>
 
     <!-- Formulaire -->
     <form @submit.prevent="createTournament" class="game-form">
-      <!-- Nom de la partie -->
+      <!-- Nom du tournoi -->
       <div class="form-group">
         <label class="form-label">
           <span class="label-icon">🎮</span>
-          <span class="label-text">Nom du tournoi</span>
+          <span class="label-text">{{ t.tournamentName }}</span>
         </label>
         <input 
           type="text" 
           v-model="form.name" 
           required
           maxlength="30"
-          placeholder="Ma partie épique"
+          :placeholder="t.epicGameName"
           class="form-input"
         />
       </div>
 
-      <!-- Alias du createur -->
+      <!-- Alias du créateur -->  
       <div class="form-group">
         <label class="form-label">
           <span class="label-icon">📝</span>
-          <span class="label-text">Votre alias</span>
+          <span class="label-text">{{ t.yourAlias }}</span>
         </label>
         <input 
           type="text" 
           v-model="form.alias" 
           required
           maxlength="20"
-          placeholder="Pseudo pour ce tournoi"
+          :placeholder="t.tournamentNickname"
           class="form-input"
         />
       </div>
+
       <!-- Mot de passe (optionnel) -->
       <div class="form-group">
         <label class="form-checkbox">
           <input type="checkbox" v-model="form.hasPassword" />
           <span class="checkbox-mark"></span>
-          <span class="checkbox-text">🔒 Tournoi privé (mot de passe)</span>
+          <span class="checkbox-text">🔒 {{ t.privateTournament }}</span>
         </label>
         
         <Transition name="slide-down">
@@ -53,7 +54,7 @@
             v-if="form.hasPassword"
             type="password" 
             v-model="form.password"
-            placeholder="Mot de passe secret"
+            placeholder="{{ t.secretPassword }}"
             class="form-input password-input"
           />
         </Transition>
@@ -64,26 +65,26 @@
         <div class="form-group half">
           <label class="form-label">
             <span class="label-icon">👥</span>
-            <span class="label-text">Joueurs</span>
+            <span class="label-text">{{ t.players }}</span>
           </label>
           <select v-model.number="form.maxPlayers" class="form-select">
-            <option value="2">2 joueurs</option>
-            <option value="4">4 joueurs</option>
-            <option value="8">8 joueurs</option>
-            <option value="16">16 joueurs</option>
+            <option value="2">2 {{ t.players }}</option>
+            <option value="4">4 {{ t.players }}</option>
+            <option value="8">8 {{ t.players }}</option>
+            <option value="16">16 {{ t.players }}</option>
           </select>
         </div>
 
         <div class="form-group half">
           <label class="form-label">
             <span class="label-icon">🎯</span>
-            <span class="label-text">Points</span>
+            <span class="label-text">{{ t.points }}</span>
           </label>
           <select v-model.number="form.maxPoints" class="form-select">
-            <option value="5">5 points</option>
-            <option value="10">10 points</option>
-            <option value="15">15 points</option>
-            <option value="21">21 points</option>
+            <option value="5">5 {{ t.points }}</option>
+            <option value="10">10 {{ t.points }}</option>
+            <option value="15">15 {{ t.points }}</option>
+            <option value="21">21 {{ t.points }}</option>
           </select>
         </div>
       </div>
@@ -106,7 +107,7 @@
           <span v-if="isCreating" class="btn-spinner">⏳</span>
           <span v-else class="btn-icon">🚀</span>
           <span class="btn-text">
-            {{ isCreating ? 'Création...' : 'Créer le tournoi' }}
+            {{ isCreating ? t.creating : t.createTournament }}
           </span>
         </button>
         
@@ -116,7 +117,7 @@
           class="btn btn-secondary"
         >
           <span class="btn-icon">←</span>
-          <span class="btn-text">Retour</span>
+          <span class="btn-text">{{ t.back }}</span>
         </button>
       </div>
     </form>
@@ -125,20 +126,20 @@
     <div class="game-preview">
       <div class="preview-header">
         <span class="preview-icon">👀</span>
-        <span class="preview-title">Aperçu de la partie</span>
+        <span class="preview-title">{{ t.gamePreview }}</span>
       </div>
       <div class="preview-content">
         <div class="preview-item">
-          <span class="preview-label">Nom:</span>
-          <span class="preview-value">{{ form.name || 'Sans nom' }}</span>
+          <span class="preview-label">{{ t.name }}:</span>
+          <span class="preview-value">{{ form.name || t.noName }}</span>
         </div>
         <div class="preview-item">
-          <span class="preview-label">Type:</span>
-          <span class="preview-value">{{ form.hasPassword ? '🔒 Privée' : '🌐 Publique' }}</span>
+          <span class="preview-label">{{ t.type }}:</span>
+          <span class="preview-value">{{ form.hasPassword ? t.private : t.public }}</span>
         </div>
         <div class="preview-item">
-          <span class="preview-label">Config:</span>
-          <span class="preview-value">{{ form.maxPlayers }} joueurs • {{ form.maxPoints }} pts</span>
+          <span class="preview-label">{{ t.config }}:</span>
+          <span class="preview-value">{{ form.maxPlayers }} {{ t.players }} • {{ form.maxPoints }} {{ t.points }}</span>
         </div>
       </div>
     </div>
@@ -154,10 +155,14 @@
   </div>
 </template>
 
+
 <script lang="ts">
 import { defineComponent, ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import type { Socket } from 'socket.io-client';
 import { useGameSettings } from '../../../stores/gameSettings';
+import { useI18n } from '../../../composables/useI18n';
+
+
 
 export default defineComponent({
   name: 'CreateTournamentForm',
@@ -170,6 +175,7 @@ export default defineComponent({
   emits: ['back', 'tournamentCreated'],
   
   setup(props, { emit }) {
+    const {t} = useI18n()
     const { settings } = useGameSettings()
 
     const form = ref({
@@ -307,6 +313,7 @@ export default defineComponent({
       powerUpLabel,
       accelLabel,
       dashLabel,
+      t,
     };
   },
 });

@@ -1,13 +1,12 @@
-<!-- src/components/JoinTournamentList.vue -->
 <template>
   <div class="jt-wrap">
     <div class="header">
-      <h2 class="title">🔎 Rejoindre un tournoi</h2>
-      <button class="btn" @click="refresh">Rafraîchir</button>
+      <h2 class="title">🔎 {{ t.joinTournament }}</h2>
+      <button class="btn" @click="refresh">{{ t.refresh }}</button>
     </div>
 
-    <div v-if="loading" class="hint">Chargement…</div>
-    <div v-else-if="tournaments.length === 0" class="hint">Aucun tournoi en attente pour l’instant.</div>
+    <div v-if="loading" class="hint">{{ t.loading }}…</div>
+    <div v-else-if="tournaments.length === 0" class="hint">{{ t.noTournaments }}</div>
 
     <ul class="list">
       <li v-for="t in tournaments" :key="t.id" class="card">
@@ -17,7 +16,13 @@
         </div>
         <div class="side">
           <div class="time" v-if="t.status==='waiting'">⏳ {{ fmtTime(t.timeLeftToFill) }}</div>
-          <button class="btn primary" :disabled="t.status!=='waiting'|| t.participants>=t.maxPlayers" @click="join(t)">Rejoindre</button>
+          <button 
+            class="btn primary" 
+            :disabled="t.status!=='waiting'|| t.participants>=t.maxPlayers" 
+            @click="join(t)"
+          >
+            {{ t.join }}
+          </button>
         </div>
       </li>
     </ul>
@@ -27,6 +32,9 @@
 <script lang="ts" setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import type { Socket } from 'socket.io-client'
+import { useI18n } from '../../../composables/useI18n';
+
+const { t } = useI18n()
 
 const props = defineProps<{ socket: Socket }>()
 const emit = defineEmits<{ (e:'back'):void; (e:'joined', p:{ id:string, name:string }): void }>()

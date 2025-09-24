@@ -59,7 +59,17 @@ module.exports = fp(async function friendsRoutes(fastify) {
     if (!from || !to || typeof accept !== 'boolean') {
       return reply.status(400).send({ error: 'Champs manquants' });
     }
-    await dbRun('UPDATE friends SET status = ? WHERE user1 = ? AND user2 = ?', [accept ? 'accepted' : 'rejected', from, to]);
+
+    if(accept){
+      await dbRun('UPDATE friends SET status = ? WHERE user1 = ? AND user2 = ?', ['accepted', from, to]);
+    }
+    else 
+    {
+      await dbRun(
+        'DELETE FROM friends WHERE (user1 = ? AND user2 = ?) OR (user1 = ? AND user2 = ?)',
+        [from, to, to, from]
+      );
+    }
 
     const base = {
       id: `fr-respond-${from}-${to}-${Date.now()}`,
