@@ -120,6 +120,9 @@
 <script setup lang="ts">
 import { watch, computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useGameSettings } from '../../../stores/gameSettings'
+import { useI18n } from '../../../composables/useI18n';
+
+const { t } = useI18n()
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ (e: 'close'): void }>()

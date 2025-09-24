@@ -2,19 +2,16 @@
   <main class="home">
     <section class="hero panel">
       <div class="hero-content">
-        <h1 class="hero-title">Domine l'arène de MasterPong et gravis le top du classement</h1>
-        <p class="hero-text">
-          Affronte tes amis, lance des tournois et rejoins une communauté compétitive alimentée
-          par des duels en temps réel. MasterPong est ton terrain de jeu.
-        </p>
+        <h1 class="hero-title">{{ t.heroTitle }}</h1>
+        <p class="hero-text">{{ t.heroText }}</p>
         <div class="hero-actions">
-          <button class="btn btn-primary" @click="goPrimary">{{ primaryLabel }}</button>
-          <button class="btn btn-secondary" @click="goSocial">Allez tchater</button>
+          <button class="btn btn-primary" @click="goPrimary">{{ t.primaryButton }}</button>
+          <button class="btn btn-secondary" @click="goSocial">{{ t.secondaryButton }}</button>
         </div>
         <dl class="hero-stats">
           <div v-for="stat in statCards" :key="stat.label" class="stat">
             <dt>{{ stat.value }}</dt>
-            <dd>{{ stat.label }}</dd>
+            <dd>{{ t[stat.label] }}</dd>
           </div>
         </dl>
         <p v-if="overviewError" class="stats-error">{{ overviewError }}</p>
@@ -27,19 +24,20 @@
     <section class="feature-grid">
       <article v-for="feature in features" :key="feature.title" class="feature-card panel">
         <div class="feature-icon">{{ feature.icon }}</div>
-        <h3>{{ feature.title }}</h3>
-        <p>{{ feature.text }}</p>
+        <h3>{{ t[feature.title] }}</h3>
+        <p>{{ t[feature.text] }}</p>
       </article>
     </section>
 
     <section class="live panel">
       <header class="live-head">
         <div>
-          <h2>Matchs en direct</h2>
-          <p>Observez les joueurs en action.</p>
+          <h2>{{ t.liveHeader }}</h2>
+          <p>{{ t.liveSubHeader }}</p>
         </div>
-        <button class="btn btn-secondary" @click="goSpectate">Voir toutes les salles</button>
+        <button class="btn btn-secondary" @click="goSpectate">{{ t.liveButton }}</button>
       </header>
+
       <div class="live-cards" v-if="liveMatchesDisplay.length">
         <article v-for="match in liveMatchesDisplay" :key="match.id" class="live-card">
           <div class="vs">
@@ -49,33 +47,34 @@
           </div>
           <div class="meta">
             <span>{{ formatModeLabel(match) }}</span>
-            <span v-if="match.spectators">{{ match.spectators }} spectateurs</span>
+            <span v-if="match.spectators">{{ match.spectators }} {{ t.spectators }}</span>
             <span v-if="match.createdAt">{{ formatRelativeTime(match.createdAt) }}</span>
           </div>
-          <button class="btn btn-primary" @click="goWatch(match.id)">Regarder</button>
+          <button class="btn btn-primary" @click="goWatch(match.id)">{{ t.watchButton }}</button>
         </article>
       </div>
+
       <div v-else class="live-empty">
         <p v-if="liveError">{{ liveError }}</p>
-        <p v-else>Pas de match en direct pour le moment.</p>
+        <p v-else>{{ t.liveEmpty }}</p>
       </div>
 
       <div v-if="liveLobbiesDisplay.length" class="lobby-list">
-        <h3>Rooms ouvertes</h3>
+        <h3>{{ t.roomPublic }}</h3>
         <div class="lobby-grid">
           <article v-for="lobby in liveLobbiesDisplay" :key="lobby.id" class="lobby-card">
             <div class="lobby-head">
-              <h4>{{ lobby.name || 'Room sans nom' }}</h4>
+              <h4>{{ lobby.name || t.roomUnnamed }}</h4>
               <span class="lobby-pill" :class="{ protected: lobby.hasPassword }">
-                {{ lobby.hasPassword ? 'Privée' : 'Publique' }}
+                {{ lobby.hasPassword ? t.roomPrivate : t.roomPublic }}
               </span>
             </div>
             <p class="lobby-meta">
-              {{ lobby.currentPlayers }}/{{ lobby.maxPlayers }} joueurs · {{ lobby.status === 'starting' ? 'Démarrage' : 'En attente' }}
+              {{ lobby.currentPlayers }}/{{ lobby.maxPlayers }} joueurs · {{ lobby.status === 'starting' ? t.statusStarting : t.statusWaiting }}
             </p>
             <div class="lobby-flags">
-              <span v-if="lobby.accelBall">⚡ Balle accélérée</span>
-              <span v-if="lobby.paddleDash">🏃 Dash raquette</span>
+              <span v-if="lobby.accelBall">{{ t.flagAccelBall }}</span>
+              <span v-if="lobby.paddleDash">{{ t.flagPaddleDash }}</span>
             </div>
           </article>
         </div>
@@ -90,33 +89,31 @@ import { useRouter } from 'vue-router'
 import Computer3D from '../components/3d/Computer3D.vue'
 import { isLoggedIn } from '../stores/auth'
 import { API_BASE } from '../config'
+import { useI18n } from '../composables/useI18n'
 
+const {t} = useI18n()
 const router = useRouter()
 
 const features = [
-  { icon: '⚡', title: 'Matchmaking instantané', text: 'Parcours les ligues en lançant une partie classée en moins de 5 secondes.' },
-  { icon: '🎯', title: 'Tournois express', text: 'Organise des brackets à 8 joueurs avec bots de renfort et récompenses saisonnières.' },
-  { icon: '🤝', title: 'Hub social intégré', text: 'Chat temps réel, défis privés et profils détaillés pour suivre tes rivaux.' }
+  { icon: '⚡', title: 'featureMatchmaking', text: 'featureMatchmakingText' },
+  { icon: '🎯', title: 'featureTournaments', text: 'featureTournamentsText' },
+  { icon: '🤝', title: 'featureSocialHub', text: 'featureSocialHubText' }
 ]
 
 const overview = ref<{ playersOnline: number; matchesToday: number; tournamentsLive: number; lobbiesOpen: number } | null>(null)
 const overviewError = ref<string | null>(null)
-
 const liveMatches = ref<Array<any>>([])
 const liveLobbies = ref<Array<any>>([])
 const liveError = ref<string | null>(null)
 
 const numberFormatter = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 })
-const formatStat = (value: number | null | undefined) => {
-  if (value === null || value === undefined) return '—'
-  return numberFormatter.format(value)
-}
+const formatStat = (value: number | null | undefined) => value == null ? '—' : numberFormatter.format(value)
 
 const statCards = computed(() => [
-  { value: formatStat(overview.value?.playersOnline), label: 'joueurs en ligne' },
-  { value: formatStat(overview.value?.matchesToday), label: 'matchs aujourd’hui' },
-  { value: formatStat(overview.value?.tournamentsLive), label: 'tournois actifs' },
-  { value: formatStat(overview.value?.lobbiesOpen), label: 'salles ouvertes' }
+  { value: formatStat(overview.value?.playersOnline), label: 'statPlayers' },
+  { value: formatStat(overview.value?.matchesToday), label: 'statMatches' },
+  { value: formatStat(overview.value?.tournamentsLive), label: 'statTournaments' },
+  { value: formatStat(overview.value?.lobbiesOpen), label: 'statLobbies' }
 ])
 
 const liveMatchesDisplay = computed(() => liveMatches.value.slice(0, 6))
@@ -126,10 +123,10 @@ const fetchOverview = async () => {
   overviewError.value = null
   try {
     const res = await fetch(`${API_BASE}/stats/overview`)
-    if (!res.ok) throw new Error(`Statut ${res.status}`)
+    if (!res.ok) throw new Error(`Status ${res.status}`)
     overview.value = await res.json()
   } catch (err: any) {
-    overviewError.value = err?.message || 'Impossible de charger les statistiques.'
+    overviewError.value = err?.message || t.overviewError
   }
 }
 
@@ -137,12 +134,12 @@ const fetchLiveMatches = async () => {
   liveError.value = null
   try {
     const res = await fetch(`${API_BASE}/stats/live/matches`)
-    if (!res.ok) throw new Error(`Statut ${res.status}`)
+    if (!res.ok) throw new Error(`Status ${res.status}`)
     const data = await res.json()
     liveMatches.value = Array.isArray(data?.matches) ? data.matches : []
     liveLobbies.value = Array.isArray(data?.lobbies) ? data.lobbies : []
   } catch (err: any) {
-    liveError.value = err?.message || 'Impossible de charger les matchs en direct.'
+    liveError.value = err?.message || t.liveError
     liveMatches.value = []
     liveLobbies.value = []
   }
@@ -151,14 +148,10 @@ const fetchLiveMatches = async () => {
 const formatModeLabel = (match: any) => {
   if (match?.mode && match.mode !== 'duel') return match.mode
   switch (match?.source) {
-    case 'tournament':
-      return 'Tournoi'
-    case 'challenge':
-      return 'Défi'
-    case 'lobby':
-      return 'Salle personnalisée'
-    default:
-      return 'Match rapide'
+    case 'tournament': return t.modeTournament
+    case 'challenge': return t.modeChallenge
+    case 'lobby': return t.modeLobby
+    default: return t.modeQuickMatch
   }
 }
 
@@ -167,7 +160,7 @@ const formatRelativeTime = (iso: string | number | null) => {
   const date = typeof iso === 'number' ? new Date(iso) : new Date(iso)
   const diff = Date.now() - date.getTime()
   const minutes = Math.round(diff / 60000)
-  if (minutes < 1) return 'À l’instant'
+  if (minutes < 1) return 'Just now'
   if (minutes < 60) return `Il y a ${minutes} min`
   const hours = Math.round(minutes / 60)
   if (hours < 24) return `Il y a ${hours} h`
@@ -176,34 +169,20 @@ const formatRelativeTime = (iso: string | number | null) => {
 }
 
 let refreshTimer: ReturnType<typeof setInterval> | null = null
-
 onMounted(() => {
   fetchOverview()
   fetchLiveMatches()
   refreshTimer = setInterval(() => {
     fetchOverview()
     fetchLiveMatches()
-  }, 15_000)
+  }, 15000)
 })
+onBeforeUnmount(() => { if (refreshTimer) clearInterval(refreshTimer) })
 
-onBeforeUnmount(() => {
-  if (refreshTimer) clearInterval(refreshTimer)
-})
-
-const primaryLabel = computed(() => (isLoggedIn.value ? 'Lancer une partie' : 'Se connecter'))
-
-const goPrimary = () => {
-  router.push(isLoggedIn.value ? '/game' : '/login')
-}
-
-const goSocial = () => {
-  router.push('/social')
-}
-
-const goSpectate = () => {
-  router.push('/game')
-}
-
+const primaryLabel = computed(() => isLoggedIn.value ? t.primaryButton : t.primaryButton)
+const goPrimary = () => router.push(isLoggedIn.value ? '/game' : '/login')
+const goSocial = () => router.push('/social')
+const goSpectate = () => router.push('/game')
 const goWatch = (roomId: string) => {
   try {
     localStorage.setItem('pendingRoomId', roomId)
@@ -212,6 +191,8 @@ const goWatch = (roomId: string) => {
   router.push('/game')
 }
 </script>
+
+
 
 <style scoped>
 .home {
