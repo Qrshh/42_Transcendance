@@ -85,19 +85,6 @@
           />
         </section>
 
-        <!-- Create game -->
-        <section v-else-if="currentScreen === 'create-form'" key="create" class="section">
-          <div class="sub-header">
-            <button class="btn ghost" @click="currentScreen = 'main'">← {{ t.back }}</button>
-            <h2 class="sub-title">✨ {{ t.createGame }}</h2>
-          </div>
-          <CreateGameForm
-            :socket="socket"
-            @back="currentScreen = 'main'"
-            @gameCreated="onGameCreated"
-          />
-        </section>
-
         <!-- Create tournament -->
         <section v-else-if="currentScreen === 'create-tourn'" key="create-tourn" class="section">
           <div class="sub-header">
@@ -173,7 +160,6 @@ import { defineComponent, ref, onMounted, onUnmounted } from 'vue'
 import type { Socket } from 'socket.io-client'
 
 import JoinGameList from './JoinGameList.vue'
-import CreateGameForm from './CreateGameForm.vue'
 import WaitingQueueScreen from './WaitingQueueScreen.vue'
 import CreateTournamentForm from '../tournament/CreateTournamentForm.vue'
 import JoinTournamentList from '../tournament/JoinTournamentList.vue'
@@ -183,11 +169,11 @@ import { useI18n } from '../../../composables/useI18n'
 
 
 
-type LobbyScreen = 'main' | 'join-list' | 'create-form' | 'create-tourn' | 'waiting-queue' | 'join-tourn-list' | 'tourn-waiting'
+type LobbyScreen = 'main' | 'join-list' | 'create-tourn' | 'waiting-queue' | 'join-tourn-list' | 'tourn-waiting'
 
 export default defineComponent({
   name: 'Lobby',
-  components: { JoinGameList, CreateGameForm, WaitingQueueScreen, CreateTournamentForm, JoinTournamentList, TournamentWaitingScreen },
+  components: { JoinGameList, WaitingQueueScreen, CreateTournamentForm, JoinTournamentList, TournamentWaitingScreen },
   props: {
     socket: { type: Object as () => Socket, required: true }
   },
@@ -237,12 +223,6 @@ export default defineComponent({
       currentScreen.value = 'waiting-queue'
     }
 
-    function onGameCreated(g: { id: string; name: string }) {
-      waitingGameId.value = g.id
-      waitingGameName.value = g.name
-      currentScreen.value = 'waiting-queue'
-    }
-
     function onTournamentCreated(t: { id?: string; roomId?: string; name?: string }) {
       const tid = (t && (t.roomId || t.id)) ? (t.roomId || t.id)! : null;
       if (tid) {
@@ -284,7 +264,6 @@ export default defineComponent({
       activeGamesCount,
       isConnected,
       onGameJoined,
-      onGameCreated,
       waitingTournId,
       waitingTournName,
       onTournamentCreated,

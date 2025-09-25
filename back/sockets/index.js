@@ -192,6 +192,7 @@ module.exports = fp(async function socketsPlugin(fastify) {
       room.intervalId = null; room.durationTimer = null;
       room.gameState.status = 'finished';
       activeGameRooms.delete(roomId);
+      emitLobbyStats();
       if (!silent) io.to(roomId).emit('gameEnded', { message: 'La partie a été arrêtée.' });
     }
 
@@ -396,6 +397,7 @@ function launchMatch(t, match){
     createdAt: Date.now()
   };
   activeGameRooms.set(roomId, room);
+  emitLobbyStats();
   if(!t.runningRooms) t.runningRooms=new Set(); t.runningRooms.add(roomId);
 
   const startPayload = { tournamentId: t.id, roomId, roundIndex: match.roundIndex, matchIndex: match.index, p1: p1U, p2: p2U };
@@ -785,6 +787,23 @@ function startTournamentInternal(t){
       })));
     }
 
+    function getLobbyStatsSnapshot() {
+      const online = socketsByUserMulti.size;
+      let active = 0;
+      for (const room of activeGameRooms.values()) {
+        if (!room || !room.gameState) continue;
+        if (room.gameState.status && room.gameState.status === 'finished') continue;
+        active += 1;
+      }
+      return { online, active };
+    }
+
+    function emitLobbyStats(targetSocket = null) {
+      const payload = getLobbyStatsSnapshot();
+      if (targetSocket) targetSocket.emit('lobbyStats', payload);
+      else io.emit('lobbyStats', payload);
+    }
+
     // ======== SOCKET HANDLERS =========
     io.on('connection', (socket) => {
       fastify.metrics?.websocketConnections?.inc();
@@ -839,7 +858,11 @@ function startTournamentInternal(t){
         // 4) renvoie la liste des connectés, filtrée côté DB
         try {
           const names = Array.from(socketsByUserMulti.keys());
-          if (names.length === 0) return socket.emit('connectedUsersList', []);
+          if (names.length === 0) {
+            socket.emit('connectedUsersList', []);
+            emitLobbyStats();
+            return;
+          }
     
           // batch check en un seul SELECT IN (...)
           const placeholders = names.map(() => '?').join(',');
@@ -856,10 +879,12 @@ function startTournamentInternal(t){
           }
     
           socket.emit('connectedUsersList', filtered);
+          emitLobbyStats();
         } catch (e) {
           console.error('identify->list filter error:', e);
           // fallback: liste brute
           socket.emit('connectedUsersList', Array.from(socketsByUserMulti.keys()));
+          emitLobbyStats();
         }
       });
 
@@ -867,8 +892,12 @@ function startTournamentInternal(t){
       socket.on('requestConnectedUsers', async () => {
         try {
           const names = Array.from(socketsByUserMulti.keys());
-          if (names.length === 0) return socket.emit('connectedUsersList', []);
-    
+          if (names.length === 0) {
+            socket.emit('connectedUsersList', []);
+            emitLobbyStats();
+            return;
+          }
+
           const placeholders = names.map(() => '?').join(',');
           const rows = await allAsync(
             `SELECT username FROM users WHERE username IN (${placeholders})`,
@@ -876,16 +905,22 @@ function startTournamentInternal(t){
           );
           const ok = new Set(rows.map((r) => r.username));
           const filtered = [];
-    
+
           for (const n of names) {
             if (ok.has(n)) filtered.push(n);
             else kickUserEverywhere(n);
           }
           socket.emit('connectedUsersList', filtered);
+          emitLobbyStats();
         } catch (e) {
           console.error('requestConnectedUsers error:', e);
           socket.emit('connectedUsersList', Array.from(socketsByUserMulti.keys()));
+          emitLobbyStats();
         }
+      });
+
+      socket.on('getLobbyStats', () => {
+        emitLobbyStats(socket);
       });
       // chat temps réel
       socket.on('sendMessage', async ({ sender, receiver, content }) => {
@@ -1017,6 +1052,7 @@ function startTournamentInternal(t){
           source: 'challenge',
           createdAt: Date.now()
         });
+        emitLobbyStats();
       
         // Informer d’ouvrir l’écran de jeu
       process.nextTick(() => {
@@ -1159,6 +1195,7 @@ function startTournamentInternal(t){
             source: 'lobby',
             createdAt: Date.now()
           });
+          emitLobbyStats();
 
           io.to(gameId).emit('gameState', gs);
 
@@ -1261,6 +1298,7 @@ function startTournamentInternal(t){
           }
         }
 
+        emitLobbyStats();
       });
     });
 

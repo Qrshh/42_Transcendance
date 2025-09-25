@@ -564,12 +564,14 @@ onMounted(() => {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--color-text);
+  
 }
 
 .config-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: 0.5rem;
+  justify-content: center;
 }
 
 .chip {
@@ -721,7 +723,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 1.6rem;
-  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+  background: var(--panel-bg, rgba(255, 255, 255, 0.75));
   border: 1px solid var(--color-border);
   border-radius: 7px;
   padding: 1.6rem;
