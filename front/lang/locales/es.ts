@@ -188,7 +188,7 @@ export default {
 	passwordRequired: "Esta partida requiere contraseña:",
 	secretPassword: "Contraseña secreta",
 	cancel: "Cancelar",
-	join: "Unirse",
+	joined: "Unirse",
 	configureAndInvite: "Configura tu torneo e invita a tus amigos!",
 	globalOptions: "Opciones globales",
 	tournamentName: "Nombre del torneo",

@@ -17,12 +17,10 @@
         <div class="side">
           <div class="time" v-if="t.status==='waiting'">⏳ {{ fmtTime(t.timeLeftToFill) }}</div>
           <button 
-            class="btn primary" 
+            class="btn" 
             :disabled="t.status!=='waiting'|| t.participants>=t.maxPlayers" 
             @click="join(t)"
-          >
-            {{ t.join }}
-          </button>
+          >{{ t.joined }} Join</button>
         </div>
       </li>
     </ul>

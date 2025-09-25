@@ -190,7 +190,7 @@ export default {
 	passwordRequired: "This game requires a password:",
 	secretPassword: "Secret password",
 	cancel: "Cancel",
-	join: "Join",
+	joined: "Join",
 	configureAndInvite: "Configure your tournament and invite your friends!",
 	globalOptions: "Global options",
 	tournamentName: "Tournament name",

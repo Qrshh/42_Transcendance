@@ -793,7 +793,6 @@ function startTournamentInternal(t){
     // ======== SOCKET HANDLERS =========
     io.on('connection', (socket) => {
       fastify.metrics?.websocketConnections?.inc();
-      // --- helpers DB promisifiés (avec fastify.db décoré dans server.js)
       const getAsync = (sql, params = []) =>
         new Promise((resolve, reject) => {
           fastify.db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row)));
@@ -988,7 +987,7 @@ function startTournamentInternal(t){
           return;
         }
       
-        // Accepté → créer une room dédiée et y placer les deux joueurs
+        // Accepté créer une room dédiée et y placer les deux joueurs
         ch.status = 'accepted';
         pendingChallenges.delete(challengeId);
       

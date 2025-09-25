@@ -17,7 +17,6 @@
         <p v-if="overviewError" class="stats-error">{{ overviewError }}</p>
       </div>
       <div class="hero-visual">
-        <!--<Computer3D class="arena-model" :model-path="'/public/models/commodore.stl'" :rotation-x="-1.1" :rotation-y="-1.545" :rotation-z="-1.175" :position-y="0" :scale="3.5" />-->
       </div>
     </section>
 
@@ -86,7 +85,6 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-//import Computer3D from '../components/3d/3D.vue'
 import { isLoggedIn } from '../stores/auth'
 import { API_BASE } from '../config'
 import { useI18n } from '../composables/useI18n'
