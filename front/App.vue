@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute, RouterLink, RouterView } from 'vue-router'
 import { io } from 'socket.io-client'
 import { API_BASE, SOCKET_URL } from './config'
+import themeMusicUrl from './music/theme.mp3'
 //import Computer3D from './components/3d/Computer3D.vue'
 
 /* ==== i18n & auth (comme ton code existant) ==== */
@@ -190,6 +191,7 @@ const audio = ref<HTMLAudioElement | null>(null)
 const volume = ref(Number(localStorage.getItem('volume') || 0.5))
 const isPlaying = ref(false)
 const showVolume = ref(false)
+const musicSrc = themeMusicUrl
 
 function toggleMusic()
 {
@@ -319,6 +321,7 @@ onFsFlagChange() // init au chargement
 
   //musique
   if(audio.value){
+    audio.value.src = musicSrc
     audio.value.volume = volume.value
     audio.value.loop = true
   }
@@ -457,7 +460,7 @@ watch(() => route.fullPath, () => {
           </transition>
         </div>
 
-        <audio ref="audio" src="/music/theme.mp3" preload="auto"></audio>
+        <audio ref="audio" src="musicSrc" preload="auto"></audio>
         
         <!-- Avatar + menu -->
         <div class="userbox" v-if="logged">
