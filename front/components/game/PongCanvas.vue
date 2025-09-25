@@ -12,7 +12,7 @@
       :class="{ fullscreen: isFullscreenActive }"
       :style="stageStyle"
     >
-      <div  class="score-overlay">
+      <div class="score-overlay" :key="overlayKey">
         <div class="score-board" :class="{ classic: isClassicArena }">
           <div class="player-score">
             <div class="player-info">
@@ -106,10 +106,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, withDefaults } from 'vue'
+import { ref, computed, onMounted, onUnmounted, withDefaults, watch } from 'vue'
 import type { GameState } from './ts/types'
-import { drawGameState } from './ts/drawing'
-import { CANVAS_WIDTH, CANVAS_HEIGHT } from './ts/constants'
+import { CANVAS_WIDTH, CANVAS_HEIGHT, BALL_RADIUS } from './ts/constants'
+import {
+  ArcRotateCamera,
+  Camera,
+  Color3,
+  Color4,
+  DirectionalLight,
+  Engine,
+  HemisphericLight,
+  Mesh,
+  MeshBuilder,
+  Scene,
+  StandardMaterial,
+  Vector3
+} from 'babylonjs'
 
 const props = withDefaults(defineProps<{
   state: GameState,
@@ -141,6 +154,7 @@ const isTouch = ref(false)
 const isFullscreenNative = ref(false)
 const isFullscreenShim = ref(false)
 const supportsNativeFullscreen = ref(false)
+const overlayKey = ref(0)
 
 const arenaTheme = computed(() => props.state?.settings?.arena ?? 'classic')
 const arenaClass = computed(() => `arena-${arenaTheme.value}`)
@@ -178,6 +192,14 @@ const showTouchControls = computed(() =>
   isTouch.value && (controlsLeft.value || controlsRight.value)
 )
 
+watch(isFullscreenActive, () => {
+  overlayKey.value += 1
+})
+
+watch(arenaTheme, () => {
+  applyArenaMaterials()
+})
+
 const normalizeScoreValue = (value: unknown): number => {
   if (typeof value === 'number' && Number.isFinite(value)) return value
   const parsed = Number.parseInt(String(value ?? '').trim(), 10)
@@ -206,7 +228,6 @@ const rightPlayer = computed(() => ({
 
 const targetScoreLabel = computed(() => props.state?.targetScore ?? null)
 
-const scoreboardVisible = computed(() => Boolean(props.state))
 const countdownValue = computed(() => Math.max(0, Math.ceil(props.countdown ?? (props.state?.countdown ?? 0))))
 const countdownActive = computed(() => countdownValue.value > 0)
 const countdownOverlayVisible = computed(() => countdownActive.value)
@@ -247,8 +268,27 @@ const activeDirections = new Map<'p1' | 'p2', 'up' | 'down'>()
 const touchPointers = new Map<'p1' | 'p2', number>()
 const lastTouchTap = new Map<'p1' | 'p2', { time: number; direction: 'up' | 'down' }>()
 const DOUBLE_TAP_THRESHOLD_MS = 360
-let rafId: number | null = null
 let vhListener: (() => void) | null = null
+let engine: Engine | null = null
+let scene: Scene | null = null
+let camera: ArcRotateCamera | null = null
+let paddleMeshLeft: Mesh | null = null
+let paddleMeshRight: Mesh | null = null
+let paddleMaterialLeft: StandardMaterial | null = null
+let paddleMaterialRight: StandardMaterial | null = null
+let ballMesh: Mesh | null = null
+let ballMaterial: StandardMaterial | null = null
+let fieldMesh: Mesh | null = null
+let fieldMaterial: StandardMaterial | null = null
+let accentLight: DirectionalLight | null = null
+
+const PADDLE_THICKNESS = 12
+
+const ARENA_3D_COLORS: Record<string, { field: string; paddle: string; ball: string }> = {
+  classic: { field: '#050505', paddle: '#f8fafc', ball: '#f1f5f9' },
+  neon: { field: '#060a1f', paddle: '#80faff', ball: '#4facfe' },
+  cosmic: { field: '#0a041b', paddle: '#93c5fd', ball: '#d8b4fe' }
+}
 
 const updateVh = () => {
   if (typeof window === 'undefined') return
@@ -352,13 +392,200 @@ const handleKeyUp = (e: KeyboardEvent) => {
   if (controlsRight.value && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) props.onMove('p2', 'stop')
 }
 
-const drawFrame = () => {
+const toWorldX = (value: number) => (CANVAS_WIDTH / 2) - value
+const toWorldY = (value: number) => (CANVAS_HEIGHT / 2) - value
+
+const color3FromString = (value: string, fallback: Color3) => {
+  const trimmed = value.trim()
+  if (/^#([0-9a-fA-F]{6})$/.test(trimmed)) {
+    return Color3.FromHexString(trimmed)
+  }
+  if (/^#([0-9a-fA-F]{3})$/.test(trimmed)) {
+    const r = trimmed[1]
+    const g = trimmed[2]
+    const b = trimmed[3]
+    return Color3.FromHexString(`#${r}${r}${g}${g}${b}${b}`)
+  }
+  const rgb = trimmed.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/i)
+  if (rgb) {
+    const r = Math.min(255, Number(rgb[1] || 0)) / 255
+    const g = Math.min(255, Number(rgb[2] || 0)) / 255
+    const b = Math.min(255, Number(rgb[3] || 0)) / 255
+    return new Color3(r, g, b)
+  }
+  return fallback.clone()
+}
+
+const applyArenaMaterials = () => {
+  const key = arenaTheme.value in ARENA_3D_COLORS ? arenaTheme.value : 'classic'
+  const palette = ARENA_3D_COLORS[key] ?? ARENA_3D_COLORS.classic
+  const paddleColor = color3FromString(palette.paddle, Color3.White())
+  const ballColor = color3FromString(palette.ball, new Color3(0.95, 0.95, 0.95))
+  const fieldColor = color3FromString(palette.field, new Color3(0.02, 0.02, 0.02))
+  if (paddleMaterialLeft) {
+    paddleMaterialLeft.diffuseColor = paddleColor
+    paddleMaterialLeft.emissiveColor = paddleColor.scale(0.35)
+    paddleMaterialLeft.specularColor = paddleColor.scale(0.18)
+  }
+  if (paddleMaterialRight) {
+    paddleMaterialRight.diffuseColor = paddleColor
+    paddleMaterialRight.emissiveColor = paddleColor.scale(0.35)
+    paddleMaterialRight.specularColor = paddleColor.scale(0.18)
+  }
+  if (ballMaterial) {
+    ballMaterial.diffuseColor = ballColor
+    ballMaterial.emissiveColor = ballColor.scale(0.45)
+    ballMaterial.specularColor = ballColor.scale(0.25)
+  }
+  if (fieldMaterial) {
+    fieldMaterial.diffuseColor = fieldColor
+    fieldMaterial.emissiveColor = fieldColor.scale(0.4)
+    fieldMaterial.specularColor = Color3.Black()
+  }
+  if (scene) {
+    scene.clearColor = new Color4(fieldColor.r * 0.18, fieldColor.g * 0.18, fieldColor.b * 0.18, 0)
+  }
+}
+
+const updateBabylonScene = (state?: GameState) => {
+  if (!scene || !state) return
+  const paddles = state.paddles
+  if (paddles?.p1 && paddleMeshLeft) {
+    const p = paddles.p1
+    const centerX = p.x + p.width / 2
+    const centerY = p.y + p.height / 2
+    paddleMeshLeft.position.x = toWorldX(centerX)
+    paddleMeshLeft.position.y = toWorldY(centerY)
+    paddleMeshLeft.scaling.x = p.width
+    paddleMeshLeft.scaling.y = p.height
+    paddleMeshLeft.scaling.z = PADDLE_THICKNESS
+  }
+  if (paddles?.p2 && paddleMeshRight) {
+    const p = paddles.p2
+    const centerX = p.x + p.width / 2
+    const centerY = p.y + p.height / 2
+    paddleMeshRight.position.x = toWorldX(centerX)
+    paddleMeshRight.position.y = toWorldY(centerY)
+    paddleMeshRight.scaling.x = p.width
+    paddleMeshRight.scaling.y = p.height
+    paddleMeshRight.scaling.z = PADDLE_THICKNESS
+  }
+  if (ballMesh && state.ball) {
+    const ball = state.ball
+    ballMesh.position.x = toWorldX(ball.x)
+    ballMesh.position.y = toWorldY(ball.y)
+    const diameter = Math.max(2, (ball.radius ?? BALL_RADIUS) * 2)
+    ballMesh.scaling.x = diameter
+    ballMesh.scaling.y = diameter
+    ballMesh.scaling.z = diameter
+  }
+}
+
+const applyOrthoCamera = () => {
+  if (!camera || !engine) return
+  camera.mode = Camera.ORTHOGRAPHIC_CAMERA
+  const halfWidth = CANVAS_WIDTH / 2
+  const halfHeight = CANVAS_HEIGHT / 2
+  camera.orthoLeft = -halfWidth
+  camera.orthoRight = halfWidth
+  camera.orthoBottom = -halfHeight
+  camera.orthoTop = halfHeight
+  camera.target = Vector3.Zero()
+}
+
+const setupBabylon = () => {
   const canvas = canvasEl.value
   if (!canvas) return
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-  drawGameState(ctx, props.state)
-  rafId = requestAnimationFrame(drawFrame)
+  engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, antialias: true, adaptToDeviceRatio: true })
+  scene = new Scene(engine)
+  scene.clearColor = new Color4(0, 0, 0, 0)
+
+  camera = new ArcRotateCamera('camera', Math.PI / 2, Math.PI / 2, Math.max(CANVAS_WIDTH, CANVAS_HEIGHT), Vector3.Zero(), scene)
+  camera.lowerBetaLimit = Math.PI / 2
+  camera.upperBetaLimit = Math.PI / 2
+  camera.attachControl(canvas, false)
+  applyOrthoCamera()
+
+  const ambientLight = new HemisphericLight('hemi', new Vector3(0, 0, -1), scene)
+  ambientLight.intensity = 0.9
+
+  accentLight = new DirectionalLight('accentLight', new Vector3(-0.6, -0.7, -0.2), scene)
+  accentLight.position = new Vector3(0, 0, 320)
+  accentLight.intensity = 0.65
+
+  fieldMaterial = new StandardMaterial('fieldMat', scene)
+  fieldMaterial.specularColor = Color3.Black()
+  fieldMaterial.backFaceCulling = false
+  fieldMesh = MeshBuilder.CreatePlane('field', { width: CANVAS_WIDTH, height: CANVAS_HEIGHT }, scene)
+  fieldMesh.position.z = -PADDLE_THICKNESS * 1.2
+  fieldMesh.material = fieldMaterial
+
+  const borderMaterial = new StandardMaterial('fieldBaseMat', scene)
+  borderMaterial.diffuseColor = new Color3(0.08, 0.1, 0.14)
+  borderMaterial.emissiveColor = new Color3(0.03, 0.04, 0.07)
+  borderMaterial.specularColor = new Color3(0.12, 0.14, 0.16)
+  const fieldBase = MeshBuilder.CreateBox('fieldBase', {
+    width: CANVAS_WIDTH + 18,
+    height: CANVAS_HEIGHT + 18,
+    depth: PADDLE_THICKNESS * 1.6
+  }, scene)
+  fieldBase.position.z = -PADDLE_THICKNESS * 1.8
+  fieldBase.material = borderMaterial
+
+  paddleMaterialLeft = new StandardMaterial('paddleLeftMat', scene)
+  paddleMaterialLeft.diffuseColor = Color3.White()
+  paddleMaterialLeft.emissiveColor = new Color3(0.6, 0.7, 0.82)
+  paddleMaterialLeft.specularColor = new Color3(0.2, 0.25, 0.32)
+  paddleMeshLeft = MeshBuilder.CreateBox('paddleLeft', { width: 1, height: 1, depth: PADDLE_THICKNESS }, scene)
+  paddleMeshLeft.material = paddleMaterialLeft
+  paddleMeshLeft.position.z = 0
+
+  paddleMaterialRight = new StandardMaterial('paddleRightMat', scene)
+  paddleMaterialRight.diffuseColor = Color3.White()
+  paddleMaterialRight.emissiveColor = new Color3(0.6, 0.7, 0.82)
+  paddleMaterialRight.specularColor = new Color3(0.2, 0.25, 0.32)
+  paddleMeshRight = MeshBuilder.CreateBox('paddleRight', { width: 1, height: 1, depth: PADDLE_THICKNESS }, scene)
+  paddleMeshRight.material = paddleMaterialRight
+  paddleMeshRight.position.z = 0
+
+  ballMaterial = new StandardMaterial('ballMat', scene)
+  ballMaterial.diffuseColor = Color3.White()
+  ballMaterial.emissiveColor = new Color3(0.72, 0.78, 0.88)
+  ballMaterial.specularColor = new Color3(0.38, 0.4, 0.46)
+  ballMesh = MeshBuilder.CreateSphere('ball', { diameter: 1, segments: 24 }, scene)
+  ballMesh.material = ballMaterial
+  ballMesh.position.z = PADDLE_THICKNESS / 2
+
+  applyArenaMaterials()
+  updateBabylonScene(props.state)
+
+  engine.runRenderLoop(() => {
+    updateBabylonScene(props.state)
+    scene?.render()
+  })
+}
+
+const disposeBabylon = () => {
+  if (engine) {
+    engine.stopRenderLoop(() => {})
+    scene?.dispose()
+    engine.dispose()
+  }
+  engine = null
+  scene = null
+  camera = null
+  paddleMeshLeft = null
+  paddleMeshRight = null
+  paddleMaterialLeft = null
+  paddleMaterialRight = null
+  ballMesh = null
+  ballMaterial = null
+  fieldMesh = null
+  fieldMaterial = null
+  if (accentLight) {
+    accentLight.dispose()
+  }
+  accentLight = null
 }
 
 const enterFullscreen = async () => {
@@ -414,6 +641,12 @@ const onFullscreenChange = () => {
 }
 
 const handleGlobalPointerEnd = () => releaseAll()
+const handleEngineResize = () => {
+  if (engine) {
+    engine.resize()
+  }
+  applyOrthoCamera()
+}
 
 onMounted(() => {
   supportsNativeFullscreen.value = typeof document !== 'undefined' && !!document.fullscreenEnabled
@@ -441,8 +674,9 @@ onMounted(() => {
   window.addEventListener('touchcancel', handleGlobalPointerEnd)
   window.addEventListener('blur', releaseAll)
   document.addEventListener('fullscreenchange', onFullscreenChange)
+  window.addEventListener('resize', handleEngineResize)
 
-  rafId = requestAnimationFrame(drawFrame)
+  setupBabylon()
 })
 
 onUnmounted(() => {
@@ -459,8 +693,9 @@ onUnmounted(() => {
   window.removeEventListener('touchcancel', handleGlobalPointerEnd)
   window.removeEventListener('blur', releaseAll)
   document.removeEventListener('fullscreenchange', onFullscreenChange)
+  window.removeEventListener('resize', handleEngineResize)
 
-  if (rafId) cancelAnimationFrame(rafId)
+  disposeBabylon()
   releaseAll()
   document.body.classList.remove('no-scroll')
 })
@@ -874,6 +1109,7 @@ defineExpose({
   --score-panel-bg: rgba(17, 24, 39, 0.68);
   --score-panel-border: rgba(56, 189, 248, 0.55);
   --score-panel-shadow: 0 24px 54px rgba(56, 189, 248, 0.28);
+  --score-panel-blur: 22px;
 }
 
 .pong-wrapper.arena-cosmic .pong-stage {
@@ -896,6 +1132,7 @@ defineExpose({
   --score-panel-bg: rgba(17, 24, 39, 0.7);
   --score-panel-border: rgba(168, 85, 247, 0.55);
   --score-panel-shadow: 0 26px 58px rgba(124, 58, 237, 0.35);
+  --score-panel-blur: 24px;
 }
 
 @media (max-width: 640px) {

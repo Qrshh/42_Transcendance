@@ -53,7 +53,7 @@
             <article class="card">
               <h5>{{ t.arenaTheme }}</h5>
               <div class="options-row">
-                <label v-for="theme in arenaOptions" :key="theme.value" :class="['option-pill', { active: settings.arena === theme.value }]">
+                <label v-for="theme in arenaOptions" :key="theme.value" :class="['preset-btn', { active: settings.arena === theme.value }]">
                   <input type="radio" :value="theme.value" v-model="settings.arena" @change="markCustom" />
                   <span>{{ theme.label }}</span>
                 </label>
@@ -63,7 +63,7 @@
             <article class="card">
               <h5>{{ t.ballSpeed }}</h5>
               <div class="options-row">
-                <label v-for="speed in speedOptions" :key="speed.value" :class="['option-pill', { active: settings.ballSpeed === speed.value }]">
+                <label v-for="speed in speedOptions" :key="speed.value" :class="['preset-btn', { active: settings.ballSpeed === speed.value }]">
                   <input type="radio" :value="speed.value" v-model="settings.ballSpeed" @change="markCustom" />
                   <span>{{ speed.label }}</span>
                 </label>
@@ -73,7 +73,7 @@
             <article class="card">
               <h5>{{ t.ballSize }}</h5>
               <div class="options-row">
-                <label v-for="size in sizeOptions" :key="size.value" :class="['option-pill', { active: settings.ballSize === size.value }]">
+                <label v-for="size in sizeOptions" :key="size.value" :class="['preset-btn', { active: settings.ballSize === size.value }]">
                   <input type="radio" :value="size.value" v-model="settings.ballSize" @change="markCustom" />
                   <span>{{ size.label }}</span>
                 </label>
@@ -83,7 +83,7 @@
             <article class="card">
               <h5>{{ t.powerUps }}</h5>
               <div class="options-row">
-                <label v-for="power in powerOptions" :key="power.value" :class="['option-pill', { active: settings.powerUps === power.value }]">
+                <label v-for="power in powerOptions" :key="power.value" :class="['preset-btn', { active: settings.powerUps === power.value }]">
                   <input type="radio" :value="power.value" v-model="settings.powerUps" @change="markCustom" />
                   <span>{{ power.label }}</span>
                 </label>
@@ -282,7 +282,7 @@ watch(
 .custom-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(7, 12, 24, 0.75);
+  background: rgba(0, 0, 0, 0.57);
   backdrop-filter: blur(14px);
   display: grid;
   place-items: center;
@@ -413,7 +413,7 @@ watch(
   border-radius: 12px;
   padding: 0.65rem 1.1rem;
   font-weight: 600;
-  background: rgb(53, 53, 53);
+  background: rgba(53, 53, 53, 0.17);
   color: var(--color-text);
   cursor: pointer;
   transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;

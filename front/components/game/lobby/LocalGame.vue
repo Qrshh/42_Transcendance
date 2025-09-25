@@ -24,19 +24,6 @@
         </li>
       </ul>
 
-      <div class="toggle-row">
-        <label class="toggle">
-          <input type="checkbox" v-model="acceleratingBall" />
-          <span class="slider"></span>
-          <span class="toggle-text">{{ t.acceleratingBall }}</span>
-        </label>
-        <label class="toggle">
-          <input type="checkbox" v-model="dashPaddle" />
-          <span class="slider"></span>
-          <span class="toggle-text">{{ t.dashPaddles }}</span>
-        </label>
-      </div>
-
       <div class="menu-actions">
         <button class="btn ghost" type="button" @click="openCustomization">{{ t.customize }}</button>
         <button class="btn primary" type="button" @click="startMatch">{{ t.startGame }}</button>
@@ -51,6 +38,7 @@
         </div>
 
         <div class="game-controls">
+          <button class="btn ghost" type="button" @click="openCustomization">{{ t.optionsBtn }}</button>
           <div class="control-hint">
             <span class="keys">W/S</span>
             <span class="vs">vs</span>
@@ -58,14 +46,14 @@
           </div>
           <div class="config-chip">{{ arenaLabel }} • {{ ballSpeedLabel }}</div>
           <button
-            class="btn"
+            class="config-chip"
             type="button"
             title="{{ t.pause }}"
             @click="togglePause"
             :disabled="!canTogglePause"
           >P</button>
           <button
-            class="btn"
+            class="config-chip"
             type="button"
             title="{{ t.fullscreen }}"
             @pointerdown.capture.prevent.stop="toggleFullscreen"
@@ -371,7 +359,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 1.6rem;
-  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+  background: var(--color-background-soft);
   border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 1.6rem;
@@ -423,15 +411,17 @@ onBeforeUnmount(() => {
   box-shadow: 0 20px 48px rgba(168,85,247,0.25);
 }
 
+
 .menu-title {
   margin: 0;
   font-size: 1.4rem;
   font-weight: 800;
-  background: linear-gradient(90deg, #fff, #b8c6ff, #9fe7ff);
+  background: linear-gradient(90deg, #fff, #ffffff, #ffffff);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
 
 .menu-sub {
   margin: 0;
@@ -447,14 +437,34 @@ onBeforeUnmount(() => {
   gap: 0.4rem;
 }
 
+
+
+.config-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.chip {
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 999px;
+  padding: 0.28rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
 .settings-list li {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(0,0,0,.2);
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  padding: 0.6rem 0.9rem;
+  background: rgba(51, 51, 51, 0.18);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 12px;
+  padding: 0.65rem 0.95rem;
+  color: var(--color-text);
 }
 
 .settings-list .label { opacity: 0.7; font-size: 0.9rem; }
@@ -551,18 +561,18 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: .9rem 1rem;
-  background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
+  padding: 1rem;
+  margin-bottom: 10px;
+  background: linear-gradient(135deg, #fff0 0%, rgba(33, 149, 243, 0.123) 40%); 
   border: 1px solid var(--color-border);
   border-radius: 7px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.18);
 }
 
 .mode-title {
   margin: 0;
   font-size: 1.35rem;
   font-weight: 800;
-  background: linear-gradient(90deg, #b9c4ff, #9fe7ff);
+  background: #ffffff;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -580,15 +590,6 @@ onBeforeUnmount(() => {
   gap: 1rem;
 }
 
-.control-hint {
-  display: flex;
-  align-items: center;
-  gap: .75rem;
-  padding: .45rem .8rem;
-  background: rgba(0,0,0,.25);
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-}
 
 .keys {
   background: linear-gradient(90deg, #6a5cff, #25c6ff);
@@ -612,20 +613,21 @@ onBeforeUnmount(() => {
   color: var(--color-text);
 }
 
+
+
 .vs { color: var(--color-text); opacity: .65; font-weight: 700; }
 
 .game-canvas-container {
-  position: relative;
+position: relative;
   display: flex;
   justify-content: center;
-  background:
-    radial-gradient(500px 160px at 50% 0%, rgba(255,255,255,.06), transparent 70%),
-    linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
+  background: radial-gradient(500px 160px at 50% 0%, rgba(255,255,255,.06), transparent 70%), linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
   border: 1px solid var(--color-border);
   border-radius: 7px;
   padding: 1rem;
   box-shadow: inset 0 2px 10px rgba(0,0,0,.12);
   overflow: hidden;
+  margin: 0 0 12px 0;
 }
 
 .game-canvas-container::before{
@@ -698,12 +700,33 @@ onBeforeUnmount(() => {
   border-radius: 7px;
   font-size: .95rem;
 }
+.control-hint {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .45rem .8rem;
+  background: rgba(0,0,0,.25);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+}
+.keys {
+  background: linear-gradient(90deg, #6a5cff, #25c6ff);
+  color: #fff;
+  padding: .2rem .6rem;
+  border-radius: 7px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-weight: 800;
+  font-size: .82rem;
+  letter-spacing: .015em;
+  box-shadow: inset 0 -2px 0 rgba(255,255,255,.08);
+}
+.vs { color: var(--color-text); opacity: .65; font-weight: 700; }
 
 .instruction-icon { font-size: 1.05rem; }
 .instruction-text { color: var(--color-text); opacity: .9; }
 
 @media (max-width: 820px){
-  .local-game { padding: 1.1rem; gap: 1.1rem; }
+  .local-game { padding: 1rem; gap: 1rem; }
   .game-header { flex-direction: column; gap: .8rem; text-align: center; }
   .menu { padding: 1.1rem; }
 }

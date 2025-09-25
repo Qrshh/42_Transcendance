@@ -98,6 +98,7 @@
     <div v-if="!user.isPrivate || isSelf" class="panel">
       <!-- Onglet Statistiques -->
       <div v-if="activeTab === 'stats'" class="tab-content">
+        <h3 class="category-title"> {{ t.stat }}</h3>
         <div class="stats-grid">
           <div class="stat-card panel">
             <div class="stat-icon">🏆</div>
@@ -145,6 +146,7 @@
       <!-- Onglet Historique -->
       <div v-if="activeTab === 'history'" class="tab-content">
         <div class="game-history">
+          <h3 class="category-title"> {{ t.history }}</h3>
           <div v-for="game in gameHistory" :key="game.id" class="history-item panel">
             <div class="game-result" :class="game.result">
               <span class="result-icon">{{ game.result === 'win' ? '🏆' : '💔' }}</span>
@@ -908,7 +910,7 @@ const editAvatar = () => triggerAvatarPicker()
 .user-avatar { width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; color: #fff; border: 4px solid var(--color-background); box-shadow: var(--shadow-md); overflow: hidden }
 .avatar-img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 50% }
 .avatar-initials { font-weight: 700; font-size: 2rem; line-height: 1 }
-.avatar-edit { position: absolute; bottom: 0; right: 0; width: 2rem; height: 2rem; border-radius: 50%; background: var(--color-primary); color: #fff; border: 2px solid var(--color-background); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: .8rem }
+.avatar-edit { position: absolute; bottom: 0; right: 0; width: 2rem; height: 2rem; border-radius: 50%; background: var(--panel-bg, var(--color-background-soft)); color: #fff; border: 2px solid var(--color-background); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: .8rem }
 
 .user-details h1 { font-size: 2rem; font-weight: 700; color: var(--color-text); margin-bottom: .5rem }
 .user-status { display: flex; align-items: center; gap: .5rem; font-weight: 500; margin-bottom: .5rem }
@@ -920,7 +922,7 @@ const editAvatar = () => triggerAvatarPicker()
 .profile-tabs { display: flex; border-radius: 7px; padding: .5rem; margin-bottom: 2rem; gap: .5rem }
 .tab-btn { display: flex; align-items: center; gap: .5rem; background: none; border: none; padding: .75rem 1.5rem; border-radius: 7px; cursor: pointer; color: var(--color-text); opacity: .7; transition: .3s; font-weight: 500; flex: 1; justify-content: center }
 .tab-btn:hover { opacity: 1 }
-.tab-btn.active { background: white; color: #111; opacity: 1 }
+.tab-btn.active { background: var(--color-background); opacity: 1 }
 .tab-count { background: rgba(255,255,255,.3); color: #fff; font-size: .75rem; font-weight: 600; padding: .25rem .5rem; border-radius: 7px; min-width: 1.5rem; text-align: center }
 
 .profile-content { background: var(--color-background-soft); border-radius: 7px; padding: 2rem; box-shadow: var(--shadow-md) }
@@ -964,7 +966,7 @@ const editAvatar = () => triggerAvatarPicker()
 .settings-category:last-child { border-bottom: none; margin-bottom: 0; }
 .category-title{
   display:flex; align-items:center; gap:.6rem;
-  font-size:1.25rem; font-weight:800; margin:1.25rem 0 .75rem;
+  font-size:1.25rem; font-weight:800; padding: 0px 0px 14px 0px;
 }
 .category-title::before{
   content:""; width:8px; height:22px; border-radius:999px;
@@ -1039,13 +1041,20 @@ const editAvatar = () => triggerAvatarPicker()
 .settings-form { display: flex; flex-direction: column; gap: 2rem; margin-bottom: 3rem }
 .setting-group { display: flex; align-items: center; gap: 1rem }
 .setting-label { font-weight: 600; color: var(--color-text); min-width: 120px }
-.setting-input, .setting-select { flex: 1;   border-radius: 7px; padding: .75rem 1rem; color: var(--color-text); font-size: 1rem }
+.setting-input, .setting-select { flex: 1;   border-radius: 7px; padding: .75rem 1rem; color: var(--color-text); font-size: 1rem ;border: 2px solid #ffffff4f;}
 .setting-input:focus, .setting-select:focus { outline: none; border-color: var(--color-primary) }
 .setting-input:read-only { background: var(--color-background-soft); opacity: .7 }
-.edit-btn { background: var(--color-primary); color: #fff; border: none; padding: .5rem; border-radius: 7px; cursor: pointer; font-size: 1rem }
+.edit-btn {background: var(--color-background);
+  color: #fff;
+  border: none;
+  padding: .5rem;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 1rem;
+  border: 2px solid #ffffff42; }
 .setting-checkbox { display: flex; align-items: center; gap: 1rem; cursor: pointer; font-weight: 600 }
 .setting-checkbox input { display: none }
-.checkbox-custom { width: 1.5rem; height: 1.5rem; border: 2px solid var(--color-border); border-radius: 7px; position: relative; transition: .3s }
+.checkbox-custom {background: #ffffff17; width: 1.5rem; height: 1.5rem; border: 2px solid var(--color-border); border-radius: 7px; position: relative; transition: .3s }
 .setting-checkbox input:checked + .checkbox-custom { background: var(--gradient-primary); border-color: var(--color-primary) }
 .setting-checkbox input:checked + .checkbox-custom::after { content: '✓'; position: absolute; color: #fff; font-weight: bold; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: .9rem }
 .settings-actions { display: flex; gap: 1rem }
@@ -1053,7 +1062,7 @@ const editAvatar = () => triggerAvatarPicker()
 .danger-title { color: #f44336; font-weight: 600; margin-bottom: 1rem }
 
 .btn { display: flex; align-items: center; gap: .5rem; padding: .75rem 1.5rem; border: none; border-radius: 7px; font-weight: 600; cursor: pointer; transition: .2s }
-.btn-primary { background: var(--gradient-primary); color: #000 }
+.btn-primary { color: #000 }
 .btn-secondary {   color: var(--color-text) }
 .btn-danger { background: #f44336; color: #fff }
 .btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-md) }
@@ -1061,7 +1070,7 @@ const editAvatar = () => triggerAvatarPicker()
 /* ===== Modal Ajouter un ami ===== */
 .fade-enter-active, .fade-leave-active { transition: opacity .2s ease }
 .fade-enter-from, .fade-leave-to { opacity: 0 }
-.af-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: grid; place-items: center; z-index: 1000; border-radius: 3%}
+.af-overlay { position: fixed; inset: 0; background: rgba(255, 251, 251, 0.64); display: grid; place-items: center; z-index: 1000; border-radius: 3%}
 .af-modal { width: min(520px, calc(100% - 2rem)); padding: 0; border-radius: 7px; box-shadow: var(--shadow-lg); overflow: hidden; animation: popIn .12s ease }
 @keyframes popIn { from { transform: scale(.98); opacity: .9 } to { transform: scale(1); opacity: 1 } }
 .af-header { opacity: 75%; display:flex; align-items:center; justify-content:space-between; padding: 1rem 1.2rem; background: var(--color-background-soft); border-bottom: 1px solid var(--color-border) }

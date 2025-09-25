@@ -32,11 +32,7 @@
           </ul>
         </div>
 
-        <div class="panel tip" v-if="t.status==='waiting'">
-          <p>Partage l’ID du tournoi pour que tes amis rejoignent : <code>{{ t.id }}</code></p>
-          <button class="btn" @click="copyId">Copier l’ID</button>
-        </div>
-
+      
         <div class="panel warn" v-if="t.status==='waiting' && secondsLeft <= 15">
           ⛳ Le tournoi va démarrer. Des bots seront ajoutés si nécessaire.
         </div>
@@ -335,8 +331,8 @@ export default defineComponent({
   background: var(--panel-bg, rgba(255, 255, 255, 0.72));
   box-shadow: var(--panel-shadow);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+  margin-bottom: 10px;
 }
-
 .panel:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-lg);

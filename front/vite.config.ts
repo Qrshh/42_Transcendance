@@ -17,10 +17,8 @@ export default defineConfig(({ mode }) => {
   // HMR behind HTTPS reverse proxy (nginx on 8443)
   const HMR_PROTOCOL = env.VITE_HMR_PROTOCOL || 'wss'
   const HMR_HOST = env.VITE_HMR_HOST || undefined // e.g. '192.168.1.35' ou domaine
-  const inferredPort = HMR_PROTOCOL === 'wss'
-    ? (env.VITE_HTTPS_PORT || env.NGINX_PORT || '443')
-    : (env.VITE_DEV_PORT || env.FRONT_PORT || '5173')
-  const parsedPort = Number(env.VITE_HMR_CLIENT_PORT || inferredPort)
+  const rawClientPort = (env.VITE_HMR_CLIENT_PORT || '').trim()
+  const parsedPort = rawClientPort ? Number(rawClientPort) : NaN
   const HMR_CLIENT_PORT = Number.isFinite(parsedPort) ? parsedPort : undefined
 
   const withXFWD = (extra: any = {}) => ({
@@ -40,6 +38,14 @@ export default defineConfig(({ mode }) => {
     }
   })
 
+  const hmrConfig: Record<string, any> = {
+    protocol: HMR_PROTOCOL as 'ws' | 'wss',
+    host: HMR_HOST,
+  }
+  if (HMR_CLIENT_PORT !== undefined) {
+    hmrConfig.clientPort = HMR_CLIENT_PORT
+  }
+
   return {
     plugins: [ vue(), vueDevTools() ],
     resolve: { alias: { '@': fileURLToPath(new URL('./', import.meta.url)) } },
@@ -47,11 +53,7 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       port: Number(env.FRONT_PORT || 5173),
       allowedHosts: allowed,
-      hmr: {
-        protocol: HMR_PROTOCOL as 'ws' | 'wss',
-        host: HMR_HOST,
-        clientPort: HMR_CLIENT_PORT,
-      },
+      hmr: hmrConfig,
       proxy: {
         '/register':  withXFWD(),
         '/auth':      withXFWD(),

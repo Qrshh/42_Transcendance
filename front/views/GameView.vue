@@ -550,10 +550,11 @@ export default defineComponent({
   align-items: center;
   gap: 1rem;
   padding: 1rem 2rem;
-  background: var(--color-background-soft);
-  border: 1px solid var(--color-border);
   border-radius: 7px;
   box-shadow: var(--shadow-sm);
+  border: 1px solid var(--panel-border, var(--color-border));
+  background: var(--panel-bg, rgba(255, 255, 255, 0.75));
+  box-shadow: var(--panel-shadow);
 }
 
 .mode-emoji {
@@ -567,15 +568,19 @@ export default defineComponent({
 }
 
 .btn-back {
-  padding: 0.75rem 1.5rem;
-  background: var(--gradient-secondary);
-  color: #000;
-  border: none;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 26px 33px;
   border-radius: 7px;
+  border: 1px solid var(--panel-border, var(--color-border));
+  background: var(--panel-bg, rgba(255, 255, 255, 0.75));
+  box-shadow: var(--panel-shadow);
+  color: white;
+  border-radius: 7px;
+  font-family: 'OriginTech', 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: var(--shadow-md);
+  font-size: 1.1rem;
 }
 
 .btn-back:hover {
@@ -585,7 +590,6 @@ export default defineComponent({
 
 /* Contenu principal */
 .game-content {
-  flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -618,7 +622,6 @@ export default defineComponent({
 .game-wrapper {
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 2rem;
   width: 100%;
   position: relative; /* pour l'overlay post-match */
@@ -734,10 +737,12 @@ html.fs-active .game-container:hover,
 
 /* Footer */
 .game-footer {
-  padding: 1.5rem 2rem;
-  background: rgba(var(--color-background-soft-rgb), 0.8);
+  padding: 1.9rem 2rem;
   backdrop-filter: blur(10px);
-  border-top: 1px solid var(--color-border);
+  border-radius: 7px;
+  border: 1px solid var(--panel-border, var(--color-border));
+  background: var(--panel-bg, rgba(255, 255, 255, 0.75));
+  box-shadow: var(--panel-shadow);
 }
 
 .footer-content {

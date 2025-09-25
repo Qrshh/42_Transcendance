@@ -8,7 +8,6 @@
       </div>
 
       <div class="header-right">
-        <button class="btn ghost" type="button" @click="openCustomization">⚙️ {{ t.options }}</button>
         <span class="conn-pill" :class="{ connected: isConnected }" role="status" aria-live="polite">
           <span class="dot" aria-hidden="true"></span>
           {{ isConnected ? t.online : t.offline }}
@@ -38,25 +37,10 @@
               <span class="arrow">→</span>
             </button>
 
-            <!-- Join -->
-            <button class="mode-card tone-purple" @click="currentScreen = 'join-list'">
-              <div class="ic card-title">🌐 {{ t.join1v1 }}</div>
-              <p class="card-desc">{{ t.joinDesc }}</p>
-              <span class="chip">🔍 {{ t.multiplayer }}</span>
-              <span class="arrow">→</span>
-            </button>
             <button class="mode-card tone-orange" @click="currentScreen = 'join-tourn-list'">
               <div class="ic card-title">🏆 {{ t.joinTournament }}</div>
               <p class="card-desc">{{ t.joinTournamentDesc }}</p>
               <span class="chip">🔎 {{ t.tournaments }}</span>
-              <span class="arrow">→</span>
-            </button>
-
-            <!-- Create game -->
-            <button class="mode-card tone-purple" @click="currentScreen = 'create-form'">
-              <div class="ic card-title">✨ {{ t.createRoom }}</div>
-              <p class="card-desc">{{ t.createRoomDesc }}</p>
-              <span class="chip">🚀 {{ t.host }}</span>
               <span class="arrow">→</span>
             </button>
 
@@ -381,8 +365,7 @@ export default defineComponent({
 .card-desc{ margin:0 0 .6rem 0; color: rgba(255,255,255,.78) }
 .chip{
   display:inline-block; padding:.25rem .55rem; border-radius:7px;
-  font-size:.8rem; font-weight:700; color:#000;
-  background: var(--gradient-primary);
+  font-size:.8rem; font-weight:700; color:#fff;
   box-shadow: 0 4px 16px rgba(0,0,0,.25);
 }
 

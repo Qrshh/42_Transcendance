@@ -17,7 +17,7 @@
         <p v-if="overviewError" class="stats-error">{{ overviewError }}</p>
       </div>
       <div class="hero-visual">
-        <Computer3D class="arena-model" />
+        <Computer3D class="arena-model" :model-path="'/public/models/commodore.stl'" :rotation-x="-1.1" :rotation-y="-1.545" :rotation-z="-1.175" :position-y="0" :scale="3.5" />
       </div>
     </section>
 
@@ -35,7 +35,7 @@
           <h2>{{ t.liveHeader }}</h2>
           <p>{{ t.liveSubHeader }}</p>
         </div>
-        <button class="btn btn-secondary" @click="goSpectate">{{ t.liveButton }}</button>
+        
       </header>
 
       <div class="live-cards" v-if="liveMatchesDisplay.length">
@@ -324,6 +324,9 @@ const goWatch = (roomId: string) => {
   align-items: center;
   justify-content: space-between;
   gap: 1.5rem;
+  border-radius: 7px;
+  padding: 10px;
+
 }
 
 .live-head h2 {
@@ -382,7 +385,7 @@ const goWatch = (roomId: string) => {
 
 .live-empty {
   padding: 1.2rem;
-  border-radius: 12px;
+  border-radius: 7px;
   background: #2221218f;
   color: var(--color-text);
   text-align: center;

@@ -724,7 +724,7 @@ onBeforeUnmount(() => {
 
 :root:not([data-theme='dark']) .social-page,
 [data-theme='light'] .social-page {
-  --social-foreground: #0f172a;
+  --social-foreground: #fdfdff;
   --social-muted: #475569;
 }
 .social-header {
@@ -865,13 +865,15 @@ onBeforeUnmount(() => {
 }
 
 .btn-secondary {
-  background: transparent;
+  background: var(--color-background);
   border-style: dashed;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: rgba(148, 163, 184, 0.12);
+  background: var(--color-background);
   border-style: solid;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(0,0,0,.18);
 }
 
 .btn-icon {
@@ -883,16 +885,7 @@ onBeforeUnmount(() => {
 .fade-leave-active { transition: opacity .18s ease }
 .fade-enter-from,
 .fade-leave-to { opacity: 0 }
-.af-overlay {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 1.25rem;
-  background: rgba(10, 13, 25, 0.68);
-  backdrop-filter: blur(12px);
-  z-index: 1000;
-}
+.af-overlay { position: fixed; inset: 0; background: rgba(255, 251, 251, 0.64); display: grid; place-items: center; z-index: 1000; border-radius: 3%}
 .af-modal {
   width: min(520px, 100%);
   background: var(--panel-bg, var(--color-background));

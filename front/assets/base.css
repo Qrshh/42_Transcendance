@@ -9,13 +9,13 @@
 }
 :root {
   /* Couleurs primaires */
-  --vt-c-white: #ffffff;
-  --vt-c-white-soft: #3012318c;
+  --vt-c-white: #70386d33;
+  --vt-c-white-soft: #6a4a69ab;
   --vt-c-white-mute: #bbd1fa8c;
 
   --vt-c-black: #262626;
   --vt-c-black-soft: #1e1e20;
-  --vt-c-black-mute: #16213e;
+  --vt-c-black-mute: #42424252;
 
   /* Couleurs accent gaming */
   --vt-c-primary: #404040;        /* Cyan électrique */
@@ -34,8 +34,8 @@
   /* Dividers et bordures */
   --vt-c-divider-light-1: rgba(148, 163, 184, 0.3);
   --vt-c-divider-light-2: rgba(148, 163, 184, 0.15);
-  --vt-c-divider-dark-1: rgba(100, 255, 218, 0.2);
-  --vt-c-divider-dark-2: rgba(100, 255, 218, 0.1);
+  --vt-c-divider-dark-1: rgba(252, 252, 252, 0.411);
+  --vt-c-divider-dark-2: rgba(100, 255, 219, 0);
 
   /* Textes */
   --vt-c-text-light-1: #ffffff;
@@ -47,7 +47,7 @@
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  --glow-primary: 0 0 20px rgba(0, 212, 255, 0.5);
+  --glow-primary: 0 0 20px rgba(255, 255, 255, 0.5);
   --glow-secondary: 0 0 20px rgba(255, 107, 107, 0.5);
 }
 
@@ -107,6 +107,12 @@
   --panel-bg: var(--color-background-soft);
   --panel-border: var(--color-border);
   --panel-shadow: var(--shadow-md);
+
+  /* Surfaces dynamiques (cartes, champs, etc.) */
+  --surface-card-bg: linear-gradient(160deg, rgba(255, 255, 255, 0.88) 0%, rgba(248, 250, 252, 0.78) 100%);
+  --surface-card-border: rgba(148, 163, 184, 0.30);
+  --surface-field-bg: rgba(255, 255, 255, 0.94);
+  --surface-field-border: rgba(148, 163, 184, 0.45);
 }
 
 .panel{
@@ -144,14 +150,20 @@
   --color-text: var(--vt-c-text-light-1);
 
   /* pour les backgrounds rgba() */
-  --color-background-rgb: #000000;
-  --color-background-soft-rgb: #4facfe;;
+  --color-background-rgb: 255,255,255;
+  --color-background-soft-rgb: 248,250,252;
 
   --color-overlay-bg: rgba(0,0,0,.45);
 
   --panel-bg: var(--color-background-soft);
   --panel-border: var(--color-border);
   --panel-shadow: var(--shadow-md);
+
+  --surface-card-bg: linear-gradient(160deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.8) 100%);
+  --surface-card-border: rgba(148, 163, 184, 0.35);
+  --surface-field-bg: rgba(255, 255, 255, 0.95);
+  --surface-field-border: rgba(148, 163, 184, 0.5);
+
 }
 
 :root[data-theme='dark'], [data-theme='dark'] {
@@ -174,6 +186,12 @@
   --panel-bg: rgba(55, 55, 55, 0.71);
   --panel-border: rgba(255,255,255,.06);
   --panel-shadow: 0 6px 24px rgba(0,0,0,.25) inset, 0 6px 18px rgba(0,0,0,.22);
+
+  --surface-card-bg: linear-gradient(160deg, rgba(39, 44, 60, 0.9) 0%, rgba(21, 25, 38, 0.85) 100%);
+  --surface-card-border: rgba(148, 163, 184, 0.28);
+  --surface-field-bg: rgba(20, 24, 36, 0.9);
+  --surface-field-border: rgba(148, 163, 184, 0.32);
+
 }
 
 *,
@@ -245,4 +263,3 @@ body {
   backdrop-filter: saturate(120%) blur(8px);
   user-select: none;
 }
-

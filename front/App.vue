@@ -41,6 +41,7 @@ const selectedLang = ref(localStorage.getItem('lang') || 'en')
 
 /* ==== Avatar & user menu ==== */
 const showUserMenu = ref(false)
+const showMobileNav = ref(false)
 const avatarUrl = ref<string | null>(null)
 const isConnected = ref(false)
 const userGradient = computed(() => {
@@ -57,6 +58,8 @@ const userGradient = computed(() => {
 const userInitial = computed(() => (userName.value?.[0] || 'U').toUpperCase())
 
 function toggleMenu() { showUserMenu.value = !showUserMenu.value }
+function toggleMobileNav() { showMobileNav.value = !showMobileNav.value }
+function closeMobileNav() { showMobileNav.value = false }
 // --- Fullscreen flags (natif OU simulé .fs-root.fs-sim) ---
 function isFullscreenActive() {
   const d: any = document
@@ -76,11 +79,16 @@ function closeMenuOnOutside(e: MouseEvent) {
   if (isFullscreenActive()) return
   const target = e.target as Element | null
   if (!target?.closest('.userbox')) showUserMenu.value = false
+  if (!target?.closest('.nav-wrapper')) closeMobileNav()
 }
 
 function onAvatarKeydown(e: KeyboardEvent) {
   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleMenu() }
   if (e.key === 'Escape') showUserMenu.value = false
+}
+
+function handleMobileNavResize() {
+  if (window.innerWidth > 768) closeMobileNav()
 }
 
 /* ==== Thème clair/sombre ==== */
@@ -212,6 +220,7 @@ onMounted(async () => {
   // écouter les changements d'auth globaux
   window.addEventListener('storage', refreshAuthFromStorage)
   window.addEventListener('auth-changed', refreshAuthFromStorage)
+  window.addEventListener('resize', handleMobileNavResize)
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) refreshAuthFromStorage()
   })
@@ -336,6 +345,7 @@ document.removeEventListener('webkitfullscreenchange', onFsFlagChange as any)
   document.removeEventListener('click', closeMenuOnOutside)
   window.removeEventListener('storage', refreshAuthFromStorage)
   window.removeEventListener('auth-changed', refreshAuthFromStorage)
+  window.removeEventListener('resize', handleMobileNavResize)
 })
 
 /* ==== Réagir au changement d’utilisateur ==== */
@@ -345,6 +355,10 @@ watch(userName, (n, o) => {
     loadAvatar(n)
     showUserMenu.value = false
   }
+})
+
+watch(() => route.fullPath, () => {
+  closeMobileNav()
 })
 </script>
 
@@ -377,22 +391,25 @@ watch(userName, (n, o) => {
     <div class="header-content">
       <!-- Logo -->
       <div class="logo">
-        <h1 class="logo-text">🎮 MasterPong</h1>
+        <h1 class="logo-text">MasterPong</h1>
       </div>
 
       <!-- Nav -->
-      <nav class="nav-modern">
-        <RouterLink to="/" class="nav-link">{{ t.home }}</RouterLink>
-        <RouterLink
-          v-if="logged"
-          to="/profile"
-          class="nav-link"
-        >{{ t.profile }}</RouterLink>
-        <RouterLink v-else to="/login" class="nav-link">{{ t.loginRegister }}</RouterLink>
-        <RouterLink v-if="logged" to="/social" class="nav-link">{{ t.messages }}</RouterLink>
-        <RouterLink to="/game" class="nav-link">{{ t.play }}</RouterLink>
-      </nav>
-
+      <nav
+          :class="['nav-modern', { 'is-mobile-open': showMobileNav }]"
+          id="primary-nav"
+        >
+          <RouterLink to="/" class="username" @click="closeMobileNav">{{ t.home }}</RouterLink>
+          <RouterLink
+            v-if="logged"
+            to="/profile"
+            class="username"
+            @click="closeMobileNav"
+          >{{ t.profile }}</RouterLink>
+          <RouterLink v-else to="/login" class="username" @click="closeMobileNav">{{ t.loginRegister }}</RouterLink>
+          <RouterLink v-if="logged" to="/social" class="username" @click="closeMobileNav">{{ t.messages }}</RouterLink>
+          <RouterLink to="/game" class="username" @click="closeMobileNav">{{ t.play }}</RouterLink>
+        </nav>
       <!-- Droite : langue + avatar -->
       <div class="header-right">
         <button class="theme-toggle" @click="toggleTheme" :title="theme === 'dark' ? 'Mode clair' : 'Mode sombre'">
@@ -405,16 +422,16 @@ watch(userName, (n, o) => {
           <option value="es">🇪🇸 ES</option>
         </select>
 
-
+        
 
         <div class="music-controls">
           <!-- bouton play/pause -->
-          <button @click="toggleMusic" class="music-btn">
+          <button @click="toggleMusic" class="music-btn theme-toggle">
             {{ isPlaying ? '⏸️' : '▶️' }}
           </button>
 
           <!-- bouton volume -->
-          <button @click="toggleVolume" class="music-btn">🔊</button>
+          <button @click="toggleVolume" class="music-btn theme-toggle">🔊</button>
 
           <!-- slider qui pop seulement si showVolume -->
           <transition name="fade">
@@ -431,7 +448,7 @@ watch(userName, (n, o) => {
         </div>
 
         <audio ref="audio" src="/music/theme.mp3" preload="auto"></audio>
-
+        
         <!-- Avatar + menu -->
         <div class="userbox" v-if="logged">
           <button
@@ -467,6 +484,19 @@ watch(userName, (n, o) => {
             <button class="menu-item danger" role="menuitem" @click="doLogout">🚪 Déconnexion</button>
           </div>
         </div>
+        <div class="nav-wrapper">
+        <button
+          class="nav-toggle"
+          type="button"
+          @click="toggleMobileNav"
+          :aria-expanded="showMobileNav"
+          aria-controls="primary-nav"
+        >
+          <span class="nav-toggle-line" :class="{ open: showMobileNav }"></span>
+        </button>
+        
+      </div>
+
       </div>
     </div>
   </header>
@@ -500,6 +530,18 @@ watch(userName, (n, o) => {
 </template>
 
 <style scoped>
+
+
+.username { color: var(--color-text);
+  line-height: 1.2;
+  position: relative;
+  display: inline-block;
+  transition: color .3s;
+  font-weight: 600; }
+.username::after { content: ""; display: block; width: 0; height: 3px; background: var(--gradient-primary); transition: width .3s; position: absolute; bottom: -4px; left: 0; border-radius: 2px }
+.username:hover { color: var(--color-primary) ; opacity: 0.5;}
+.username:hover::after { width: 100%; transform: translateX(0%); }
+@media (max-width: 768px){ .username{  } }
 /* le fond 3D ne capte jamais d'événements */
 .bg3d, .bg3d * { pointer-events: none !important; }
 
@@ -539,9 +581,67 @@ watch(userName, (n, o) => {
 }
 
 /* Nav */
+.nav-wrapper{
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.nav-toggle{
+  display: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.08);
+  color: #fff;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background .2s ease, border-color .2s ease, transform .2s ease;
+}
+.nav-toggle:hover{ background: rgba(255,255,255,.14); transform: translateY(-1px); }
+.nav-toggle-line{
+  position: relative;
+  width: 22px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 999px;
+  transition: background .2s ease;
+}
+.nav-toggle-line::before,
+.nav-toggle-line::after{
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 22px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 999px;
+  transition: transform .25s ease, top .25s ease;
+}
+.nav-toggle-line::before{ top: -7px; }
+.nav-toggle-line::after{ top: 7px; }
+.nav-toggle-line.open{
+  background: transparent;
+}
+.nav-toggle-line.open::before{
+  top: 0;
+  transform: rotate(45deg);
+}
+.nav-toggle-line.open::after{
+  top: 0;
+  transform: rotate(-45deg);
+}
 .nav-modern{
   display: flex; align-items: center; justify-content: center;
   gap: .35rem; flex-wrap: wrap;
+}
+.nav-modern .username{
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .nav-link{
   position: relative;
@@ -649,17 +749,66 @@ a.router-link-active.nav-link::after,
 .menu-sep{ height:1px; margin:.35rem 0; background: rgba(255,255,255,.12) }
 
 /* ===== Main ===== */
-.main-content{ min-height: calc(100vh - 72px);  }
+.main-content{  }
 
 /* ===== Responsive ===== */
 @media (max-width: 900px){
-  .header-content{ grid-template-columns: 1fr auto; gap:.8rem }
-  .logo{ display:none }
-  .nav-modern{ justify-content: flex-start }
+  .header-modern{ padding: .9rem 2rem; }
+  .header-content{ grid-template-columns: auto auto; gap:.8rem }
+  .logo{ }
+  .nav-wrapper{ justify-content: flex-start }
+}
+@media (max-width: 720px){
+  .header-modern{ padding: .8rem 1.2rem; }
+  .header-content{ grid-template-columns: auto auto; }
+  .nav-wrapper{ justify-content: flex-end; }
+  .nav-toggle{ display: inline-flex; }
+  .nav-modern{
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: .35rem;
+    padding: 0.85rem 0.9rem;
+    border: 1px solid var(--surface-card-border);
+    border: 1px solid var(--panel-border, var(--color-border));
+    background: var(--panel-bg, rgba(255, 255, 255, 0.75));
+    box-shadow: var(--panel-shadow);
+    border-radius: 7px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    pointer-events: none;
+    transition: opacity .2s ease, transform .2s ease;
+    backdrop-filter: blur(12px);
+    z-index: 20;
+  }
+  .nav-modern.is-mobile-open{
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  .nav-modern .username{
+    width: 100%;
+    justify-content: flex-start;
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
+    margin: 0;
+  }
+  .nav-modern .username:hover{
+    background: rgb(255, 255, 255);
+    transform: none;
+  }
+  .nav-modern .username::after{ display:none; }
+  .header-right{ gap: .45rem; }
+}
+@media (max-width: 720px){
+  .header-right .theme-toggle{ padding:.45rem .55rem }
 }
 @media (max-width: 640px){
-  .nav-modern{ gap:.2rem }
-  .nav-link{ padding:.5rem .6rem }
   .lang-selector{ display:none }
 }
 

@@ -81,11 +81,13 @@ a::after {
   background: var(--gradient-gaming);
   color: white;
   box-shadow: var(--shadow-md);
+  
 }
 
 .btn-secondary:hover {
-  transform: translateY(-3px);
   box-shadow: var(--glow-secondary), var(--shadow-lg);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(0,0,0,.18);
 }
 
 /* Cards et conteneurs */
@@ -133,9 +135,21 @@ header {
 
 @media (prefers-color-scheme: dark) {
   header {
-    background: #3131318f;
+    background: rgba(255,255,255,0.04);
     border-bottom-color: var(--color-border);
   }
+}
+
+:root[data-theme='dark'] header,
+[data-theme='dark'] header {
+  border: 1px solid var(--panel-border, var(--color-border));
+  background: var(--panel-bg, rgba(255, 255, 255, 0.75));
+  box-shadow: var(--panel-shadow);
+}
+
+:root[data-theme='light'] header,
+[data-theme='light'] header {
+  border-radius: 7px;
 }
 
 /* Responsive design amélioré */

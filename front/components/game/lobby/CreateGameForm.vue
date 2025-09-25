@@ -510,7 +510,6 @@ export default defineComponent({
 }
 
 .btn-primary {
-  background: var(--gradient-primary);
   color: black;
   box-shadow: var(--shadow-md);
 }

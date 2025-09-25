@@ -203,18 +203,50 @@ module.exports = fp(async function socketsPlugin(fastify) {
         const p1Username = room.playerUsernames.p1;
         const p2Username = room.playerUsernames.p2;
 
-        const p1User = await dbGet('SELECT id FROM users WHERE username = ?', [p1Username]);
-        const p2User = await dbGet('SELECT id FROM users WHERE username = ?', [p2Username]);
-        if (!p1User || !p2User) return;
+        const p1User = p1Username ? await dbGet('SELECT id FROM users WHERE username = ?', [p1Username]) : null;
+        const p2User = p2Username ? await dbGet('SELECT id FROM users WHERE username = ?', [p2Username]) : null;
 
         const winnerIsP1 = winnerSide === 'p1';
-        const winnerId   = winnerIsP1 ? p1User.id : p2User.id;
-        const loserId    = winnerIsP1 ? p2User.id : p1User.id;
-        const winnerScore = winnerIsP1 ? score.player1 : score.player2;
-        const loserScore  = winnerIsP1 ? score.player2 : score.player1;
+        const entries = [];
 
-        await dbRun('INSERT INTO games (player_id, opponent_id, result, score, opponent_score) VALUES (?, ?, ?, ?, ?)', [winnerId, loserId, 'win',  winnerScore, loserScore]);
-        await dbRun('INSERT INTO games (player_id, opponent_id, result, score, opponent_score) VALUES (?, ?, ?, ?, ?)', [loserId,  winnerId, 'loss', loserScore,  winnerScore]);
+        if (p1User) {
+          entries.push({
+            username: p1Username,
+            playerId: p1User.id,
+            opponentId: p2User?.id ?? null,
+            result: winnerIsP1 ? 'win' : 'loss',
+            score: Number(score.player1 ?? 0),
+            opponentScore: Number(score.player2 ?? 0)
+          });
+        }
+        if (p2User) {
+          entries.push({
+            username: p2Username,
+            playerId: p2User.id,
+            opponentId: p1User?.id ?? null,
+            result: winnerIsP1 ? 'loss' : 'win',
+            score: Number(score.player2 ?? 0),
+            opponentScore: Number(score.player1 ?? 0)
+          });
+        }
+
+        for (const entry of entries) {
+          await dbRun(
+            'INSERT INTO games (player_id, opponent_id, result, score, opponent_score) VALUES (?, ?, ?, ?, ?)',
+            [entry.playerId, entry.opponentId, entry.result, entry.score, entry.opponentScore]
+          );
+        }
+
+        if (entries.length === 0) {
+          io.to(roomId).emit('gameEnded', {
+            winner: winnerIsP1 ? 'Player 1' : 'Player 2',
+            winnerUsername: winnerIsP1 ? p1Username : p2Username,
+            loserUsername:  winnerIsP1 ? p2Username : p1Username,
+            finalScore: { ...score },
+            roomId
+          });
+          return;
+        }
 
         io.to(roomId).emit('gameEnded', {
           winner: winnerIsP1 ? 'Player 1' : 'Player 2',
@@ -224,8 +256,9 @@ module.exports = fp(async function socketsPlugin(fastify) {
           roomId
         });
 
-        fastify.emitToUser(p1Username, 'playerStatsUpdated', { username: p1Username });
-        fastify.emitToUser(p2Username, 'playerStatsUpdated', { username: p2Username });
+        for (const entry of entries) {
+          if (entry.username) fastify.emitToUser(entry.username, 'playerStatsUpdated', { username: entry.username });
+        }
       } catch (e) {
         console.error('persistAndNotifyRoomResult failed:', e);
       } finally {

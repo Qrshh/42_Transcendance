@@ -23,19 +23,6 @@
         </li>
       </ul>
 
-      <div class="toggle-row">
-        <label class="toggle">
-          <input type="checkbox" v-model="acceleratingBall" />
-          <span class="slider"></span>
-          <span class="toggle-text">{{ t.acceleratingBall }}</span>
-        </label>
-        <label class="toggle">
-          <input type="checkbox" v-model="dashEnabled" />
-          <span class="slider"></span>
-          <span class="toggle-text">{{ t.dashPaddles }}</span>
-        </label>
-      </div>
-
       <div class="difficulty-row">
         <label for="ai-difficulty">{{ t.aiDifficulty }}</label>
         <select id="ai-difficulty" v-model="aiDifficulty" @change="adjustAIDifficulty" class="difficulty-selector">
@@ -61,20 +48,21 @@
         
         <div class="ai-controls">
           <button class="btn ghost" type="button" @click="openCustomization">{{ t.optionsBtn }}</button>
+          <div class="control-hint">
+            <span class="keys">W/S</span>
+            <span class="vs">vs</span>
+            <span class="keys">↑/↓</span>
+          </div>
+          <div class="config-chip">{{ arenaLabel }} • {{ ballSpeedLabel }}</div>
           <button
-            class="btn"
+            class="config-chip"
             type="button"
             title="{{ t.pause }}"
             @click="togglePause"
             :disabled="!canTogglePause"
           >P</button>
-          <select v-model="aiDifficulty" @change="adjustAIDifficulty" class="difficulty-selector">
-            <option value="Facile">{{ t.easy }}</option>
-            <option value="Normal">{{ t.normal }}</option>
-            <option value="Difficile">{{ t.hard }}</option>
-          </select>
           <button
-            class="btn"
+            class="config-chip"
             type="button"
             title="{{ t.fullscreen }}"
             @pointerdown.capture.prevent.stop="toggleFullscreen"
@@ -459,12 +447,13 @@ onBeforeUnmount(() => {
 .ai-game {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.6rem;
   background: var(--color-background-soft);
-  border: 2px solid var(--color-border);
-  border-radius: 7px;
-  padding: 1rem;
-  box-shadow: var(--glow-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 1.6rem;
+  box-shadow: 0 18px 50px rgba(0,0,0,.25);
+  max-width: 1800px;
   margin: 0 auto;
 }
 
@@ -482,6 +471,57 @@ onBeforeUnmount(() => {
   border-color: rgba(168,85,247,0.35);
   box-shadow: 0 25px 60px rgba(168,85,247,0.25);
 }
+
+.config-chip {
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 999px;
+  padding: .35rem .9rem;
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.config-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.chip {
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 999px;
+  padding: 0.28rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.control-hint {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .45rem .8rem;
+  background: rgba(0,0,0,.25);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+}
+.keys {
+  background: linear-gradient(90deg, #6a5cff, #25c6ff);
+  color: #fff;
+  padding: .2rem .6rem;
+  border-radius: 7px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-weight: 800;
+  font-size: .82rem;
+  letter-spacing: .015em;
+  box-shadow: inset 0 -2px 0 rgba(255,255,255,.08);
+}
+.vs { color: var(--color-text); opacity: .65; font-weight: 700; }
+
+
 
 /* Header spécifique IA */
 .game-header {
@@ -519,13 +559,13 @@ onBeforeUnmount(() => {
 }
 
 .difficulty-selector {
-  background: var(--color-background);
   border: 1px solid var(--color-border);
   border-radius: 7px;
   padding: 0.5rem 1rem;
   color: var(--color-text);
   cursor: pointer;
   transition: all 0.3s ease;
+  background: #1113;
 }
 
 .difficulty-selector:hover {
@@ -553,18 +593,21 @@ onBeforeUnmount(() => {
   color: var(--color-text);
   background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
   border: 1px solid var(--color-border);
-  border-radius: 7px;
+  border-radius: 12px;
   padding: 1.6rem;
   box-shadow: 0 12px 36px rgba(0,0,0,.25);
+  max-width: 640px;
+  margin: 0 auto;
   display: grid;
-  gap: 1.2rem;
+  gap: 1rem;
 }
+
 
 .menu-title {
   margin: 0;
   font-size: 1.4rem;
   font-weight: 800;
-  background: linear-gradient(90deg, #fff, #b8c6ff, #9fe7ff);
+  background: linear-gradient(90deg, #fff, #ffffff, #ffffff);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -588,7 +631,7 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(15, 23, 42, 0.18);
+  background: rgba(51, 51, 51, 0.18);
   border: 1px solid rgba(148, 163, 184, 0.28);
   border-radius: 12px;
   padding: 0.65rem 0.95rem;
@@ -608,7 +651,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
-  background: rgba(15, 23, 42, 0.18);
+  background: rgba(51, 51, 51, 0.18);
   border: 1px solid rgba(148, 163, 184, 0.28);
   border-radius: 7px;
   padding: 0.75rem 1rem;

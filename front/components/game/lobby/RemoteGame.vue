@@ -20,7 +20,6 @@
         </div>
         
         <div class="actions">
-          <button class="btn ghost" type="button" @click="openCustomization" :title="t.options">⚙️</button>
           <button
             class="btn"
             @pointerdown.capture.prevent.stop="toggleFullscreen"
@@ -588,7 +587,7 @@ onMounted(() => {
   margin: 0;
   font-size: 1.35rem;
   font-weight: 800;
-  background: linear-gradient(90deg, #b9c4ff, #9fe7ff);
+  background: #ffffff;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;

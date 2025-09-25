@@ -362,11 +362,16 @@ Sauvegardez ces codes dans un endroit sûr !`
   font-weight:700; letter-spacing:.08em; background: var(--color-background); border:1px solid var(--color-border); border-radius:7px; padding:.5rem .65rem;
 }
 
-.twofa-code{ border:2px solid var(--color-border); background: var(--color-background); color: var(--color-text); }
+.twofa-code{ border: 2px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-text);
+  margin: 10px;
+  border-radius: 7px;
+  padding: 7px; }
 .twofa-code:focus{ border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(var(--color-background-rgb), .15); }
 
 .twofa-actions{
-  grid-template-columns: repeat(2, minmax(0,1fr)); gap:.6rem; margin-top:1rem;
+  grid-template-columns: repeat(2, minmax(0,1fr)); gap:.6rem; margin-top:1rem; display: flex;
 }
 @media (max-width: 640px){ .twofa-actions{ grid-template-columns: 1fr; } }
 
@@ -374,6 +379,8 @@ Sauvegardez ces codes dans un endroit sûr !`
   border-radius:7px; font-weight:800; cursor:pointer; transition:.18s ease; border:0;
 }
 .btn-secondary{ background: var(--color-background); border:2px solid var(--color-border); color: var(--color-text); }
+.btn-secondary:hover{transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(0,0,0,.18);}
 .btn-danger{ background: linear-gradient(180deg, var(--color-danger), var(--color-danger-contrast)); color:#fff; }
 .btn:hover{ transform: translateY(-1px); box-shadow: 0 8px 18px rgba(0,0,0,.08); }
 .btn[disabled]{ opacity:.6; cursor:not-allowed; }

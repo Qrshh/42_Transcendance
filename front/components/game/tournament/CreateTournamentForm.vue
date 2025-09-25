@@ -144,7 +144,7 @@
       </div>
     </div>
 
-    <div class="custom-summary">
+    <div class="game-preview">
       <span class="summary-chip">{{ arenaLabel }}</span>
       <span class="summary-chip">{{ ballSpeedLabel }}</span>
       <span class="summary-chip">{{ ballSizeLabel }}</span>
@@ -326,8 +326,8 @@ export default defineComponent({
   display: grid;
   gap: 1.75rem;
   padding: 2.1rem 2.4rem;
-  background: linear-gradient(165deg, var(--color-background-soft) 0%, var(--color-background) 100%);
-  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  border: 1px solid var(--surface-card-border);
   border-radius: 22px;
   box-shadow: var(--panel-shadow);
   backdrop-filter: blur(16px);
@@ -345,7 +345,6 @@ export default defineComponent({
   font-weight: 800;
   background: var(--gradient-primary);
   -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
   margin: 0;
 }
 
@@ -358,14 +357,14 @@ export default defineComponent({
 
 .btn-custom {
   justify-self: center;
-  border: 1px dashed var(--color-border);
-  background: transparent;
   color: var(--color-text);
-  padding: 0.35rem 0.85rem;
+  padding: 0.5rem 0.85rem;
   border-radius: 999px;
   font-weight: 600;
   cursor: pointer;
   transition: transform .15s ease, box-shadow .2s ease;
+  background: var(--color-background);
+  border: 1px solid var(--surface-field-border);
 }
 
 .btn-custom:hover {
@@ -412,8 +411,8 @@ export default defineComponent({
 .form-input,
 .form-select {
   background: var(--color-background);
-  border: 1px solid var(--panel-border, var(--color-border));
-  border-radius: 12px;
+  border: 1px solid var(--surface-field-border);
+  border-radius: 7px;
   padding: 0.85rem 1rem;
   color: var(--color-text);
   font-size: 1rem;
@@ -438,7 +437,7 @@ export default defineComponent({
 /* Select */
 .form-select {
   background: var(--color-background);
-  border: 2px solid var(--color-border);
+  border: 2px solid var(--surface-field-border);
   border-radius: 7px;
   padding: 0.75rem 1rem;
   color: var(--color-text);
@@ -468,9 +467,9 @@ export default defineComponent({
 .checkbox-mark {
   width: 20px;
   height: 20px;
-  border: 2px solid var(--color-border);
+  border: 2px solid var(--surface-field-border);
   border-radius: 7px;
-  background: var(--color-background);
+  background: var(--surface-field-bg);
   position: relative;
   transition: all 0.3s ease;
 }
@@ -535,8 +534,7 @@ export default defineComponent({
 }
 
 .btn-primary {
-  color: #0b132b;
-  background: var(--gradient-brand);
+  color: #000000;
   border-color: transparent;
   box-shadow: var(--glow-primary);
 }
@@ -560,11 +558,14 @@ export default defineComponent({
 .btn-secondary {
   background: transparent;
   color: var(--color-text);
-  border-style: dashed;
+  background: var(--color-background);
+  border: 1px solid var(--surface-field-border);
 }
 
 .btn-secondary:hover {
   background: rgba(148, 163, 184, 0.12);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(0,0,0,.18);
 }
 
 .btn-icon {
@@ -584,7 +585,7 @@ export default defineComponent({
 .game-preview {
   margin-top: 0.5rem;
   padding: 1.25rem 1.45rem;
-  border-radius: 18px;
+  border-radius: 7px;
   border: 1px solid var(--panel-border, var(--color-border));
   background: var(--panel-bg, rgba(255, 255, 255, 0.75));
   box-shadow: var(--panel-shadow);
@@ -635,7 +636,7 @@ export default defineComponent({
   justify-content: center;
   background: rgba(15, 23, 42, 0.08);
   border: 1px solid rgba(148, 163, 184, 0.25);
-  border-radius: 999px;
+  border-radius: 7px;
   padding: 0.55rem 0.9rem;
 }
 
@@ -684,5 +685,43 @@ export default defineComponent({
   .form-actions {
     flex-direction: column;
   }
+}
+
+:global([data-theme='light']) .create-game-form {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.86) 0%, rgba(248, 250, 252, 0.68) 100%);
+  border-color: rgba(148, 163, 184, 0.35);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
+}
+
+:global([data-theme='light']) .create-game-form .form-input,
+:global([data-theme='light']) .create-game-form .form-select {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(148, 163, 184, 0.45);
+  color: rgba(15, 23, 42, 0.92);
+}
+
+:global([data-theme='light']) .create-game-form .form-input::placeholder {
+  color: rgba(15, 23, 42, 0.55);
+}
+
+:global([data-theme='light']) .create-game-form .checkbox-mark {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(148, 163, 184, 0.45);
+}
+
+:global([data-theme='light']) .create-game-form .game-preview {
+  background: rgba(255, 255, 255, 0.93);
+  border-color: rgba(148, 163, 184, 0.32);
+}
+
+:global([data-theme='light']) .create-game-form .custom-summary {
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.26);
+}
+
+:global([data-theme='light']) .create-game-form .summary-chip {
+  background: rgba(255, 255, 255, 0.55);
+  border-color: rgba(148, 163, 184, 0.35);
+  color: rgba(15, 23, 42, 0.75);
 }
 </style>

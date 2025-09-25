@@ -244,5 +244,6 @@ export default {
 	statusWaiting: "En attente",
 	flagAccelBall: "⚡ Balle accélérée",
 	flagPaddleDash: "🏃 Dash raquette",
-	watchButton: "Regarder"
+	watchButton: "Regarder",
+	stat: "Statistiques"
 }
