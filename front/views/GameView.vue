@@ -435,7 +435,6 @@ export default defineComponent({
 
 <style scoped>
 .game-view {
-  min-height: 100vh;
   position: relative;
   display: flex;
   flex-direction: column;
