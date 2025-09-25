@@ -549,7 +549,7 @@ onMounted(() => {
 }
 
 .game-controls {
-  display: content;
+  display: inherit;
   align-items: center;
   gap: 1rem;
 }

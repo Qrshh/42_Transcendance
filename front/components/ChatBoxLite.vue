@@ -508,6 +508,15 @@ watch(() => props.receiver, async () => {
 
 /* ===== Misc ===== */
 @keyframes spin{ to{ transform: rotate(360deg) } }
-@keyframes typingDots{ 0%,60%,100{ opacity:.3; transform:scale(.8) } 30%{ opacity:1; transform:scale(1) } }
-@keyframes pulse{ 0%,100{ opacity:1 } 50{ opacity:.5 } }
+@keyframes typingDots{
+  from{ opacity:.3; transform:scale(.8) }
+  30%{ opacity:1; transform:scale(1) }
+  60%{ opacity:.3; transform:scale(.8) }
+  to{ opacity:.3; transform:scale(.8) }
+}
+@keyframes pulse{
+  from{ opacity:1 }
+  50%{ opacity:.5 }
+  to{ opacity:1 }
+}
 </style>
