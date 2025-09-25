@@ -460,7 +460,7 @@ watch(() => route.fullPath, () => {
           </transition>
         </div>
 
-        <audio ref="audio" src="musicSrc" preload="auto"></audio>
+        <audio ref="audio" :src="musicSrc" preload="auto"></audio>
         
         <!-- Avatar + menu -->
         <div class="userbox" v-if="logged">
