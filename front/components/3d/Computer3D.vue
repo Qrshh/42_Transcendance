@@ -1,10 +1,6 @@
 <template>
   <div :class="asBackground ? 'three-bg' : 'three-wrap'">
     <canvas ref="canvasRef" class="three-canvas"></canvas>
-    <!-- Couche de teinte bleue en opacité -->
-    <div v-if="tintOverlay !== false" class="tint-overlay" :style="tintStyles"></div>
-
-    <!-- Overlays cachés en mode background -->
     <div v-if="!asBackground && loading" class="overlay">Chargement…</div>
     <div v-if="!asBackground && error" class="overlay error">Erreur: {{ error }}</div>
   </div>
@@ -21,10 +17,6 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
 
-/**
- * Props : tu peux garder tes bindings kebab-case côté parent :
- * <Computer3D :model-path="'/models/commodore.stl'" :rotation-x="-1.1" :rotation-y="-1.545" :rotation-z="-1.175" :position-y="0" :scale="3.5" />
- */
 const props = defineProps<{
   modelPath: string
   rotationX?: number
@@ -71,14 +63,6 @@ const canvasRef = ref<HTMLCanvasElement | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-const tintStyles = computed(() => {
-  const color = props.tintColor || '#0b3d91'
-  const op = Math.max(0, Math.min(1, props.tintOpacity ?? 0.18))
-  const blend = props.tintBlend || 'normal'
-  return { background: color, opacity: op as any, mixBlendMode: blend as any }
-})
-
-// Three.js globals
 let renderer: THREE.WebGLRenderer | null = null
 let scene: THREE.Scene | null = null
 let camera: THREE.PerspectiveCamera | null = null
@@ -93,7 +77,7 @@ let baseRot: THREE.Euler | null = null
 let ampX = 0
 let ampY = 0
 let ampRotZ = 0
-let omega = 2 * Math.PI * 0.35 // 0.35 Hz par défaut
+let omega = 2 * Math.PI * 0.35
 let lastRenderMs = 0
 let frameBudgetMs = 1000 / 30
 let basePR = 1
@@ -145,7 +129,6 @@ function initRenderer() {
 
 function initScene() {
   scene = new THREE.Scene()
-  // Fond de scène (utile en mode background plein écran)
   try {
     const bg = props.backgroundColor ?? '#0f0f23'
     scene.background = new THREE.Color(bg as any)

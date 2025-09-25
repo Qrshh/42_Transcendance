@@ -144,7 +144,6 @@ export default defineComponent({
       return m > 0 ? `${m}m${String(r).padStart(2,'0')}s` : `${r}s`
     })
 
-   // ✅ AJOUT : listes qualifiés/éliminés (toujours des tableaux, jamais undefined)
    const winnersNow = computed<string[]>(() => {
      const tv = t.value
      if (!tv?.bracket) return []
@@ -163,7 +162,6 @@ export default defineComponent({
        .map((p: any) => p.username)
    })
 
-   // ✅ AJOUT : compteur “prochain round”
    const roundCooldownLeft = ref(0)
    function onRoundComplete(p: any){
      if (!p || p.tournamentId !== props.tournamentId) return

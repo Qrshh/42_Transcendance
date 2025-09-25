@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute, RouterLink, RouterView } from 'vue-router'
 import { io } from 'socket.io-client'
 import { API_BASE, SOCKET_URL } from './config'
-import Computer3D from './components/3d/Computer3D.vue'
+//import Computer3D from './components/3d/Computer3D.vue'
 
 /* ==== i18n & auth (comme ton code existant) ==== */
 import { useI18n } from './composables/useI18n'
@@ -367,7 +367,7 @@ watch(() => route.fullPath, () => {
   <!-- Fond 3D global, derrière toute l'UI -->
      <!-- Fond 3D global, derrière toute l'UI -->
 <div class="bg3d" v-if="showBg3D">
-  <Computer3D
+    <!-- <Computer3D
     :model-path="'/models/scene.gltf'"
     :rotation-x="0" 
     :rotation-y="0"  
@@ -384,8 +384,18 @@ watch(() => route.fullPath, () => {
     fisheye
     :fisheye-strength="0.05"
     :light-orbit-speed="0.3"
-  />
+  />-->
 </div>
+
+  <div class="game-background">
+    <div class="floating-shapes">
+      <div class="shape shape-1"></div>
+      <div class="shape shape-2"></div>
+      <div class="shape shape-3"></div>
+      <div class="shape shape-4"></div>
+    </div>
+  </div>
+
 
   <header class="panel">
     <div class="header-content">
@@ -543,7 +553,7 @@ watch(() => route.fullPath, () => {
 .username:hover::after { width: 100%; transform: translateX(0%); }
 @media (max-width: 768px){ .username{  } }
 /* le fond 3D ne capte jamais d'événements */
-.bg3d, .bg3d * { pointer-events: none !important; }
+.bg3d, .bg3d * { pointer-events: none !important;}
 
 /* ===== Header (look & feel ProfileView) ===== */
 .header-modern{
@@ -866,4 +876,68 @@ html.fs-active .gtoast-container { pointer-events: none !important; }
   opacity: 0;
   transform: translateY(-4px);
 }
+
+/* Background animé */
+.game-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+  background: linear-gradient(135deg, var(--color-background) 0%, var(--color-background-soft) 100%);
+}
+
+.floating-shapes {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.shape {
+  position: absolute;
+  border-radius: 50%;
+  background: linear-gradient(45deg, var(--color-primary), var(--color-secondary));
+  opacity: 0.1;
+  animation: float 6s ease-in-out infinite;
+}
+
+.shape-1 {
+  width: 80px;
+  height: 80px;
+  top: 20%;
+  left: 10%;
+  animation-delay: -2s;
+}
+
+.shape-2 {
+  width: 120px;
+  height: 120px;
+  top: 60%;
+  right: 15%;
+  animation-delay: -4s;
+}
+
+.shape-3 {
+  width: 100px;
+  height: 100px;
+  bottom: 20%;
+  left: 20%;
+  animation-delay: -1s;
+}
+
+.shape-4 {
+  width: 60px;
+  height: 60px;
+  top: 10%;
+  right: 30%;
+  animation-delay: -3s;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(180deg); }
+}
+
 </style>

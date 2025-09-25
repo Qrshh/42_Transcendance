@@ -159,7 +159,6 @@
 import { defineComponent, ref, onMounted, onUnmounted } from 'vue'
 import type { Socket } from 'socket.io-client'
 
-import JoinGameList from './JoinGameList.vue'
 import WaitingQueueScreen from './WaitingQueueScreen.vue'
 import CreateTournamentForm from '../tournament/CreateTournamentForm.vue'
 import JoinTournamentList from '../tournament/JoinTournamentList.vue'
@@ -169,11 +168,11 @@ import { useI18n } from '../../../composables/useI18n'
 
 
 
-type LobbyScreen = 'main' | 'join-list' | 'create-tourn' | 'waiting-queue' | 'join-tourn-list' | 'tourn-waiting'
+type LobbyScreen = 'main' | 'create-tourn' | 'waiting-queue' | 'join-tourn-list' | 'tourn-waiting'
 
 export default defineComponent({
   name: 'Lobby',
-  components: { JoinGameList, WaitingQueueScreen, CreateTournamentForm, JoinTournamentList, TournamentWaitingScreen },
+  components: { WaitingQueueScreen, CreateTournamentForm, JoinTournamentList, TournamentWaitingScreen },
   props: {
     socket: { type: Object as () => Socket, required: true }
   },
@@ -392,7 +391,7 @@ export default defineComponent({
 .s-col{ display:grid }
 .s-val{
   font-size:1.4rem; font-weight:800;
-  background: var(--gradient-primary);
+  background: white;
   -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color: transparent;
 }
 .s-lb{ color: rgba(255,255,255,.78) }

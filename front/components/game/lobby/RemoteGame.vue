@@ -156,8 +156,6 @@ const playerLabel = (side: 'p1' | 'p2') => {
 
 const p1Label = computed(() => playerLabel('p1'))
 const p2Label = computed(() => playerLabel('p2'))
-const headerTitle = computed(() => (isSpectator.value ? '👀 Mode Spectateur' : '🌐 Mode En ligne'))
-const controlLabel = computed(() => (isSpectator.value ? 'Mode spectateur — aucune interaction' : 'Contrôles: W/S et ↑/↓'))
 const resolvedArena = computed(() => gameState.value.settings?.arena ?? globalSettings.arena)
 const resolvedBallSpeed = computed(() => gameState.value.settings?.ballSpeed ?? globalSettings.ballSpeed)
 const resolvedBallSize = computed(() => gameState.value.settings?.ballSize ?? globalSettings.ballSize)

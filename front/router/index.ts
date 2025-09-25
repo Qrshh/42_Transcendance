@@ -33,7 +33,7 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
-    // ✅ une seule route /profile, paramètre username optionnel
+    // une seule route /profile, paramètre username optionnel
     path: '/profile/:username?',
     name: 'profile',
     component: ProfileView,
@@ -52,7 +52,7 @@ const router = createRouter({
   routes,
 })
 
-// ✅ Guard global propre
+// Guard global propre
 router.beforeEach((to, from, next) => {
   const isLoggedIn = !!localStorage.getItem('username')
 

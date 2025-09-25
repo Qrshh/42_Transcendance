@@ -327,7 +327,7 @@ function validateInputs(){
   letter-spacing: .3px;
   text-align: center;
   margin-bottom: 1.2rem;
-  background: linear-gradient(90deg, #fff, #b8c6ff, #9fe7ff);
+  background: #fff;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -336,7 +336,7 @@ function validateInputs(){
 /* ===== Card ===== */
 .login-card{
   width: 100%;
-  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.05));
+  background: var(--panel-bg, rgba(255, 255, 255, 0.75));
   backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: 7px;

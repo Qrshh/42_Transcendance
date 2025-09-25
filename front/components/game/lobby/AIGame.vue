@@ -309,22 +309,6 @@ const adjustAIDifficulty = () => {
   }
 }
 
-const getAIStatus = () => {
-  if (aiAccuracy.value > 80) return 'Attentive'
-  if (aiAccuracy.value > 65) return 'Concentrée'
-  return 'Calculant...'
-}
-
-const getGameResult = () => (gameState.score.player1 > gameState.score.player2 ? '🎉 Victoire Humaine !' : '🤖 Victoire de l\'IA')
-
-const getWinnerMessage = () => {
-  const { player1 = 0, player2 = 0 } = gameState.score
-  if (player1 === player2) return '🤝 Égalité parfaite !'
-  return player1 > player2
-    ? '🎮 Joueur 1 remporte la victoire !'
-    : '🎯 Joueur 2 remporte la victoire !'
-}
-
 const togglePause = () => {
   if (!canTogglePause.value) return
   gameState.status = isPaused.value ? 'playing' : 'paused'

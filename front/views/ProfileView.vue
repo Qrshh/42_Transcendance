@@ -1070,7 +1070,12 @@ const editAvatar = () => triggerAvatarPicker()
 /* ===== Modal Ajouter un ami ===== */
 .fade-enter-active, .fade-leave-active { transition: opacity .2s ease }
 .fade-enter-from, .fade-leave-to { opacity: 0 }
-.af-overlay { position: fixed; inset: 0; background: rgba(255, 251, 251, 0.64); display: grid; place-items: center; z-index: 1000; border-radius: 3%}
+.af-overlay {position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.31);
+  display: grid;
+  place-items: center;
+  z-index: 1000;}
 .af-modal { width: min(520px, calc(100% - 2rem)); padding: 0; border-radius: 7px; box-shadow: var(--shadow-lg); overflow: hidden; animation: popIn .12s ease }
 @keyframes popIn { from { transform: scale(.98); opacity: .9 } to { transform: scale(1); opacity: 1 } }
 .af-header { opacity: 75%; display:flex; align-items:center; justify-content:space-between; padding: 1rem 1.2rem; background: var(--color-background-soft); border-bottom: 1px solid var(--color-border) }

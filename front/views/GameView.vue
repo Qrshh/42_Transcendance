@@ -154,10 +154,10 @@ export default defineComponent({
     const spectatorMode = ref(false);
     const isSocketConnected = ref(false);
 
-    // 👉 tournoi courant (sert pour revenir à l’attente après un match)
+    //  tournoi courant (sert pour revenir à l’attente après un match)
     const tournamentId = ref<string>('');
 
-    // 👉 overlay/cooldown post-match
+    //  overlay/cooldown post-match
     const postMatchCountdown = ref<number>(0);
     let postMatchTimer: number | null = null;
 
@@ -165,15 +165,15 @@ export default defineComponent({
     const openCustomization = () => { showCustomizationModal.value = true }
     const closeCustomization = () => { showCustomizationModal.value = false }
 
-    // ⚙️ URL backend
+    //  URL backend
 
-    // 🔌 Socket client
+    //  Socket client
     const socket: Socket = io(SOCKET_URL, {
       transports: ['websocket'],
       autoConnect: true
     });
 
-    // 🔑 identification
+    //  identification
     const identify = () => {
       const me = localStorage.getItem('username') || 'anon';
       socket.emit('identify', me);

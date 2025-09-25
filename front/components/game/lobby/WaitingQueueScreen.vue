@@ -49,12 +49,8 @@ export default defineComponent({
     const statusMessage = ref('En attente de joueurs...');
     const estimatedWaitTime = ref<number | null>(null);
 
-    // Fonction pour gérer les mises à jour de la file d'attente
-    // Dans handleGameQueueUpdate, améliore la gestion :
     const handleGameQueueUpdate = (data: any) => {
-        console.log('WaitingQueue: Reçu gameQueueUpdate', data);
-        
-        // Vérifier que c'est bien pour notre partie
+
         if (data.gameId !== props.gameId) {
             console.log('WaitingQueue: Données pour une autre partie, ignoré');
             return;
@@ -92,34 +88,22 @@ export default defineComponent({
     
     const leaveQueue = () => {
         props.socket.emit('leaveGame', { gameId: props.gameId });
-        // Le backend devrait confirmer que le joueur a quitté la file
-        // Pour l'exemple, on part du principe que ça réussit et on revient au menu.
         emit('leftQueue');
     };
 
     onMounted(() => {
-        // Demande l'état initial de la partie via Socket.IO
         props.socket.emit('requestGameQueueStatus', { gameId: props.gameId });
-
-        // Écoute les mises à jour de la file d'attente pour cette partie
         props.socket.on('gameQueueUpdate', handleGameQueueUpdate);
-
-        // Écoute les erreurs lors de la sortie de la file
         props.socket.on('leaveGameError', (data: { message: string }) => {
             showToast(`Erreur en quittant la file: ${data.message}`, 'error');
         });
     });
 
     onUnmounted(() => {
-      // Nettoyer les écouteurs d'événements Socket.IO
       props.socket.off('gameQueueUpdate', handleGameQueueUpdate);
       props.socket.off('leaveGameError');
     });
-
-    // Optionnel: Si la gameId change (peu probable dans ce scénario, mais bonne pratique)
     watch(() => props.gameId, () => {
-        // Quand l'ID de la partie change, potentiellement re-demander le statut
-        // et s'assurer que l'écouteur est bien ciblé
         props.socket.emit('requestGameQueueStatus', { gameId: props.gameId });
     });
 

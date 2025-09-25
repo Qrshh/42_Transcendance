@@ -56,7 +56,7 @@ module.exports = fp(async function socketsPlugin(fastify) {
   const resolveBallSpeed = (speed) => BALL_SPEED_VALUES[speed] || BALL_SPEED_VALUES.normal;
   const resolveBallRadius = (size) => BALL_RADIUS_VALUES[size] || BALL_RADIUS_VALUES.standard;
   // --- Défis (challenges) ---
-  const pendingChallenges = new Map(); // id -> { id, from, to, options, createdAt, status }
+  const pendingChallenges = new Map(); // { id, from, to, options, createdAt, status }
   
   function pickOneSocketId(username) {
     const set = socketsByUserMulti.get(username);
@@ -184,7 +184,7 @@ module.exports = fp(async function socketsPlugin(fastify) {
       const room = activeGameRooms.get(roomId);
       if (room) {
         if (room.durationTimer) { clearTimeout(room.durationTimer); room.durationTimer = null; }
-        clearBots(room); // si tu utilises attachBot(...)
+        clearBots(room);
       }
       if (!room) return;
       if (room.intervalId) clearInterval(room.intervalId);
@@ -196,7 +196,7 @@ module.exports = fp(async function socketsPlugin(fastify) {
       if (!silent) io.to(roomId).emit('gameEnded', { message: 'La partie a été arrêtée.' });
     }
 
-    async function persistAndNotifyRoomResult(roomId, winnerSide /* 'p1'|'p2' */) {
+    async function persistAndNotifyRoomResult(roomId, winnerSide) {
       try {
         const room = activeGameRooms.get(roomId);
         if (!room) return;
@@ -263,7 +263,6 @@ module.exports = fp(async function socketsPlugin(fastify) {
       } catch (e) {
         console.error('persistAndNotifyRoomResult failed:', e);
       } finally {
-              // 👇 IMPORTANT : informer le tournoi AVANT de fermer la room
         const room = activeGameRooms.get(roomId);
         if (room?.tournamentContext && room?.playerUsernames) {
           const winnerUsername = (winnerSide === 'p1')
@@ -278,26 +277,22 @@ module.exports = fp(async function socketsPlugin(fastify) {
             );
           }
         }
-        // garde ton stop/silent comme avant
         stopGameForRoom(roomId, true);
       }
     }
     // ==========================  TOURNAMENT SYSTEM  ==========================
-// Ajoute une gestion complète de tournoi par dessus le moteur 2-joueurs existant.
 
 const tournaments = new Map(); // id -> Tournament
 
-// ⏱ règles & helpers
 const TOURN_FILL_TIMEOUT_MS = 60_000;  // cooldown pour remplir / auto-bots
 const ROUND_COOLDOWN_MS     = 10_000;  // attente entre 2 rounds
 const MATCH_START_COUNTDOWN = 3;       // compte à rebours avant chaque match
 const allowedSizes = new Set([2,4,8,16]);
 
 function nextPow2(n){let p=1;while(p<n)p<<=1;return p}
-function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function pickSocket(username){const set=socketsByUserMulti.get(username);return set&&set.size?Array.from(set)[0]:null}
 
-function buildBracket(participants /* [{username,isBot?}] */){
+function buildBracket(participants){
   const size=Math.max(2,nextPow2(participants.length));
   const roundsNb=Math.log2(size);
   const filled=participants.slice();
@@ -340,7 +335,7 @@ function tournamentToPublic(t){
   };
 }
 function emitTournamentToAll(t){ io.to(`tournament:${t.id}`).emit('tournamentUpdate', tournamentToPublic(t)); }
-function fillWithBotsIfNeeded(t){ const need=t.maxPlayers - t.participants.length; for(let i=0;i<need;i++) t.participants.push({username:`BOT#${Math.random().toString(36).slice(2,6)}`,isBot:true}) }
+function fillWithBotsIfNeeded(t){const need=t.maxPlayers - t.participants.length; for(let i=0;i<need;i++) t.participants.push({username:`BOT#${Math.random().toString(36).slice(2,6)}`,isBot:true}) }
 
 function attachBot(room, side /* 'p1'|'p2' */, opts={tickMs:1000,error:35}){
   if(!room.botControllers) room.botControllers=[];
@@ -357,8 +352,8 @@ function attachBot(room, side /* 'p1'|'p2' */, opts={tickMs:1000,error:35}){
 function clearBots(room){ if(!room?.botControllers) return; for(const h of room.botControllers) clearInterval(h); room.botControllers=[]; }
 
 function launchMatch(t, match){
-  const MAX_MATCH_MS_DEFAULT = 180_000; // 3 min sécurité
-  const MAX_MATCH_MS_BOTVSBOT = 60_000; // 1 min si bot vs bot
+  const MAX_MATCH_MS_DEFAULT = 180_000;
+  const MAX_MATCH_MS_BOTVSBOT = 60_000;
 
   const p1U=match.p1?.username, p2U=match.p2?.username;
   const roomId=`tourn-${t.id}-r${match.roundIndex+1}-m${match.index}-${Math.random().toString(36).slice(2,8)}`;
@@ -402,7 +397,6 @@ function launchMatch(t, match){
 
   const startPayload = { tournamentId: t.id, roomId, roundIndex: match.roundIndex, matchIndex: match.index, p1: p1U, p2: p2U };
   io.to(`tournament:${t.id}`).emit('tournamentMatchStart', startPayload);
-  // Cible aussi directement les deux joueurs pour éviter toute perte due aux rooms
   if (p1U && p1U !== 'BYE') fastify.emitToUser(p1U, 'tournamentMatchStart', startPayload);
   if (p2U && p2U !== 'BYE') fastify.emitToUser(p2U, 'tournamentMatchStart', startPayload);
 
@@ -423,7 +417,6 @@ function launchMatch(t, match){
 const maxMs = bothBots ? MAX_MATCH_MS_BOTVSBOT
   : (room.durationMinutes ? room.durationMinutes * 60_000 : MAX_MATCH_MS_DEFAULT);
 
-// ⏱️ Watchdog : si le match traîne, on choisit un gagnant (score >, sinon tirage)
 room.durationTimer = setTimeout(() => {
   try {
     const sc1 = room.gameState?.score?.player1 ?? 0;
@@ -529,11 +522,6 @@ function tournamentSummary(t){
   };
 }
 
-function broadcastTournamentList(){
-  const arr = Array.from(tournaments.values()).map(tournamentSummary);
-  io.emit('tournamentList', arr);
-}
-
 io.on('connection', (socket) => {
   socket.on('getTournamentList', () => {
     const arr = Array.from(tournaments.values()).map(tournamentSummary);
@@ -542,7 +530,6 @@ io.on('connection', (socket) => {
 });
 
 
-// ────────── Socket handlers pour tournois ──────────
 io.on('connection', (socket) => {
   socket.on('createTournament', (data) => {
     try{
@@ -622,7 +609,6 @@ io.on('connection', (socket) => {
 
 function startTournamentInternal(t){
   if(t.status!=='waiting') return;
-  // BYE gérés dans buildBracket ; bots ajoutés si timer a déjà rempli
   t.bracket = buildBracket(t.participants.map(p=>({username:p.username,isBot:!!p.isBot})));
   t.status='running'; t.currentRoundIndex=0;
   if(t.fillTimer){ clearTimeout(t.fillTimer); t.fillTimer=null; }
