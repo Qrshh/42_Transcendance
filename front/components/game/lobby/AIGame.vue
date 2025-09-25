@@ -21,10 +21,14 @@
           <span class="label">{{ t.powerUps }}</span>
           <span class="value">{{ powerUpLabel }}</span>
         </li>
+        <li>
+          <span class="label">{{ t.aiDifficulty }}</span>
+          <span class="value">{{ aiDifficulty }}</span>
+        </li>
       </ul>
 
       <div class="difficulty-row">
-        <label for="ai-difficulty">{{ t.aiDifficulty }}</label>
+        <label for="ai-difficulty">{{t.aiDiff}}</label>
         <select id="ai-difficulty" v-model="aiDifficulty" @change="adjustAIDifficulty" class="difficulty-selector">
           <option value="Facile">{{ t.easy }}</option>
           <option value="Normal">{{ t.normal }}</option>
