@@ -117,7 +117,7 @@ export default {
 	customize: "Personalizar…",
 	startGame: "▶️ Iniciar partida",
 	aiMode: "🤖 Modo IA",
-	youVsAI: "Tú vs IA • Nivel: {{ aiDifficulty }}",
+	youVsAI: "Tú vs IA",
 	optionsBtn: "⚙️ Opciones",
 	pause: "Pausa (P)",
 	fullscreen: "Pantalla completa",

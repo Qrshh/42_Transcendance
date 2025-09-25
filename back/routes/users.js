@@ -122,9 +122,27 @@ module.exports = fp(async function usersRoutes(fastify) {
   fastify.post('/register', async (req, reply) => {
     const { username, email, password } = req.body || {};
     if (!username || !email || !password) return reply.code(400).send({ error: 'Champs manquants' });
-    const { hash, salt } = hashPassword(password);
-    dbRun('INSERT INTO users (username, email, password_hash, salt) VALUES (?, ?, ?, ?)', [username, email, hash, salt])
-      .then(function () { reply.send({ message: 'Utilisateur créé', id: this.lastID }); })
-      .catch(err => reply.code(400).send({ error: err.message }));
+
+
+  try {
+      const existingUser = await dbGet(
+        'SELECT id FROM users WHERE username = ? OR email = ?',
+        [username, email]
+      );
+
+      if (existingUser) {
+        return reply.code(400).send({ error: 'Nom d’utilisateur ou email déjà utilisé' });
+      }
+
+      const { hash, salt } = hashPassword(password);
+      const result = await dbRun(
+        'INSERT INTO users (username, email, password_hash, salt) VALUES (?, ?, ?, ?)',
+        [username, email, hash, salt]
+      );
+
+      return reply.send({ message: 'Utilisateur créé', id: result.lastID });
+    } catch (err) {
+      return reply.code(500).send({ error: err.message });
+    }
   });
 });
