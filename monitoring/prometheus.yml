@@ -15,4 +15,4 @@ scrape_configs:
       - targets: ['backend:3000']
 
 rule_files:
-  - "alert.rules.yml"
+  - "alerts.yml"

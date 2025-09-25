@@ -401,7 +401,7 @@ watch(() => route.fullPath, () => {
     <div class="header-content">
       <!-- Logo -->
       <div class="logo">
-        <h1 class="logo-text">MasterPong</h1>
+        <h1 class="logo-text">PataPong</h1>
       </div>
 
       <!-- Nav -->
