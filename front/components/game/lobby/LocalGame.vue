@@ -585,7 +585,7 @@ onBeforeUnmount(() => {
 }
 
 .game-controls {
-  display: flex;
+  display: content;
   align-items: center;
   gap: 1rem;
 }

@@ -137,7 +137,7 @@ onBeforeUnmount(() => {
   gap: 0.75rem;
 }
 .time {
-  color: var(--color-info-contrast);
+  color: white;
   font-weight: 600;
   background: var(--color-info-soft);
   padding: 0.35rem 0.65rem;

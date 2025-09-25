@@ -520,7 +520,7 @@ onBeforeUnmount(() => {
 }
 
 .ai-controls {
-  display: flex;
+  display: content;
   align-items: center;
   gap: 0.75rem;
 }

@@ -98,7 +98,7 @@ const features = [
   { icon: '🤝', title: 'featureSocialHub', text: 'featureSocialHubText' }
 ]
 
-const overview = ref<{ playersOnline: number; matchesToday: number; tournamentsLive: number; lobbiesOpen: number } | null>(null)
+const overview = ref<{ playersOnline: number; tournamentsLive: number; lobbiesOpen: number } | null>(null)
 const overviewError = ref<string | null>(null)
 const liveMatches = ref<Array<any>>([])
 const liveLobbies = ref<Array<any>>([])
@@ -109,7 +109,6 @@ const formatStat = (value: number | null | undefined) => value == null ? '—' :
 
 const statCards = computed(() => [
   { value: formatStat(overview.value?.playersOnline), label: 'statPlayers' },
-  { value: formatStat(overview.value?.matchesToday), label: 'statMatches' },
   { value: formatStat(overview.value?.tournamentsLive), label: 'statTournaments' },
   { value: formatStat(overview.value?.lobbiesOpen), label: 'statLobbies' }
 ])
